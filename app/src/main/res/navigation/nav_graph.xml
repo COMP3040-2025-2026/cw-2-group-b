@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <!-- Home Fragment -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.nottingham.mynottingham.ui.home.HomeFragment"
+        android:label="@string/nav_home"
+        tools:layout="@layout/fragment_home" />
+
+    <!-- Shuttle Fragment -->
+    <fragment
+        android:id="@+id/shuttleFragment"
+        android:name="com.nottingham.mynottingham.ui.shuttle.ShuttleFragment"
+        android:label="@string/nav_shuttle"
+        tools:layout="@layout/fragment_shuttle" />
+
+    <!-- Booking Fragment -->
+    <fragment
+        android:id="@+id/bookingFragment"
+        android:name="com.nottingham.mynottingham.ui.booking.BookingFragment"
+        android:label="@string/nav_booking"
+        tools:layout="@layout/fragment_booking" />
+
+    <!-- Message Fragment -->
+    <fragment
+        android:id="@+id/messageFragment"
+        android:name="com.nottingham.mynottingham.ui.message.MessageFragment"
+        android:label="@string/nav_message"
+        tools:layout="@layout/fragment_message" />
+
+    <!-- Profile Fragment -->
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.nottingham.mynottingham.ui.profile.ProfileFragment"
+        android:label="@string/nav_profile"
+        tools:layout="@layout/fragment_profile" />
+
+    <!-- Errand Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/errandFragment"
+        android:name="com.nottingham.mynottingham.ui.errand.ErrandFragment"
+        android:label="@string/nav_errand"
+        tools:layout="@layout/fragment_errand" />
+
+    <!-- Notti AI Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/nottiFragment"
+        android:name="com.nottingham.mynottingham.ui.notti.NottiFragment"
+        android:label="@string/nav_notti"
+        tools:layout="@layout/fragment_notti" />
+
+    <!-- Forum Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/forumFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.ForumFragment"
+        android:label="@string/nav_forum"
+        tools:layout="@layout/fragment_forum" />
+
+</navigation>
