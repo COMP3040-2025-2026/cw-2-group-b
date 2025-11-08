@@ -1,18 +1,33 @@
 package com.nottingham.mynottingham.data.model
 
 /**
- * Shuttle data model
+ * Domain model for Shuttle Bus Route
  */
-data class Shuttle(
-    val route: String,
+data class ShuttleRoute(
+    val routeId: String,
     val routeName: String,
-    val departureLocation: String,
-    val arrivalLocation: String,
-    val schedules: List<ShuttleSchedule>
+    val description: String,
+    val weekdaySchedule: RouteSchedule?,
+    val fridaySchedule: RouteSchedule?,
+    val weekendSchedule: RouteSchedule?,
+    val specialNote: String? = null,
+    val isActive: Boolean = true
 )
 
-data class ShuttleSchedule(
-    val departureTime: String,
-    val arrivalTime: String,
-    val day: String // "Weekday" or "Weekend"
+/**
+ * Schedule for a specific route (departure and return times)
+ */
+data class RouteSchedule(
+    val departureFromCampus: List<String>,
+    val returnToCampus: List<String>,
+    val vehicleType: String = "Bus" // Bus or Van
 )
+
+/**
+ * Enum for day types
+ */
+enum class DayType {
+    WEEKDAY,    // Mon-Thurs
+    FRIDAY,     // Friday
+    WEEKEND     // Sat, Sun & Public Holidays
+}
