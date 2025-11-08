@@ -113,10 +113,15 @@ MyNottingham/
 - [x] Network layer (Retrofit)
 - [x] Navigation system
 - [x] Home screen with service cards
-- [x] Bottom navigation
+- [x] Bottom navigation (Home, Message, Forum, Me)
+- [x] **Shuttle Bus feature**
+  - [x] Complete route data models
+  - [x] 8 route schedules (A, B, C1, C2, D, E1, E2, G)
+  - [x] Day type selector (Weekday/Friday/Weekend)
+  - [x] Color-coded route badges
+  - [x] Modern gradient UI design
 
 ### 🔄 In Progress
-- [ ] Shuttle Timeline feature
 - [ ] Sports Booking system
 - [ ] Campus Errand marketplace
 - [ ] Notti AI integration
@@ -150,6 +155,13 @@ MyNottingham/
 - **API Service:** `data/remote/api/ApiService.kt`
 - **Navigation:** `res/navigation/nav_graph.xml`
 - **Constants:** `util/Constants.kt`
+
+### Shuttle Bus Module
+- **Data Models:** `data/model/Shuttle.kt`
+- **ViewModel:** `ui/shuttle/ShuttleViewModel.kt`
+- **Fragment:** `ui/shuttle/ShuttleFragment.kt`
+- **Adapter:** `ui/shuttle/ShuttleRouteAdapter.kt`
+- **Layouts:** `res/layout/fragment_shuttle.xml`, `res/layout/item_shuttle_route.xml`
 
 ---
 
@@ -201,8 +213,8 @@ MyNottingham/
 - ✅ Navigation system
 
 ### Week 3-4: Core Features
+- ✅ Shuttle timeline
 - [ ] Authentication system
-- [ ] Shuttle timeline
 - [ ] Sports booking
 
 ### Week 5-6: Extended Features
@@ -224,21 +236,9 @@ MyNottingham/
 
 ## 👥 Team Members
 
-- **Junru Wang** - Team Lead, Backend Development
-- **Hao Pan** - UI/UX Design, Frontend Development
-- **Wenjun Xia** - Database Design, Testing
-
----
-
-## 📄 License
-
-This project is developed for academic purposes as part of COMP3040 coursework at the University of Nottingham Malaysia.
-
----
-
-## 📞 Contact
-
-For questions or issues, please contact the team via the course Moodle page.
+- Junru Wang
+- Hao Pan
+- Wenjun Xia
 
 ---
 
