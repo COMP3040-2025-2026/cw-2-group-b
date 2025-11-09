@@ -39,8 +39,9 @@ class ShuttleFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Setup RecyclerView adapter
+        // Setup RecyclerView adapter; adapter internally manages expand/collapse
         adapter = ShuttleRouteAdapter(DayType.WEEKDAY) { route ->
+            // keep existing behaviour (toast) — this will be invoked when item is clicked
             showToast("Route ${route.routeId}: ${route.description}")
         }
         binding.recyclerRoutes.adapter = adapter
@@ -82,7 +83,7 @@ class ShuttleFragment : Fragment() {
         }
         binding.recyclerRoutes.adapter = adapter
 
-        // Resubmit current routes
+        // Resubmit current routes (filtered)
         viewModel.routes.value?.let { routes ->
             updateRoutesList(routes)
         }
@@ -104,11 +105,12 @@ class ShuttleFragment : Fragment() {
             // Show empty state
             binding.recyclerRoutes.visibility = View.GONE
             binding.layoutEmpty.visibility = View.VISIBLE
+            adapter.submitList(emptyList())
         } else {
             // Show routes
             binding.recyclerRoutes.visibility = View.VISIBLE
             binding.layoutEmpty.visibility = View.GONE
-            adapter.submitList(routes) // Submit all routes, adapter will handle display
+            adapter.submitList(filteredRoutes)
         }
     }
 

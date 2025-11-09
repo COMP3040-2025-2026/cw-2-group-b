@@ -14,11 +14,18 @@ import com.nottingham.mynottingham.databinding.ItemShuttleRouteBinding
 
 /**
  * Adapter for displaying shuttle routes in RecyclerView
+ *
+ * 改动：
+ * - 默认隐藏时间（layoutSchedule），点击整行切换展开/收起
+ * - 使用 expandedRouteIds 保存展开状态，列表刷新时可以保留已展开项
  */
 class ShuttleRouteAdapter(
     private val dayType: DayType,
     private val onRouteClick: (ShuttleRoute) -> Unit = {}
 ) : ListAdapter<ShuttleRoute, ShuttleRouteAdapter.RouteViewHolder>(RouteDiffCallback()) {
+
+    // 保存已展开的 routeId（可以保留展开状态）
+    private val expandedRouteIds = mutableSetOf<String>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RouteViewHolder {
         val binding = ItemShuttleRouteBinding.inflate(
@@ -59,14 +66,17 @@ class ShuttleRouteAdapter(
                 tvRouteDescription.text = route.description
 
                 // Get schedule for the day type
-                val schedule = when (dayType) {
+                val schedule: RouteSchedule? = when (dayType) {
                     DayType.WEEKDAY -> route.weekdaySchedule
                     DayType.FRIDAY -> route.fridaySchedule
                     DayType.WEEKEND -> route.weekendSchedule
                 }
 
-                if (schedule != null) {
-                    // Show schedule
+                // By default, layoutSchedule is hidden and only appears when expanded.
+                val isExpanded = expandedRouteIds.contains(route.routeId)
+
+                if (isExpanded && schedule != null) {
+                    // Show schedule when expanded and schedule exists
                     layoutSchedule.visibility = View.VISIBLE
                     tvNoService.visibility = View.GONE
 
@@ -93,17 +103,34 @@ class ShuttleRouteAdapter(
                     } else {
                         cardSpecialNote.visibility = View.GONE
                     }
-                } else {
-                    // No service on this day
+                } else if (isExpanded && schedule == null) {
+                    // Expanded but no service on this day
                     layoutSchedule.visibility = View.VISIBLE
                     cardDeparture.visibility = View.GONE
                     cardReturn.visibility = View.GONE
                     cardSpecialNote.visibility = View.GONE
                     tvNoService.visibility = View.VISIBLE
+                } else {
+                    // Collapsed state -> hide schedule area
+                    layoutSchedule.visibility = View.GONE
                 }
 
-                // Set click listener
+                // Toggle expand/collapse when clicking the item
                 root.setOnClickListener {
+                    // toggle expanded set
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    if (expandedRouteIds.contains(route.routeId)) {
+                        expandedRouteIds.remove(route.routeId)
+                    } else {
+                        expandedRouteIds.add(route.routeId)
+                    }
+
+                    // notify item to rebind and reflect expanded/collapsed UI
+                    notifyItemChanged(pos)
+
+                    // keep existing callback behavior (e.g., toast) if caller wants it
                     onRouteClick(route)
                 }
             }
