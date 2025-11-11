@@ -3,14 +3,60 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/homeFragment">
+    app:startDestination="@id/homeFragment"
+    app:enterAnim="@anim/slide_in_right"
+    app:exitAnim="@anim/slide_out_left"
+    app:popEnterAnim="@anim/slide_in_left"
+    app:popExitAnim="@anim/slide_out_right">
 
     <!-- Home Fragment -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.nottingham.mynottingham.ui.home.HomeFragment"
         android:label="@string/nav_home"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/fragment_home">
+
+        <!-- Navigation actions from Home to feature screens -->
+        <action
+            android:id="@+id/action_home_to_instatt"
+            app:destination="@id/instattFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_shuttle"
+            app:destination="@id/shuttleFragment"
+            app:enterAnim="@anim/slide_up_fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/slide_down_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_errand"
+            app:destination="@id/errandFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_notti"
+            app:destination="@id/nottiFragment"
+            app:enterAnim="@anim/slide_up_fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/slide_down_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_sports"
+            app:destination="@id/bookingFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+    </fragment>
 
     <!-- Shuttle Fragment -->
     <fragment
@@ -60,5 +106,12 @@
         android:name="com.nottingham.mynottingham.ui.forum.ForumFragment"
         android:label="@string/nav_forum"
         tools:layout="@layout/fragment_forum" />
+
+    <!-- Instatt Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/instattFragment"
+        android:name="com.nottingham.mynottingham.ui.instatt.InstattFragment"
+        android:label="Instatt"
+        tools:layout="@layout/fragment_instatt" />
 
 </navigation>

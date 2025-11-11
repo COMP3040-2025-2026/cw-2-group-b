@@ -38,26 +38,25 @@ class HomeFragment : Fragment() {
 
     private fun setupUI() {
         binding.apply {
-            // Setup card click listeners for navigation
+            // Setup card click listeners for navigation with smooth animations
             cardInstatt.setOnClickListener {
-                // TODO: Navigate to Instatt feature
-                showToast("Instatt - Class check-in")
+                findNavController().navigate(R.id.action_home_to_instatt)
             }
 
             cardShuttle.setOnClickListener {
-                findNavController().navigate(R.id.shuttleFragment)
+                findNavController().navigate(R.id.action_home_to_shuttle)
             }
 
             cardErrand.setOnClickListener {
-                findNavController().navigate(R.id.errandFragment)
+                findNavController().navigate(R.id.action_home_to_errand)
             }
 
             cardNotti.setOnClickListener {
-                findNavController().navigate(R.id.nottiFragment)
+                findNavController().navigate(R.id.action_home_to_notti)
             }
 
             cardSports.setOnClickListener {
-                findNavController().navigate(R.id.bookingFragment)
+                findNavController().navigate(R.id.action_home_to_sports)
             }
         }
     }
