@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentBookingBinding
 
 class BookingFragment : Fragment() {
@@ -19,6 +20,17 @@ class BookingFragment : Fragment() {
     ): View {
         _binding = FragmentBookingBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Load SportsHomeFragment as the main content
+        if (savedInstanceState == null) {
+            childFragmentManager.beginTransaction()
+                .replace(R.id.booking_container, SportsHomeFragment())
+                .commit()
+        }
     }
 
     override fun onDestroyView() {

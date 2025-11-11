@@ -39,6 +39,11 @@ class ShuttleFragment : Fragment() {
     }
 
     private fun setupUI() {
+        // Back button
+        binding.btnBack.setOnClickListener {
+            requireActivity().onBackPressed()
+        }
+
         // Setup RecyclerView adapter; adapter internally manages expand/collapse
         adapter = ShuttleRouteAdapter(DayType.WEEKDAY) { route ->
             // keep existing behaviour (toast) — this will be invoked when item is clicked
