@@ -5,7 +5,7 @@ package com.nottingham.mynottingham.data.remote.dto
  */
 
 data class LoginRequest(
-    val email: String,
+    val username: String,
     val password: String
 )
 
@@ -17,16 +17,23 @@ data class LoginResponse(
 
 data class LoginData(
     val token: String,
-    val user: UserResponse
+    val user: UserDto
 )
 
-data class UserResponse(
-    val id: String,
-    val name: String,
+data class UserDto(
+    val id: Long,
+    val username: String,
     val email: String,
-    val studentId: String,
-    val faculty: String,
-    val year: Int,
-    val program: String,
-    val profileImageUrl: String?
+    val fullName: String,
+    val userType: String,
+    val studentId: String?,
+    val employeeId: String?,
+    val phoneNumber: String?,
+    val avatarUrl: String?
+)
+
+data class ApiResponse<T>(
+    val success: Boolean,
+    val message: String,
+    val data: T?
 )

@@ -20,7 +20,7 @@ interface ApiService {
     @GET("user/profile")
     suspend fun getUserProfile(
         @Header("Authorization") token: String
-    ): Response<UserResponse>
+    ): Response<ApiResponse<UserDto>>
 
     // ========== Shuttle ==========
 

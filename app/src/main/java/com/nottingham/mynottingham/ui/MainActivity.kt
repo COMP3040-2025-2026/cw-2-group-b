@@ -49,6 +49,10 @@ class MainActivity : AppCompatActivity() {
         // Hide/show bottom navigation based on destination
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
+                R.id.loginFragment -> {
+                    // Hide bottom navigation on login screen
+                    binding.bottomNavigation.visibility = View.GONE
+                }
                 R.id.homeFragment,
                 R.id.messageFragment,
                 R.id.forumFragment,

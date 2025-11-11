@@ -11,3 +11,18 @@ local.properties
 .kotlin/
 .claude/
 *.pdf
+
+# Visual Studio
+.vs/
+
+# Backend Maven
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+
+# Temporary files
+nul
+
+# CLAUDE.md (project documentation)
+CLAUDE.md
