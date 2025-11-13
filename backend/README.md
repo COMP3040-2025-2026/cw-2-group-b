@@ -1,138 +1,150 @@
 # MyNottingham Backend API
 
-后端 REST API 服务，支持 MyNottingham 校园移动应用。
+Backend REST API service supporting the MyNottingham campus mobile application.
 
-## 技术栈
+## Technology Stack
 
 - **Java 17**
 - **Spring Boot 3.2.1**
 - **Spring Data JPA**
 - **Spring Security**
-- **MySQL 8.0** (生产环境)
-- **H2 Database** (开发环境)
+- **MySQL 8.0** (Production)
+- **H2 Database** (Development - File-based)
 - **Maven**
 
-## 功能特性
+## Features
 
-- ✅ 用户管理（学生/教师/管理员）
-- ✅ 课程管理和选课系统
-- ✅ 考勤系统（Instatt）
-- ✅ 体育设施预订
-- ✅ 校园跑腿任务
-- ✅ 论坛系统
-- ✅ 消息系统
+- ✅ User Management (Students/Teachers/Admins)
+- ✅ Course Management and Enrollment System
+- ✅ Attendance System (INSTATT)
+- ✅ Sports Facility Booking
+- ✅ Campus Errand Marketplace
+- ✅ Forum System
+- ✅ Messaging System with 7-day retention
 - ✅ RESTful API
-- ✅ 密码加密（BCrypt）
-- ✅ CORS 支持
+- ✅ Password Encryption (BCrypt)
+- ✅ CORS Support
+- ✅ JWT Authentication
 
-## 快速开始
+## Quick Start
 
-### 前置要求
+### Prerequisites
 
-- JDK 17 或更高版本
+- JDK 17 or higher
 - Maven 3.6+
-- MySQL 8.0（如果使用生产模式）
+- MySQL 8.0 (if using production mode)
 
-### 安装和运行
+### Installation and Running
 
-#### 方式一：使用 H2 内存数据库（开发模式 - 推荐快速测试）
+#### Option 1: Using H2 File-based Database (Development Mode - Recommended)
 
 ```bash
-# 进入 backend 目录
+# Navigate to backend directory
 cd backend
 
-# 使用 Maven 运行（开发模式）
+# Run with Maven (development mode)
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Or use the start script
+# Windows:
+start-dev.bat
+
+# Linux/Mac:
+./start-dev.sh
 ```
 
-H2 控制台访问: http://localhost:8080/api/h2-console
-- JDBC URL: `jdbc:h2:mem:mynottingham`
+H2 Console Access: http://localhost:8080/api/h2-console
+- JDBC URL: `jdbc:h2:file:./data/mynottingham`
 - Username: `sa`
-- Password: (留空)
+- Password: (leave empty)
 
-#### 方式二：使用 MySQL 数据库（生产模式）
+**Note:** Development mode uses file-based H2 database for persistent storage. Data is preserved between restarts.
 
-1. **安装 MySQL 并创建数据库**
+#### Option 2: Using MySQL Database (Production Mode)
+
+1. **Install MySQL and create database**
 
 ```sql
 CREATE DATABASE mynottingham CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-2. **配置数据库连接**
+2. **Configure database connection**
 
-编辑 `src/main/resources/application.properties`:
+Edit `src/main/resources/application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/mynottingham?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-spring.datasource.username=你的MySQL用户名
-spring.datasource.password=你的MySQL密码
+spring.datasource.username=your_mysql_username
+spring.datasource.password=your_mysql_password
 ```
 
-3. **运行应用**
+3. **Run the application**
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-#### 方式三：使用 JAR 文件运行
+#### Option 3: Run using JAR file
 
 ```bash
-# 构建 JAR
+# Build JAR
 mvn clean package
 
-# 运行（开发模式）
+# Run (development mode)
 java -jar -Dspring.profiles.active=dev target/mynottingham-backend-1.0.0.jar
 
-# 或运行（生产模式）
+# Or run (production mode)
 java -jar target/mynottingham-backend-1.0.0.jar
 ```
 
-### 验证安装
+### Verify Installation
 
-应用启动后，访问：
+After the application starts, access:
 - API Base URL: http://localhost:8080/api
-- 健康检查: http://localhost:8080/api/users
+- Health Check: http://localhost:8080/api/users
 
-## 测试数据
+## Test Data
 
-应用启动时会自动加载测试数据（来自 `data.sql`）：
+The application automatically loads test data on first startup (from `data.sql`):
 
-### 测试账号
+### Test Accounts
 
-| 用户名 | 密码 | 角色 | 说明 |
-|--------|------|------|------|
+All accounts use password: `password123`
+
+| Username | Password | Role | Description |
+|----------|----------|------|-------------|
 | student1 | password123 | STUDENT | Alice Wong - CS Year 3 |
 | student2 | password123 | STUDENT | Bob Chen - SE Year 2 |
 | student3 | password123 | STUDENT | Charlie Lee - EE Year 4 |
 | teacher1 | password123 | TEACHER | Dr. Sarah Johnson |
 | teacher2 | password123 | TEACHER | Prof. John Smith |
-| admin | password123 | ADMIN | 系统管理员 |
+| admin | password123 | ADMIN | System Administrator |
 
-### 测试数据包含
+### Test Data Includes
 
-- 3 个学生账号
-- 2 个教师账号
-- 1 个管理员账号
-- 3 门课程（COMP3040, COMP2040, SOFT3010）
-- 课程时间表
-- 选课记录
-- 考勤记录
-- 设施预订
-- 跑腿任务
-- 论坛帖子
-- 消息记录
+- 3 student accounts
+- 2 teacher accounts
+- 1 admin account
+- 3 courses (COMP3040, COMP2040, SOFT3010)
+- Course schedules
+- Enrollment records
+- Attendance records
+- Facility bookings
+- Errand tasks
+- Forum posts
+- Messages
 
-## API 文档
+## API Documentation
 
-### 用户管理 API
+### User Management API
 
-#### 获取所有用户
+#### Get All Users
 ```http
 GET /api/users
 ```
 
-**响应示例:**
+**Response Example:**
 ```json
 {
   "success": true,
@@ -150,17 +162,17 @@ GET /api/users
 }
 ```
 
-#### 获取单个用户
+#### Get Single User
 ```http
 GET /api/users/{id}
 ```
 
-#### 获取所有学生
+#### Get All Students
 ```http
 GET /api/users/students
 ```
 
-**响应示例:**
+**Response Example:**
 ```json
 {
   "success": true,
@@ -181,12 +193,12 @@ GET /api/users/students
 }
 ```
 
-#### 获取所有教师
+#### Get All Teachers
 ```http
 GET /api/users/teachers
 ```
 
-#### 更新用户信息
+#### Update User
 ```http
 PUT /api/users/{id}
 Content-Type: application/json
@@ -199,14 +211,89 @@ Content-Type: application/json
 }
 ```
 
-#### 删除用户
+#### Delete User
 ```http
 DELETE /api/users/{id}
 ```
 
-### 数据模型
+### Authentication API
 
-#### User（用户）
+#### Login
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "student1",
+  "password": "password123"
+}
+```
+
+#### Logout
+```http
+POST /api/auth/logout
+Authorization: Bearer {token}
+```
+
+#### Get User Profile
+```http
+GET /api/user/profile
+Authorization: Bearer {token}
+```
+
+### Messaging API
+
+#### Get Conversations
+```http
+GET /api/message/conversations
+Authorization: Bearer {token}
+```
+
+#### Send Message
+```http
+POST /api/message/send
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "conversationId": "conv-123",
+  "content": "Hello!"
+}
+```
+
+#### Get Messages
+```http
+GET /api/message/{conversationId}/messages
+Authorization: Bearer {token}
+```
+
+#### Mark as Read
+```http
+POST /api/message/{conversationId}/read
+Authorization: Bearer {token}
+```
+
+#### Update Typing Status
+```http
+POST /api/message/typing
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "conversationId": "conv-123",
+  "isTyping": true
+}
+```
+
+#### Search Messages
+```http
+GET /api/message/search?query=hello
+Authorization: Bearer {token}
+```
+
+## Data Models
+
+### User
 - id: Long
 - username: String
 - email: String
@@ -215,7 +302,7 @@ DELETE /api/users/{id}
 - role: STUDENT | TEACHER | ADMIN
 - status: ACTIVE | INACTIVE | SUSPENDED
 
-#### Student（学生）继承自 User
+### Student (extends User)
 - studentId: String
 - faculty: String
 - major: String
@@ -223,14 +310,14 @@ DELETE /api/users/{id}
 - matricNumber: String
 - gpa: Double
 
-#### Teacher（教师）继承自 User
+### Teacher (extends User)
 - employeeId: String
 - department: String
 - title: String
 - officeRoom: String
 - officeHours: String
 
-#### Course（课程）
+### Course
 - courseCode: String
 - courseName: String
 - credits: Integer
@@ -240,14 +327,14 @@ DELETE /api/users/{id}
 - capacity: Integer
 - enrolled: Integer
 
-#### Attendance（考勤）
+### Attendance
 - student: Student
 - course: Course
 - attendanceDate: LocalDate
 - status: PRESENT | ABSENT | LATE | EXCUSED
 - checkInTime: LocalDateTime
 
-#### Booking（预订）
+### Booking
 - user: User
 - facilityName: String
 - facilityType: String
@@ -255,7 +342,7 @@ DELETE /api/users/{id}
 - endTime: LocalDateTime
 - status: PENDING | CONFIRMED | CANCELLED | COMPLETED
 
-#### Errand（跑腿任务）
+### Errand
 - requester: User
 - provider: User
 - title: String
@@ -264,84 +351,114 @@ DELETE /api/users/{id}
 - reward: Double
 - status: PENDING | IN_PROGRESS | COMPLETED | CANCELLED
 
-## 配置说明
+### Message
+- id: String
+- conversationId: String
+- senderId: String
+- senderName: String
+- content: String
+- timestamp: Long
+- isRead: Boolean
+- messageType: TEXT | IMAGE | FILE
 
-### 切换数据库配置
+### Conversation
+- id: String
+- isGroup: Boolean
+- groupName: String (optional)
+- lastMessage: String
+- lastMessageTime: Long
+- unreadCount: Integer
+- isPinned: Boolean
 
-**开发模式（H2）：**
+## Configuration
+
+### Switch Database Configuration
+
+**Development Mode (H2 File-based):**
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-**生产模式（MySQL）：**
+**Production Mode (MySQL):**
 ```bash
 mvn spring-boot:run
 ```
 
-### 修改端口
+### Change Port
 
-编辑 `application.properties`:
+Edit `application.properties`:
 ```properties
 server.port=8080
 ```
 
-### 禁用示例数据
+### Disable Sample Data
 
-编辑 `application.properties`:
+Edit `application.properties`:
 ```properties
 spring.sql.init.mode=never
 ```
 
-## 项目结构
+### Message Retention Settings
+
+Edit `application.properties`:
+```properties
+# Default is 7 days, configured in Android app
+# Messages older than 7 days are automatically deleted on app startup
+```
+
+## Project Structure
 
 ```
 backend/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/nottingham/mynottingham/backend/
-│   │   │   ├── config/           # 配置类
+│   │   │   ├── config/           # Configuration classes
 │   │   │   ├── controller/       # REST Controllers
-│   │   │   ├── dto/              # 数据传输对象
-│   │   │   │   ├── request/      # 请求 DTO
-│   │   │   │   └── response/     # 响应 DTO
-│   │   │   ├── entity/           # JPA 实体类
+│   │   │   ├── dto/              # Data Transfer Objects
+│   │   │   │   ├── request/      # Request DTOs
+│   │   │   │   └── response/     # Response DTOs
+│   │   │   ├── entity/           # JPA Entities
 │   │   │   ├── repository/       # Spring Data Repositories
-│   │   │   ├── service/          # 业务逻辑层
+│   │   │   ├── service/          # Business Logic Layer
 │   │   │   └── MyNottinghamBackendApplication.java
 │   │   └── resources/
-│   │       ├── application.properties      # 生产配置
-│   │       ├── application-dev.properties  # 开发配置
-│   │       └── data.sql                    # 测试数据
-│   └── test/                      # 测试文件
-├── pom.xml                        # Maven 配置
-└── README.md                      # 本文档
+│   │       ├── application.properties          # Production config
+│   │       ├── application-dev.properties      # Development config
+│   │       └── data.sql                        # Test data
+│   └── test/                      # Test files
+├── data/                          # H2 database files (dev mode)
+├── pom.xml                        # Maven configuration
+├── start-dev.bat                  # Windows start script
+├── start-dev.sh                   # Linux/Mac start script
+└── README.md                      # This file
 ```
 
-## 部署到服务器
+## Deployment to Server
 
-### 1. 构建 JAR 文件
+### 1. Build JAR file
 
 ```bash
 mvn clean package
 ```
 
-### 2. 上传到服务器
+### 2. Upload to server
 
 ```bash
 scp target/mynottingham-backend-1.0.0.jar user@server:/path/to/app/
 ```
 
-### 3. 在服务器上运行
+### 3. Run on server
 
 ```bash
-# 后台运行
+# Run in background
 nohup java -jar mynottingham-backend-1.0.0.jar > app.log 2>&1 &
 
-# 或使用 systemd service
+# Or use systemd service
 sudo systemctl start mynottingham-backend
 ```
 
-### 4. 配置 Nginx 反向代理（可选）
+### 4. Configure Nginx Reverse Proxy (Optional)
 
 ```nginx
 server {
@@ -356,52 +473,85 @@ server {
 }
 ```
 
-## 常见问题
+## Troubleshooting
 
-### 1. 端口已被占用
+### 1. Port Already in Use
 
-修改 `application.properties` 中的 `server.port`
+Change `server.port` in `application.properties`
 
-### 2. MySQL 连接失败
+### 2. MySQL Connection Failed
 
-检查：
-- MySQL 服务是否运行
-- 数据库用户名和密码是否正确
-- 防火墙设置
+Check:
+- MySQL service is running
+- Database username and password are correct
+- Firewall settings
 
-### 3. 数据初始化失败
+### 3. Data Initialization Failed
 
-检查 `data.sql` 中的 SQL 语法是否与您的数据库版本兼容
+Check if SQL syntax in `data.sql` is compatible with your database version
 
-## 开发指南
+### 4. H2 Console Not Accessible
 
-### 添加新的 API 端点
+Ensure you're running in development mode:
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
-1. 在 `entity/` 中创建实体类
-2. 在 `repository/` 中创建 Repository 接口
-3. 在 `service/` 中实现业务逻辑
-4. 在 `controller/` 中创建 REST 端点
+### 5. Cannot Access H2 Database
 
-### 运行测试
+Verify JDBC URL matches configuration:
+- File mode: `jdbc:h2:file:./data/mynottingham`
+- Ensure the `data/` directory exists and has write permissions
+
+## Development Guide
+
+### Adding New API Endpoints
+
+1. Create entity class in `entity/`
+2. Create Repository interface in `repository/`
+3. Implement business logic in `service/`
+4. Create REST endpoints in `controller/`
+
+### Running Tests
 
 ```bash
 mvn test
 ```
 
-## 许可证
+### Code Style
+
+- Follow Java naming conventions
+- Use meaningful variable and method names
+- Add JavaDoc comments for public APIs
+- Keep methods small and focused
+
+## Additional Documentation
+
+- `API-TEST-GUIDE.md` - Comprehensive API testing guide
+- `INSTALLATION.md` - Detailed installation instructions
+- `QUICK-START.md` - Quick start guide
+
+## License
 
 MIT License
 
-## 联系方式
+## Contact
 
-- 项目主页: https://github.com/COMP3040-2025-2026/cw-2-group-b
-- 问题反馈: 创建 GitHub Issue
+- Project Repository: https://github.com/COMP3040-2025-2026/cw-2-group-b
+- Issue Tracker: Create a GitHub Issue
 
-## 更新日志
+## Changelog
+
+### v1.1.0 (2025-11-13)
+- Added messaging system with 7-day retention policy
+- Implemented message search functionality
+- Added typing indicators and online status
+- Enhanced authentication with JWT tokens
+- Switched to file-based H2 database for development
 
 ### v1.0.0 (2024-12-18)
-- 初始版本发布
-- 用户管理系统
-- 课程和考勤功能
-- 预订和跑腿功能
-- 论坛和消息功能
+- Initial release
+- User management system
+- Course and attendance features
+- Booking and errand features
+- Forum and messaging features
