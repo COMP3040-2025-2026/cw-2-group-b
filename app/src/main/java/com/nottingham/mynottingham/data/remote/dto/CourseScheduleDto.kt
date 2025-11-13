@@ -42,6 +42,9 @@ data class CourseScheduleDto(
     @SerializedName("hasStudentSigned")
     val hasStudentSigned: Boolean?,
 
+    @SerializedName("attendanceStatus")
+    val attendanceStatus: String?,  // PRESENT, ABSENT, LATE, EXCUSED, or null
+
     @SerializedName("unlockedAtTimestamp")
     val unlockedAtTimestamp: Long?,
 

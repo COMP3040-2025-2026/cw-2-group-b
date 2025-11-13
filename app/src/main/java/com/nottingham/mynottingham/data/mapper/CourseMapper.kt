@@ -12,17 +12,23 @@ object CourseMapper {
 
         // Debug logging
         android.util.Log.d("CourseMapper", "Converting DTO: courseCode=${dto.courseCode}, " +
-                "sessionStatus=${dto.sessionStatus}, hasStudentSigned=${dto.hasStudentSigned}")
+                "sessionStatus=${dto.sessionStatus}, hasStudentSigned=${dto.hasStudentSigned}, " +
+                "attendanceStatus=${dto.attendanceStatus}")
 
         // Determine today's status for visual indicators
-        val todayStatus = when {
-            hasStudentSigned -> TodayClassStatus.ATTENDED  // Student has signed in or teacher marked as present
-            signInStatus == SignInStatus.UNLOCKED -> TodayClassStatus.IN_PROGRESS  // Sign-in is open but student hasn't signed yet
-            else -> null  // Show default locked state
+        // Priority: Use attendanceStatus if available, otherwise use signInStatus
+        val todayStatus = when (dto.attendanceStatus) {
+            "PRESENT" -> TodayClassStatus.ATTENDED  // Student signed in or teacher marked present
+            "ABSENT", "LATE", "EXCUSED" -> TodayClassStatus.MISSED  // Student marked as not present
+            else -> when {
+                signInStatus == SignInStatus.UNLOCKED -> TodayClassStatus.IN_PROGRESS  // Sign-in is open
+                else -> null  // Show default locked state
+            }
         }
 
         android.util.Log.d("CourseMapper", "Result: signInStatus=$signInStatus, " +
-                "hasStudentSigned=$hasStudentSigned, todayStatus=$todayStatus")
+                "hasStudentSigned=$hasStudentSigned, attendanceStatus=${dto.attendanceStatus}, " +
+                "todayStatus=$todayStatus")
 
         return Course(
             id = dto.id.toString(),

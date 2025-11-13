@@ -41,20 +41,30 @@ class TodayClassAdapter(
             binding.tvCourseType.text = course.courseType.displayName
 
             // Status indicator (vertical line on left of course name)
-            // Attendance indicator with custom icons based on sign-in status
+            // Attendance indicator with custom icons based on attendance status
 
-            // Determine what icon to show based on attendance status first, then sign-in status
-            // Priority: If student has been marked (manually or via sign-in), always show that status
-            when {
-                // Priority 1: Student has been marked as attended (either manually or via sign-in)
-                course.hasStudentSigned -> {
+            // Priority order:
+            // 1. todayStatus == ATTENDED (green check) - student signed in or teacher marked PRESENT
+            // 2. todayStatus == MISSED (red X) - teacher marked ABSENT/LATE/EXCUSED or session closed without sign-in
+            // 3. todayStatus == IN_PROGRESS (blue pencil) - session is unlocked for sign-in
+            // 4. Default (lock icon) - session is locked
+            when (course.todayStatus) {
+                TodayClassStatus.ATTENDED -> {
+                    // Student signed in or teacher marked as PRESENT
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_check)
                     binding.ivAttendanceIcon.isClickable = false
                 }
-                // Priority 2: Session is unlocked and available for sign-in
-                course.signInStatus == SignInStatus.UNLOCKED -> {
+                TodayClassStatus.MISSED -> {
+                    // Teacher marked as ABSENT/LATE/EXCUSED or session closed without sign-in
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
+                    binding.ivAttendanceIcon.isVisible = true
+                    binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_cross)
+                    binding.ivAttendanceIcon.isClickable = false
+                }
+                TodayClassStatus.IN_PROGRESS -> {
+                    // Session is unlocked and available for sign-in
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#2196F3"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_pencil)
@@ -63,15 +73,8 @@ class TodayClassAdapter(
                         onSignInClick?.invoke(course)
                     }
                 }
-                // Priority 3: Session is closed and student didn't attend
-                course.signInStatus == SignInStatus.CLOSED -> {
-                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
-                    binding.ivAttendanceIcon.isVisible = true
-                    binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_cross)
-                    binding.ivAttendanceIcon.isClickable = false
-                }
-                // Priority 4: Session is locked (default state)
                 else -> {
+                    // Session is locked (default state)
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#9E9E9E"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_locked)

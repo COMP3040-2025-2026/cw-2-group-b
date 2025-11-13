@@ -23,6 +23,7 @@ public class CourseScheduleResponse {
     private String courseType;
     private String sessionStatus; // LOCKED, UNLOCKED, CLOSED
     private Boolean hasStudentSigned;
+    private String attendanceStatus;  // PRESENT, ABSENT, LATE, EXCUSED (student's specific status, null if not marked)
     private Long unlockedAtTimestamp;
     private Integer attendedClasses;  // Number of classes student attended
     private Integer totalSignedClasses;  // Total classes where sign-in was opened

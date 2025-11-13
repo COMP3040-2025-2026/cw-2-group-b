@@ -211,6 +211,7 @@ public class AttendanceService {
 
         // Check if student has signed in (if studentId provided)
         Boolean hasStudentSigned = null;
+        String attendanceStatus = null;
         Integer attendedClasses = null;
         Integer totalSignedClasses = null;
 
@@ -227,11 +228,13 @@ public class AttendanceService {
                                    ", found: " + todayAttendance.isPresent());
 
                 if (todayAttendance.isPresent()) {
-                    System.out.println("DEBUG - Attendance status: " + todayAttendance.get().getStatus());
+                    Attendance attendance = todayAttendance.get();
+                    attendanceStatus = attendance.getStatus().name();
+                    hasStudentSigned = attendance.getStatus() == Attendance.AttendanceStatus.PRESENT;
+                    System.out.println("DEBUG - Attendance status: " + attendanceStatus);
+                } else {
+                    hasStudentSigned = false;
                 }
-
-                hasStudentSigned = todayAttendance.isPresent() &&
-                                   todayAttendance.get().getStatus() == Attendance.AttendanceStatus.PRESENT;
 
                 // Calculate attended classes (only count PRESENT status)
                 List<Attendance> allAttendances = attendanceRepository.findByStudentAndCourse(student, course);
@@ -268,6 +271,7 @@ public class AttendanceService {
                 .courseType(schedule.getCourseType() != null ? schedule.getCourseType().name() : "LECTURE")
                 .sessionStatus(sessionStatus)
                 .hasStudentSigned(hasStudentSigned)
+                .attendanceStatus(attendanceStatus)
                 .unlockedAtTimestamp(unlockedAtTimestamp)
                 .attendedClasses(attendedClasses)
                 .totalSignedClasses(totalSignedClasses)

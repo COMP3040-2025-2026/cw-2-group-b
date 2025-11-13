@@ -16,12 +16,13 @@ My Nottingham is a comprehensive mobile application designed to integrate all es
 
 1.  **User Authentication** – Secure login system with JWT token management
 2.  **Campus Shuttle Timeline** – View real-time shuttle schedules and routes
-3.  **Sports Facility Booking** – Reserve sports facilities with ease
-4.  **Campus Errand Service** – Peer-to-peer delivery marketplace
-5.  **AI Assistant (Notti)** – Intelligent chatbot for campus queries
-6.  **Messaging** – Direct communication with classmates
-7.  **Campus Forum** – Community discussions and announcements
-8.  **User Profile** – Manage personal information and settings
+3.  **INSTATT (Attendance System)** – Comprehensive attendance tracking with teacher and student views
+4.  **Sports Facility Booking** – Reserve sports facilities with ease
+5.  **Campus Errand Service** – Peer-to-peer delivery marketplace
+6.  **AI Assistant (Notti)** – Intelligent chatbot for campus queries
+7.  **Messaging** – Direct communication with classmates
+8.  **Campus Forum** – Community discussions and announcements
+9.  **User Profile** – Manage personal information and settings
 
 ---
 
@@ -98,7 +99,7 @@ MyNottingham/
 
 - **Language:** Java 17
 - **Framework:** Spring Boot 3.2.1
-- **Database:** H2 (in-memory for development)
+- **Database:** H2 (file-based for data persistence)
 - **ORM:** Hibernate / JPA
 - **Security:** Spring Security, BCrypt
 - **Build Tool:** Maven 3.9+
@@ -212,6 +213,15 @@ The app implements a secure authentication flow:
     - [x] Day type selector (Weekday/Friday/Weekend)
     - [x] Color-coded route badges
     - [x] Modern gradient UI design
+- [x] **INSTATT (Attendance System)**
+    - [x] Teacher view with course management
+    - [x] Student view with attendance tracking
+    - [x] Session unlock/lock functionality
+    - [x] Student sign-in capability
+    - [x] Manual attendance marking (Present/Absent/Late/Excused)
+    - [x] Real-time status synchronization
+    - [x] Attendance statistics and progress tracking
+    - [x] File-based H2 database for data persistence
 
 ### 🔄 In Progress
 

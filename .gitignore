@@ -21,6 +21,9 @@ backend/.mvn/
 backend/mvnw
 backend/mvnw.cmd
 
+# Backend H2 Database
+backend/data/
+
 # Temporary files
 nul
 
