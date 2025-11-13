@@ -20,7 +20,7 @@ My Nottingham is a comprehensive mobile application designed to integrate all es
 4.  **Sports Facility Booking** – Reserve sports facilities with ease
 5.  **Campus Errand Service** – Peer-to-peer delivery marketplace
 6.  **AI Assistant (Notti)** – Intelligent chatbot for campus queries
-7.  **Messaging** – Direct communication with classmates
+7.  **Messaging System** – Direct communication with automatic 7-day message retention, online status, and typing indicators
 8.  **Campus Forum** – Community discussions and announcements
 9.  **User Profile** – Manage personal information and settings
 
@@ -222,13 +222,23 @@ The app implements a secure authentication flow:
     - [x] Real-time status synchronization
     - [x] Attendance statistics and progress tracking
     - [x] File-based H2 database for data persistence
+- [x] **Messaging System**
+    - [x] Room database with 7-day retention policy
+    - [x] Conversation list with pinned support
+    - [x] One-on-one and group chat support
+    - [x] Real-time message synchronization
+    - [x] Online status indicators
+    - [x] Typing indicators
+    - [x] Message search functionality
+    - [x] Read receipts
+    - [x] Auto-cleanup on app startup
+    - [x] Backend API integration
 
 ### 🔄 In Progress
 
 - [ ] Sports Booking system (backend ready)
 - [ ] Campus Errand marketplace (backend ready)
 - [ ] Notti AI integration
-- [ ] Messaging system (backend ready)
 - [ ] Forum functionality (backend ready)
 - [ ] Profile management
 
