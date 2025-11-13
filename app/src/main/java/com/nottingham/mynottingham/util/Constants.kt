@@ -11,7 +11,7 @@ object Constants {
 
     // Database Configuration
     const val DATABASE_NAME = "my_nottingham_db"
-    const val DATABASE_VERSION = 1
+    const val DATABASE_VERSION = 2
 
     // SharedPreferences / DataStore
     const val PREFS_NAME = "my_nottingham_prefs"
@@ -81,6 +81,20 @@ object Constants {
     const val CHANNEL_ID_BOOKING = "booking_notifications"
     const val CHANNEL_ID_ERRAND = "errand_notifications"
     const val CHANNEL_ID_MESSAGE = "message_notifications"
+
+    // Message Configuration
+    const val MESSAGE_RETENTION_DAYS = 7
+    const val MESSAGE_RETENTION_MILLIS = MESSAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000L
+    const val MAX_MESSAGE_LENGTH = 500
+    const val TYPING_INDICATOR_TIMEOUT_MS = 3000L
+    const val MESSAGE_PAGE_SIZE = 50
+
+    // Message Types
+    object MessageTypes {
+        const val TEXT = "TEXT"
+        const val IMAGE = "IMAGE"
+        const val FILE = "FILE"
+    }
 
     // Request Codes
     const val REQUEST_CODE_PICK_IMAGE = 1001

@@ -11,7 +11,9 @@ data class Conversation(
     val lastMessage: String,
     val lastMessageTime: Long,
     val unreadCount: Int = 0,
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val isPinned: Boolean = false,
+    val isGroup: Boolean = false
 )
 
 /**
@@ -25,11 +27,5 @@ data class ChatMessage(
     val message: String,
     val timestamp: Long,
     val isRead: Boolean = false,
-    val messageType: MessageType = MessageType.TEXT
+    val messageType: String = "TEXT" // TEXT, IMAGE, FILE
 )
-
-enum class MessageType {
-    TEXT,
-    IMAGE,
-    FILE
-}

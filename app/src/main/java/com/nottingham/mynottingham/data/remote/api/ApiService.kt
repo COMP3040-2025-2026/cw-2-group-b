@@ -131,4 +131,73 @@ interface ApiService {
         @Path("teacherId") teacherId: Long,
         @Body request: MarkAttendanceRequest
     ): Response<ApiResponse<Any>>
+
+    // ========== Messaging ==========
+
+    @GET("message/conversations")
+    suspend fun getConversations(
+        @Header("Authorization") token: String
+    ): Response<ConversationListResponse>
+
+    @GET("message/conversations/{conversationId}")
+    suspend fun getConversation(
+        @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String
+    ): Response<ConversationResponse>
+
+    @GET("message/conversations/{conversationId}/messages")
+    suspend fun getMessages(
+        @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String,
+        @Query("limit") limit: Int = 50,
+        @Query("before") before: Long? = null
+    ): Response<MessageListResponse>
+
+    @POST("message/send")
+    suspend fun sendMessage(
+        @Header("Authorization") token: String,
+        @Body request: SendMessageRequest
+    ): Response<SendMessageResponse>
+
+    @POST("message/conversations")
+    suspend fun createConversation(
+        @Header("Authorization") token: String,
+        @Body request: CreateConversationRequest
+    ): Response<ConversationResponse>
+
+    @PUT("message/conversations/{conversationId}/pin")
+    suspend fun updatePinnedStatus(
+        @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String,
+        @Body request: UpdatePinnedStatusRequest
+    ): Response<ConversationResponse>
+
+    @POST("message/conversations/{conversationId}/read")
+    suspend fun markAsRead(
+        @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String
+    ): Response<ApiResponse<Any>>
+
+    @POST("message/typing")
+    suspend fun updateTypingStatus(
+        @Header("Authorization") token: String,
+        @Body request: TypingStatusRequest
+    ): Response<ApiResponse<Any>>
+
+    @GET("message/search")
+    suspend fun searchMessages(
+        @Header("Authorization") token: String,
+        @Query("query") query: String
+    ): Response<MessageListResponse>
+
+    @GET("message/contacts/suggestions")
+    suspend fun getContactSuggestions(
+        @Header("Authorization") token: String
+    ): Response<ContactSuggestionResponse>
+
+    @DELETE("message/conversations/{conversationId}")
+    suspend fun deleteConversation(
+        @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String
+    ): Response<ApiResponse<Any>>
 }

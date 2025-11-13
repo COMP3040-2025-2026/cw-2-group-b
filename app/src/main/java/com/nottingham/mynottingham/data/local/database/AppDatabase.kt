@@ -5,10 +5,16 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.nottingham.mynottingham.data.local.database.dao.BookingDao
+import com.nottingham.mynottingham.data.local.database.dao.ConversationDao
+import com.nottingham.mynottingham.data.local.database.dao.ConversationParticipantDao
 import com.nottingham.mynottingham.data.local.database.dao.ErrandDao
+import com.nottingham.mynottingham.data.local.database.dao.MessageDao
 import com.nottingham.mynottingham.data.local.database.dao.UserDao
 import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
+import com.nottingham.mynottingham.data.local.database.entities.ConversationEntity
+import com.nottingham.mynottingham.data.local.database.entities.ConversationParticipantEntity
 import com.nottingham.mynottingham.data.local.database.entities.ErrandEntity
+import com.nottingham.mynottingham.data.local.database.entities.MessageEntity
 import com.nottingham.mynottingham.data.local.database.entities.UserEntity
 import com.nottingham.mynottingham.util.Constants
 
@@ -20,7 +26,10 @@ import com.nottingham.mynottingham.util.Constants
     entities = [
         UserEntity::class,
         BookingEntity::class,
-        ErrandEntity::class
+        ErrandEntity::class,
+        MessageEntity::class,
+        ConversationEntity::class,
+        ConversationParticipantEntity::class
     ],
     version = Constants.DATABASE_VERSION,
     exportSchema = false
@@ -31,6 +40,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun bookingDao(): BookingDao
     abstract fun errandDao(): ErrandDao
+    abstract fun messageDao(): MessageDao
+    abstract fun conversationDao(): ConversationDao
+    abstract fun conversationParticipantDao(): ConversationParticipantDao
 
     companion object {
         @Volatile
