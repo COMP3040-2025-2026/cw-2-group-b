@@ -9,7 +9,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.google.android.material.snackbar.Snackbar
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentLoginBinding
 import kotlinx.coroutines.launch
@@ -38,18 +37,21 @@ class LoginFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Clear error when user types
-        binding.etUsername.addTextChangedListener {
+        binding.etUsername.addTextChangedListener { text ->
             binding.tilUsername.error = null
             binding.tvError.visibility = View.GONE
+
+            binding.tilUsername.isHintEnabled = text.isNullOrEmpty()
         }
 
-        binding.etPassword.addTextChangedListener {
+        binding.etPassword.addTextChangedListener { text ->
             binding.tilPassword.error = null
             binding.tvError.visibility = View.GONE
+
+            binding.tilPassword.isHintEnabled = text.isNullOrEmpty()
         }
 
-        // Login button click
+        // 登录按钮点击
         binding.btnLogin.setOnClickListener {
             val username = binding.etUsername.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
