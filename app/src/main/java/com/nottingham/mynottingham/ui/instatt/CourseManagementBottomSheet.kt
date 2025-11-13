@@ -10,12 +10,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.AttendanceStatus
 import com.nottingham.mynottingham.data.model.Course
 import com.nottingham.mynottingham.data.model.SignInStatus
 import com.nottingham.mynottingham.data.model.StudentAttendance
 import com.nottingham.mynottingham.data.repository.InstattRepository
 import com.nottingham.mynottingham.databinding.DialogCourseManagementBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -27,7 +29,8 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
 
     private val repository = InstattRepository()
-    private val teacherId: Long = 4L // TODO: Get from login session (teacher1's user_id from database)
+    private lateinit var tokenManager: TokenManager
+    private var teacherId: Long = 0L
 
     private lateinit var course: Course
     private lateinit var studentAdapter: StudentAttendanceAdapter
@@ -53,7 +56,24 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
         setupUI()
         setupRecyclerView()
-        loadStudentList()
+
+        // Initialize TokenManager and retrieve actual user ID
+        tokenManager = TokenManager(requireContext())
+        lifecycleScope.launch {
+            teacherId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+
+            if (teacherId == 0L) {
+                Toast.makeText(
+                    requireContext(),
+                    "User not logged in",
+                    Toast.LENGTH_SHORT
+                ).show()
+                dismiss()
+                return@launch
+            }
+
+            loadStudentList()
+        }
     }
 
     private fun setupUI() {

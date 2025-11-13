@@ -525,11 +525,9 @@ mvn test
 - Add JavaDoc comments for public APIs
 - Keep methods small and focused
 
-## Additional Documentation
+## Additional Notes
 
-- `API-TEST-GUIDE.md` - Comprehensive API testing guide
-- `INSTALLATION.md` - Detailed installation instructions
-- `QUICK-START.md` - Quick start guide
+For API testing, use tools like Postman or curl. All API endpoints are documented above with request/response examples.
 
 ## License
 

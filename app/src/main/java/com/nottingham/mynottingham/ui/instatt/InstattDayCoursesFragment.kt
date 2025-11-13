@@ -15,8 +15,10 @@ import com.nottingham.mynottingham.data.model.CourseType
 import com.nottingham.mynottingham.data.model.DayOfWeek
 import com.nottingham.mynottingham.data.model.SignInStatus
 import com.nottingham.mynottingham.data.model.TodayClassStatus
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.InstattRepository
 import com.nottingham.mynottingham.databinding.FragmentInstattDayCoursesBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -31,7 +33,8 @@ class InstattDayCoursesFragment : Fragment() {
     private lateinit var dayOfWeek: DayOfWeek
 
     private val repository = InstattRepository()
-    private val studentId: Long = 1L // TODO: Get from login session
+    private lateinit var tokenManager: TokenManager
+    private var studentId: Long = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var isPolling = false
 
@@ -89,8 +92,24 @@ class InstattDayCoursesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Fetch server time first, then load courses
-        fetchServerTime()
+
+        // Initialize TokenManager and retrieve actual user ID
+        tokenManager = TokenManager(requireContext())
+        lifecycleScope.launch {
+            studentId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+
+            if (studentId == 0L) {
+                Toast.makeText(
+                    context,
+                    "User not logged in",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            // Fetch server time first, then load courses
+            fetchServerTime()
+        }
     }
 
     private fun fetchServerTime() {

@@ -11,11 +11,13 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.nottingham.mynottingham.data.model.Course
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.CourseType
 import com.nottingham.mynottingham.data.model.DayOfWeek
 import com.nottingham.mynottingham.data.model.SignInStatus
 import com.nottingham.mynottingham.data.repository.InstattRepository
 import com.nottingham.mynottingham.databinding.FragmentTeacherInstattBinding
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -33,7 +35,8 @@ class TeacherInstattFragment : Fragment() {
 
     // Backend integration
     private val repository = InstattRepository()
-    private val teacherId: Long = 4L // teacher1's user_id from database
+    private lateinit var tokenManager: TokenManager
+    private var teacherId: Long = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var isPolling = false
 
@@ -50,8 +53,24 @@ class TeacherInstattFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupUI()
-        loadTodayCourses()
-        startPolling()
+
+        // Initialize TokenManager and retrieve actual user ID
+        tokenManager = TokenManager(requireContext())
+        lifecycleScope.launch {
+            teacherId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+
+            if (teacherId == 0L) {
+                Toast.makeText(
+                    context,
+                    "User not logged in",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            loadTodayCourses()
+            startPolling()
+        }
     }
 
     private fun setupUI() {

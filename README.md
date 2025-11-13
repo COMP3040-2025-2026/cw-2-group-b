@@ -266,7 +266,7 @@ mvn test
 
 ### API Testing
 
-See `backend/API-TEST-GUIDE.md` for detailed API testing instructions.
+Test API endpoints using tools like Postman or curl. See backend README for API documentation.
 
 ---
 
@@ -358,11 +358,8 @@ feat: implement login authentication system
 
 ## 📚 Documentation
 
-- `backend/README.md` - Backend documentation
-- `backend/API-TEST-GUIDE.md` - API testing guide
-- `backend/INSTALLATION.md` - Backend installation guide
-- `backend/QUICK-START.md` - Quick start guide
-- `CLAUDE.md` - Claude Code assistant instructions
+- `README.md` - Main project documentation (this file)
+- `backend/README.md` - Backend API documentation and setup guide
 
 ---
 
