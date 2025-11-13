@@ -32,12 +32,13 @@ INSERT INTO courses (course_code, course_name, description, credits, faculty, se
 ('SOFT3010', 'Software Architecture', 'Design patterns and architecture', 3, 'Faculty of Computer Science', 'Fall 2024', 5, 40, 1, NOW(), NOW());
 
 -- Course Schedules
-INSERT INTO course_schedules (course_id, day_of_week, start_time, end_time, room, building, created_at, updated_at) VALUES
-(1, 'MONDAY', '09:00:00', '11:00:00', 'Lab A', 'CS Building', NOW(), NOW()),
-(1, 'WEDNESDAY', '09:00:00', '11:00:00', 'Lab A', 'CS Building', NOW(), NOW()),
-(2, 'TUESDAY', '14:00:00', '16:00:00', 'Room 201', 'CS Building', NOW(), NOW()),
-(2, 'THURSDAY', '14:00:00', '16:00:00', 'Room 201', 'CS Building', NOW(), NOW()),
-(3, 'FRIDAY', '10:00:00', '13:00:00', 'Room 305', 'CS Building', NOW(), NOW());
+INSERT INTO course_schedules (course_id, day_of_week, start_time, end_time, room, building, course_type, created_at, updated_at) VALUES
+(1, 'MONDAY', '09:00:00', '11:00:00', 'Lab A', 'CS Building', 'LAB', NOW(), NOW()),
+(1, 'TUESDAY', '14:00:00', '16:00:00', 'Lab B', 'CS Building', 'LAB', NOW(), NOW()),
+(1, 'WEDNESDAY', '15:00:00', '17:00:00', 'Lab A', 'CS Building', 'LAB', NOW(), NOW()),
+(2, 'TUESDAY', '14:00:00', '16:00:00', 'Room 201', 'CS Building', 'LECTURE', NOW(), NOW()),
+(2, 'THURSDAY', '14:00:00', '16:00:00', 'Room 201', 'CS Building', 'LECTURE', NOW(), NOW()),
+(3, 'FRIDAY', '10:00:00', '13:00:00', 'Room 305', 'CS Building', 'LECTURE', NOW(), NOW());
 
 -- Enrollments
 INSERT INTO enrollments (student_id, course_id, status, grade, letter_grade, created_at, updated_at) VALUES

@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.0"
+agp = "8.13.1"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
 coreKtx = "1.13.1"
@@ -70,5 +70,6 @@ androidx-navigation-testing = { group = "androidx.navigation", name = "navigatio
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

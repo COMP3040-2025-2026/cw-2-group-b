@@ -27,7 +27,7 @@ class NottiFragment : Fragment() {
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
+        binding.btnBack.setOnClickListener {
             requireActivity().onBackPressed()
         }
     }

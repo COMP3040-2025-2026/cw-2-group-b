@@ -1,5 +1,7 @@
 package com.nottingham.mynottingham.data.remote.dto
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * Data Transfer Objects for Authentication
  */
@@ -25,6 +27,7 @@ data class UserDto(
     val username: String,
     val email: String,
     val fullName: String,
+    @SerializedName("role")  // Map backend's "role" field to "userType"
     val userType: String,
     val studentId: String?,
     val employeeId: String?,

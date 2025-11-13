@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentFoodDeliveryBinding
 
@@ -30,8 +29,11 @@ class FoodDeliveryFragment : Fragment() {
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().navigateUp()
+        binding.btnBack.setOnClickListener {
+            // Navigate back to Campus Errand (ErrandHomeFragment)
+            // Since this fragment was added via childFragmentManager with addToBackStack,
+            // we need to pop the back stack to return to the previous fragment
+            parentFragmentManager.popBackStack()
         }
     }
 

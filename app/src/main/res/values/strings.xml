@@ -119,4 +119,7 @@
     <string name="faculty">Faculty</string>
     <string name="year">Year</string>
     <string name="program">Program</string>
+
+    <!-- Instatt -->
+    <string name="attendance_status">Attendance Status</string>
 </resources>

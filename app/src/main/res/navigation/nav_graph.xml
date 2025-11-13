@@ -97,7 +97,13 @@
         android:id="@+id/profileFragment"
         android:name="com.nottingham.mynottingham.ui.profile.ProfileFragment"
         android:label="@string/nav_profile"
-        tools:layout="@layout/fragment_profile" />
+        tools:layout="@layout/fragment_profile">
+        <action
+            android:id="@+id/action_profile_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
 
     <!-- Errand Fragment - can be accessed from Home -->
     <fragment

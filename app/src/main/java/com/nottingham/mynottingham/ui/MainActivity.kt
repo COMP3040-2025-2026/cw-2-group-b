@@ -3,11 +3,15 @@ package com.nottingham.mynottingham.ui
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.ActivityMainBinding
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * Main Activity - Entry point of the application
@@ -17,6 +21,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
+    private lateinit var tokenManager: TokenManager
 
     // Top-level destinations (where back button should exit app)
     private val topLevelDestinations = setOf(
@@ -31,7 +36,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        tokenManager = TokenManager(this)
+
         setupNavigation()
+        checkLoginStatus()
+    }
+
+    /**
+     * Check if user is already logged in
+     */
+    private fun checkLoginStatus() {
+        lifecycleScope.launch {
+            val token = tokenManager.getToken().first()
+            if (!token.isNullOrEmpty()) {
+                // User is logged in, navigate to home
+                navController.navigate(R.id.homeFragment)
+            }
+        }
     }
 
     /**

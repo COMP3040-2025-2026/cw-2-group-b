@@ -38,4 +38,12 @@ public class CourseSchedule extends BaseEntity {
 
     @Column(length = 100)
     private String building;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
+    private CourseType courseType = CourseType.LECTURE;
+
+    public enum CourseType {
+        LECTURE, TUTORIAL, COMPUTING, LAB
+    }
 }

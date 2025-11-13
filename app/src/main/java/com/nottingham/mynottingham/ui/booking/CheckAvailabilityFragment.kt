@@ -48,8 +48,8 @@ class CheckAvailabilityFragment : Fragment() {
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
-            requireActivity().onBackPressed()
+        binding.btnBack.setOnClickListener {
+            parentFragmentManager.popBackStack()
         }
     }
 
