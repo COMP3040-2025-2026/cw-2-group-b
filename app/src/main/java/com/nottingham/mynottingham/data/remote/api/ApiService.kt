@@ -86,6 +86,9 @@ interface ApiService {
 
     // ========== Attendance (Instatt) ==========
 
+    @GET("system/time")
+    suspend fun getSystemTime(): Response<ApiResponse<SystemTimeDto>>
+
     @GET("attendance/teacher/{teacherId}/courses")
     suspend fun getTeacherCourses(
         @Path("teacherId") teacherId: Long,

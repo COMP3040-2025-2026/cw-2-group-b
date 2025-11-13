@@ -23,4 +23,7 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
 
     @Query("SELECT a FROM AttendanceSession a WHERE a.courseSchedule.course.teacher.id = :teacherId AND a.sessionDate = :date")
     List<AttendanceSession> findByTeacherIdAndDate(@Param("teacherId") Long teacherId, @Param("date") LocalDate date);
+
+    // Count sessions for a course schedule that are not locked (i.e., were opened at some point)
+    long countByCourseScheduleAndStatusNot(CourseSchedule courseSchedule, AttendanceSession.SessionStatus status);
 }

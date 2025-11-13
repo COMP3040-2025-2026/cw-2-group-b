@@ -35,6 +35,10 @@ class InstattDayCoursesFragment : Fragment() {
     private val handler = Handler(Looper.getMainLooper())
     private var isPolling = false
 
+    // Server time cache - updated when fragment is created
+    private var serverDate: String? = null
+    private var serverDayOfWeek: DayOfWeek? = null
+
     companion object {
         private const val ARG_DAY_OF_WEEK = "day_of_week"
 
@@ -85,14 +89,43 @@ class InstattDayCoursesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        loadCourses()
-        startPolling()
+        // Fetch server time first, then load courses
+        fetchServerTime()
+    }
+
+    private fun fetchServerTime() {
+        lifecycleScope.launch {
+            val result = repository.getSystemTime()
+
+            result.onSuccess { systemTime ->
+                // Cache server time
+                serverDate = systemTime.currentDate
+                serverDayOfWeek = systemTime.dayOfWeek
+
+                // Now load courses with server date
+                loadCourses()
+                startPolling()
+            }.onFailure { error ->
+                // Fallback to local time if server time fails
+                Toast.makeText(
+                    context,
+                    "Failed to sync with server time: ${error.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                // Use local time as fallback
+                serverDate = null
+                serverDayOfWeek = null
+                loadCourses()
+                startPolling()
+            }
+        }
     }
 
     private fun loadCourses() {
-        // Get today's date in ISO format
-        val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
-        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        // Use server date if available, otherwise fallback to local date
+        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
@@ -138,12 +171,9 @@ class InstattDayCoursesFragment : Fragment() {
     }
 
     private fun handleSignIn(course: Course) {
-        // Get today's date
-        val dateFormatter = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
-        } else null
-
-        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && dateFormatter != null) {
+        // Use server date if available, otherwise fallback to local date
+        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)

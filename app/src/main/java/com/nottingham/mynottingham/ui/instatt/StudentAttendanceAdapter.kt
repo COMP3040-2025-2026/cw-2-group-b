@@ -130,8 +130,6 @@ class StudentAttendanceAdapter(
                 val newStatus = when (item.itemId) {
                     R.id.action_mark_present -> AttendanceStatus.PRESENT
                     R.id.action_mark_absent -> AttendanceStatus.ABSENT
-                    R.id.action_mark_late -> AttendanceStatus.LATE
-                    R.id.action_mark_excused -> AttendanceStatus.EXCUSED
                     else -> return@setOnMenuItemClickListener false
                 }
                 onStatusChanged(student, newStatus)

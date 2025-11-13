@@ -43,45 +43,38 @@ class TodayClassAdapter(
             // Status indicator (vertical line on left of course name)
             // Attendance indicator with custom icons based on sign-in status
 
-            // Determine what icon to show based on sign-in status
-            when (course.signInStatus) {
-                SignInStatus.LOCKED -> {
-                    // Show lock icon - not yet available for sign-in
+            // Determine what icon to show based on attendance status first, then sign-in status
+            // Priority: If student has been marked (manually or via sign-in), always show that status
+            when {
+                // Priority 1: Student has been marked as attended (either manually or via sign-in)
+                course.hasStudentSigned -> {
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
+                    binding.ivAttendanceIcon.isVisible = true
+                    binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_check)
+                    binding.ivAttendanceIcon.isClickable = false
+                }
+                // Priority 2: Session is unlocked and available for sign-in
+                course.signInStatus == SignInStatus.UNLOCKED -> {
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#2196F3"))
+                    binding.ivAttendanceIcon.isVisible = true
+                    binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_pencil)
+                    binding.ivAttendanceIcon.isClickable = true
+                    binding.ivAttendanceIcon.setOnClickListener {
+                        onSignInClick?.invoke(course)
+                    }
+                }
+                // Priority 3: Session is closed and student didn't attend
+                course.signInStatus == SignInStatus.CLOSED -> {
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
+                    binding.ivAttendanceIcon.isVisible = true
+                    binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_cross)
+                    binding.ivAttendanceIcon.isClickable = false
+                }
+                // Priority 4: Session is locked (default state)
+                else -> {
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#9E9E9E"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_locked)
-                    binding.ivAttendanceIcon.isClickable = false
-                }
-                SignInStatus.UNLOCKED -> {
-                    if (course.hasStudentSigned) {
-                        // Student has signed - show green check
-                        binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
-                        binding.ivAttendanceIcon.isVisible = true
-                        binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_check)
-                        binding.ivAttendanceIcon.isClickable = false
-                    } else {
-                        // Sign-in available - show pencil (clickable)
-                        binding.viewStatusLine.setBackgroundColor(Color.parseColor("#2196F3"))
-                        binding.ivAttendanceIcon.isVisible = true
-                        binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_pencil)
-                        binding.ivAttendanceIcon.isClickable = true
-                        binding.ivAttendanceIcon.setOnClickListener {
-                            onSignInClick?.invoke(course)
-                        }
-                    }
-                }
-                SignInStatus.CLOSED -> {
-                    if (course.hasStudentSigned) {
-                        // Signed in time - show green check
-                        binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
-                        binding.ivAttendanceIcon.isVisible = true
-                        binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_check)
-                    } else {
-                        // Missed - show red X
-                        binding.viewStatusLine.setBackgroundColor(Color.parseColor("#2196F3"))
-                        binding.ivAttendanceIcon.isVisible = true
-                        binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_cross)
-                    }
                     binding.ivAttendanceIcon.isClickable = false
                 }
             }

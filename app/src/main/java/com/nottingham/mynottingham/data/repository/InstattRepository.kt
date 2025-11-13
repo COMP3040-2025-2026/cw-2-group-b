@@ -3,6 +3,7 @@ package com.nottingham.mynottingham.data.repository
 import com.nottingham.mynottingham.data.mapper.CourseMapper
 import com.nottingham.mynottingham.data.model.Course
 import com.nottingham.mynottingham.data.model.StudentAttendance
+import com.nottingham.mynottingham.data.model.SystemTime
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.remote.dto.MarkAttendanceRequest
 import com.nottingham.mynottingham.data.remote.dto.SignInRequest
@@ -13,6 +14,26 @@ import kotlinx.coroutines.withContext
 class InstattRepository {
 
     private val apiService = RetrofitInstance.apiService
+
+    suspend fun getSystemTime(): Result<SystemTime> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getSystemTime()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val dto = response.body()?.data
+                    if (dto != null) {
+                        Result.success(SystemTime.fromDto(dto))
+                    } else {
+                        Result.failure(Exception("System time data is null"))
+                    }
+                } else {
+                    Result.failure(Exception(response.body()?.message ?: "Failed to get system time"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
 
     suspend fun getTeacherCourses(teacherId: Long, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {

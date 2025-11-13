@@ -7,6 +7,23 @@ import com.nottingham.mynottingham.data.remote.dto.StudentAttendanceDto
 object CourseMapper {
 
     fun toCourse(dto: CourseScheduleDto): Course {
+        val signInStatus = parseSignInStatus(dto.sessionStatus)
+        val hasStudentSigned = dto.hasStudentSigned ?: false
+
+        // Debug logging
+        android.util.Log.d("CourseMapper", "Converting DTO: courseCode=${dto.courseCode}, " +
+                "sessionStatus=${dto.sessionStatus}, hasStudentSigned=${dto.hasStudentSigned}")
+
+        // Determine today's status for visual indicators
+        val todayStatus = when {
+            hasStudentSigned -> TodayClassStatus.ATTENDED  // Student has signed in or teacher marked as present
+            signInStatus == SignInStatus.UNLOCKED -> TodayClassStatus.IN_PROGRESS  // Sign-in is open but student hasn't signed yet
+            else -> null  // Show default locked state
+        }
+
+        android.util.Log.d("CourseMapper", "Result: signInStatus=$signInStatus, " +
+                "hasStudentSigned=$hasStudentSigned, todayStatus=$todayStatus")
+
         return Course(
             id = dto.id.toString(),
             courseName = dto.courseName,
@@ -19,9 +36,10 @@ object CourseMapper {
             endTime = dto.endTime,
             location = dto.room ?: dto.building ?: "TBA",
             courseType = parseCourseType(dto.courseType),
-            signInStatus = parseSignInStatus(dto.sessionStatus),
+            todayStatus = todayStatus,
+            signInStatus = signInStatus,
             signInUnlockedAt = dto.unlockedAtTimestamp,
-            hasStudentSigned = dto.hasStudentSigned ?: false
+            hasStudentSigned = hasStudentSigned
         )
     }
 

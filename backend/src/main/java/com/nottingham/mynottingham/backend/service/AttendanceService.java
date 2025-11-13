@@ -220,6 +220,16 @@ public class AttendanceService {
                 // Check today's attendance
                 Optional<Attendance> todayAttendance = attendanceRepository.findByStudentAndCourseAndAttendanceDate(
                         student, course, date);
+
+                System.out.println("DEBUG - Checking attendance for student: " + studentId +
+                                   ", course: " + course.getId() + " (" + course.getCourseCode() + ")" +
+                                   ", date: " + date +
+                                   ", found: " + todayAttendance.isPresent());
+
+                if (todayAttendance.isPresent()) {
+                    System.out.println("DEBUG - Attendance status: " + todayAttendance.get().getStatus());
+                }
+
                 hasStudentSigned = todayAttendance.isPresent() &&
                                    todayAttendance.get().getStatus() == Attendance.AttendanceStatus.PRESENT;
 
@@ -229,30 +239,18 @@ public class AttendanceService {
                         .filter(a -> a.getStatus() == Attendance.AttendanceStatus.PRESENT)
                         .count();
 
-                // Calculate total signed classes (sessions that were unlocked for this course)
-                // Get all schedules for this course
+                // Calculate total signed classes using a single efficient query
+                // Count all unlocked/closed sessions for this course's schedules
                 List<CourseSchedule> courseSchedules = schedule.getCourse().getSchedules();
-                int totalUnlockedSessions = 0;
+                totalSignedClasses = 0;
 
-                // Check all past dates up to today
-                LocalDate startDate = date.minusMonths(3); // Check last 3 months
-                LocalDate currentDate = startDate;
-
-                while (!currentDate.isAfter(date)) {
-                    for (CourseSchedule cs : courseSchedules) {
-                        if (cs.getDayOfWeek() == currentDate.getDayOfWeek()) {
-                            Optional<AttendanceSession> pastSession = sessionRepository
-                                    .findByCourseScheduleAndSessionDate(cs, currentDate);
-                            if (pastSession.isPresent() &&
-                                pastSession.get().getStatus() != AttendanceSession.SessionStatus.LOCKED) {
-                                totalUnlockedSessions++;
-                            }
-                        }
-                    }
-                    currentDate = currentDate.plusDays(1);
+                // Get all session IDs for this course's schedules
+                for (CourseSchedule cs : courseSchedules) {
+                    // Count sessions that were unlocked (not just LOCKED status)
+                    long count = sessionRepository.countByCourseScheduleAndStatusNot(
+                            cs, AttendanceSession.SessionStatus.LOCKED);
+                    totalSignedClasses += (int) count;
                 }
-
-                totalSignedClasses = totalUnlockedSessions;
             }
         }
 
@@ -369,6 +367,14 @@ public class AttendanceService {
             attendance.setCheckInTime(java.time.LocalDateTime.now());
         }
 
-        return attendanceRepository.save(attendance);
+        Attendance savedAttendance = attendanceRepository.save(attendance);
+
+        System.out.println("DEBUG - Marked attendance: student=" + studentId +
+                           ", course=" + course.getId() + " (" + course.getCourseCode() + ")" +
+                           ", date=" + date +
+                           ", status=" + savedAttendance.getStatus() +
+                           ", id=" + savedAttendance.getId());
+
+        return savedAttendance;
     }
 }
