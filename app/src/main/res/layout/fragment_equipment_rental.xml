@@ -65,7 +65,7 @@
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
-            <!-- Equipment Table -->
+            <!-- Equipment Table Card (静态内嵌内容) -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -118,13 +118,496 @@
 
                     </LinearLayout>
 
-                    <!-- Equipment List -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rv_equipment"
+                    <!-- Static Equipment List -->
+                    <LinearLayout
+                        android:id="@+id/equipment_list"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false"
-                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <!-- Row template: name (weight=2), rate (weight=1), badge (weight=1, end) -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Badminton Racquet"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="5.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <!-- Divider -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Shuttlecock (sales) -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Badminton Shuttlecock"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="8.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Sales"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#FFF3E0"
+                                android:textColor="#F57C00"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Basketball -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Basketball"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="5.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Football -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Football"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="5.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Table Tennis Bat -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Table Tennis Bat"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="2.50"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Table Tennis Ball -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Table Tennis Ball"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="3.50"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Sales"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#FFF3E0"
+                                android:textColor="#F57C00"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Tennis Racquet -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Tennis Racquet"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="5.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Tennis Ball -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Tennis Ball"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="8.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Sales"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#FFF3E0"
+                                android:textColor="#F57C00"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Volleyball -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Volleyball"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="4.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                        <!-- Squash Racquet -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:padding="12dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="2"
+                                android:text="Squash Racquet"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_primary"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="5.00"
+                                android:textSize="14sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="Rental"
+                                android:padding="6dp"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:background="#E3F2FD"
+                                android:textColor="#1976D2"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="4dp"
+                                android:includeFontPadding="false" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

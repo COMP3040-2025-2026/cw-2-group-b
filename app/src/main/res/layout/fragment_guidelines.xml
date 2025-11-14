@@ -69,7 +69,8 @@
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_md">
+                android:layout_marginTop="@dimen/spacing_md"
+                android:fillViewport="true">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="wrap_content"
@@ -93,7 +94,7 @@
                             android:paddingVertical="12dp">
 
                             <TextView
-                                android:layout_width="120dp"
+                                android:layout_width="160dp"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:paddingHorizontal="4dp"
@@ -103,7 +104,7 @@
                                 android:textStyle="bold" />
 
                             <TextView
-                                android:layout_width="100dp"
+                                android:layout_width="120dp"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:paddingHorizontal="4dp"
@@ -113,7 +114,7 @@
                                 android:textStyle="bold" />
 
                             <TextView
-                                android:layout_width="120dp"
+                                android:layout_width="220dp"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:paddingHorizontal="4dp"
@@ -123,28 +124,28 @@
                                 android:textStyle="bold" />
 
                             <TextView
-                                android:layout_width="100dp"
+                                android:layout_width="140dp"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:paddingHorizontal="4dp"
-                                android:text="Min pax(Day)"
+                                android:text="Min pax (Day)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
 
                             <TextView
-                                android:layout_width="100dp"
+                                android:layout_width="140dp"
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:paddingHorizontal="4dp"
-                                android:text="Max pax"
+                                android:text="Min pax (Night)"
                                 android:textColor="@color/text_primary"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
 
                         </LinearLayout>
 
-                        <!-- Table Content -->
+                        <!-- Table Content Container -->
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -159,7 +160,7 @@
                                 android:paddingVertical="8dp">
 
                                 <TextView
-                                    android:layout_width="120dp"
+                                    android:layout_width="160dp"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
                                     android:paddingHorizontal="4dp"
@@ -168,7 +169,7 @@
                                     android:textSize="11sp" />
 
                                 <TextView
-                                    android:layout_width="100dp"
+                                    android:layout_width="120dp"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
                                     android:paddingHorizontal="4dp"
@@ -177,17 +178,16 @@
                                     android:textSize="11sp" />
 
                                 <TextView
-                                    android:layout_width="120dp"
+                                    android:layout_width="220dp"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
                                     android:paddingHorizontal="4dp"
                                     android:text="Court 1 AND 2"
-                                    android:textColor="#F44336"
                                     android:textSize="11sp"
                                     android:textStyle="bold" />
 
                                 <TextView
-                                    android:layout_width="100dp"
+                                    android:layout_width="140dp"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
                                     android:paddingHorizontal="4dp"
@@ -196,7 +196,7 @@
                                     android:textSize="11sp" />
 
                                 <TextView
-                                    android:layout_width="100dp"
+                                    android:layout_width="140dp"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
                                     android:paddingHorizontal="4dp"
@@ -211,16 +211,1076 @@
                                 android:layout_height="1dp"
                                 android:background="@color/divider" />
 
-                            <!-- Additional rows would be added here via RecyclerView in actual implementation -->
-                            <TextView
+                            <!-- Multipurpose Sports Hall - Netball -->
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="16dp"
-                                android:paddingHorizontal="8dp"
-                                android:text="Note: Full guidelines data will be displayed here. Please scroll horizontally to view all columns."
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp"
-                                android:textStyle="italic" />
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Multipurpose Sports Hall"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Netball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 AND 2"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Multipurpose Sports Hall - Basketball -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Multipurpose Sports Hall"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Basketball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players for each court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players for each court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Multipurpose Sports Hall - Volleyball (Sports Club only) -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Multipurpose Sports Hall"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Volleyball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Only for Sports Club session and event only"
+                                    android:textColor="#0D47A1"
+                                    android:textSize="11sp"
+                                    android:background="#87CEEB"
+                                    android:padding="6dp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 6 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Outdoor Court Rows -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Outdoor Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Futsal"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 and 2 OR Court 3 and 4"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Outdoor Court - Netball -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Outdoor Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Netball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 and 2 OR Court 3 and 4"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Outdoor Court - Basketball -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Outdoor Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Basketball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1,2,3 OR 4"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Outdoor Court - Volleyball -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Outdoor Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Volleyball"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 3 and 4 only"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Field rows -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Football"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field 1"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Field - Rugby -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Rugby"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field 3"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Field - Frisbee -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Frisbee"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field 3 OR Field 1"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Field - Cricket -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Cricket"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Field 1,2 AND 3"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players for each field"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Badminton Hall -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Badminton Hall"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Badminton"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Squash / Table Tennis -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Squash Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Squash"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Table Tennis row (second row under Squash Court) -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Squash Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Table Tennis"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- Tennis Court -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Tennis Court"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Tennis"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="n/a"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- 3g Pitch rows -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="3g Pitch"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Football"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 AND 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- 3g Pitch - Frisbee -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="3g Pitch"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Frisbee"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
+
+                            <!-- 3g Pitch - Futsal -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingVertical="8dp">
+
+                                <TextView
+                                    android:layout_width="160dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="3g Pitch"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="120dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Futsal"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="220dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Court 1 OR 2"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="140dp"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:paddingHorizontal="4dp"
+                                    android:text="Atleast 10 players"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="11sp" />
+
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="@color/divider" />
 
                         </LinearLayout>
 
@@ -229,6 +1289,17 @@
                 </com.google.android.material.card.MaterialCardView>
 
             </HorizontalScrollView>
+
+            <!-- Bottom note -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="#F8F9FA"
+                android:padding="12dp"
+                android:text="Note: For Netball, Futsal, Cricket please book for entire court/field. We are not responsible for double booking if you failed to do so."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
 
         </LinearLayout>
 
