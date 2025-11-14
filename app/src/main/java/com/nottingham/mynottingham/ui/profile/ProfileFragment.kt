@@ -1,5 +1,6 @@
 package com.nottingham.mynottingham.ui.profile
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,7 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentProfileBinding
 import kotlinx.coroutines.launch
+import androidx.core.content.ContextCompat
 
 class ProfileFragment : Fragment() {
 
@@ -33,30 +35,26 @@ class ProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupUI()
         loadUserInfo()
+        setupSwitchColors()   // ⭐ 新增：在这里调用颜色设置
     }
 
     private fun setupUI() {
-        // Logout button click listener
         binding.btnLogout.setOnClickListener {
             showLogoutConfirmDialog()
         }
     }
 
     private fun loadUserInfo() {
-        // Load user info from TokenManager and display
         lifecycleScope.launch {
-            // Load and display full name
             tokenManager.getFullName().collect { fullName ->
                 fullName?.let {
                     binding.tvName.text = it
-                    // Set avatar to first 2 letters of full name
                     binding.tvAvatar.text = it.take(2).uppercase()
                 }
             }
         }
 
         lifecycleScope.launch {
-            // Load and display student ID
             tokenManager.getStudentId().collect { studentId ->
                 studentId?.let {
                     binding.tvStudentId.text = it
@@ -65,23 +63,55 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    // ⭐⭐⭐ Switch 滑块颜色设置
+    private fun setupSwitchColors() {
+
+        val green = ContextCompat.getColor(requireContext(), R.color.primary)      // thumb checked
+        val greenLight = ContextCompat.getColor(requireContext(), R.color.primary_light) // track checked
+
+        val gray = ContextCompat.getColor(requireContext(), android.R.color.darker_gray)  // thumb unchecked
+        val grayLight = ContextCompat.getColor(requireContext(), R.color.divider)         // track unchecked
+
+        val thumbStateList = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(green, gray)
+        )
+
+        val trackStateList = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(greenLight, grayLight)
+        )
+
+        // 设置两个 Switch 的颜色
+        binding.switchErrand.apply {
+            thumbTintList = thumbStateList
+            trackTintList = trackStateList
+        }
+
+        binding.switchDelivery.apply {
+            thumbTintList = thumbStateList
+            trackTintList = trackStateList
+        }
+    }
+
     private fun showLogoutConfirmDialog() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Logout")
             .setMessage("Are you sure you want to logout?")
-            .setPositiveButton("Logout") { _, _ ->
-                performLogout()
-            }
+            .setPositiveButton("Logout") { _, _ -> performLogout() }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun performLogout() {
         lifecycleScope.launch {
-            // Clear all saved data
             tokenManager.clearToken()
-
-            // Navigate to login screen
             findNavController().navigate(R.id.action_profile_to_login)
         }
     }
