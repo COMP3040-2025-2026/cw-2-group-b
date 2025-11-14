@@ -16,9 +16,9 @@ INSERT INTO users (username, password, email, full_name, phone, role, status, cr
 
 -- Student details
 INSERT INTO students (user_id, student_id, faculty, major, year_of_study, matric_number, gpa) VALUES
-(1, 'S001', 'Faculty of Computer Science', 'Computer Science', 3, 'M2021001', 3.75),
-(2, 'S002', 'Faculty of Computer Science', 'Software Engineering', 2, 'M2022002', 3.50),
-(3, 'S003', 'Faculty of Engineering', 'Electrical Engineering', 4, 'M2020003', 3.85);
+(1, 20210001, 'Faculty of Computer Science', 'Computer Science', 3, 'M2021001', 3.75),
+(2, 20220002, 'Faculty of Computer Science', 'Software Engineering', 2, 'M2022002', 3.50),
+(3, 20200003, 'Faculty of Engineering', 'Electrical Engineering', 4, 'M2020003', 3.85);
 
 -- Teacher details
 INSERT INTO teachers (user_id, employee_id, department, title, office_room, office_hours) VALUES

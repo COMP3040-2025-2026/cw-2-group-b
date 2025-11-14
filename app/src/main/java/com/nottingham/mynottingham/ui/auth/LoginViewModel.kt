@@ -47,6 +47,14 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             userType = loginData.user.userType
                         )
 
+                        // Save full name
+                        tokenManager.saveFullName(loginData.user.fullName)
+
+                        // Save student ID if available
+                        loginData.user.studentId?.let { studentId ->
+                            tokenManager.saveStudentId(studentId.toString())
+                        }
+
                         _loginSuccess.value = true
                     } else {
                         _error.value = apiResponse.message ?: "Login failed"

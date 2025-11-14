@@ -56,7 +56,7 @@ public class UserService {
         return studentRepository.findById(id);
     }
 
-    public Optional<Student> getStudentByStudentId(String studentId) {
+    public Optional<Student> getStudentByStudentId(Long studentId) {
         return studentRepository.findByStudentId(studentId);
     }
 

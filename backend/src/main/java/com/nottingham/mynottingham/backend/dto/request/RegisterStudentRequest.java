@@ -23,8 +23,10 @@ public class RegisterStudentRequest {
 
     private String phone;
 
-    @NotBlank(message = "Student ID is required")
-    private String studentId;
+    @NotNull(message = "Student ID is required")
+    @Min(value = 10000000, message = "Student ID must be 8 digits")
+    @Max(value = 99999999, message = "Student ID must be 8 digits")
+    private Long studentId;
 
     @NotBlank(message = "Faculty is required")
     private String faculty;

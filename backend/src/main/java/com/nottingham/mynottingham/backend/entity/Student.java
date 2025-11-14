@@ -19,8 +19,8 @@ import java.util.List;
 @PrimaryKeyJoinColumn(name = "user_id")
 public class Student extends User {
 
-    @Column(unique = true, nullable = false, length = 20)
-    private String studentId;
+    @Column(unique = true, nullable = false)
+    private Long studentId;
 
     @Column(nullable = false, length = 100)
     private String faculty;

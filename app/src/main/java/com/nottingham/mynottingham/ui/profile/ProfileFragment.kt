@@ -45,11 +45,21 @@ class ProfileFragment : Fragment() {
     private fun loadUserInfo() {
         // Load user info from TokenManager and display
         lifecycleScope.launch {
-            tokenManager.getUsername().collect { username ->
-                username?.let {
+            // Load and display full name
+            tokenManager.getFullName().collect { fullName ->
+                fullName?.let {
                     binding.tvName.text = it
-                    // Set avatar to first letter of username
+                    // Set avatar to first 2 letters of full name
                     binding.tvAvatar.text = it.take(2).uppercase()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            // Load and display student ID
+            tokenManager.getStudentId().collect { studentId ->
+                studentId?.let {
+                    binding.tvStudentId.text = it
                 }
             }
         }

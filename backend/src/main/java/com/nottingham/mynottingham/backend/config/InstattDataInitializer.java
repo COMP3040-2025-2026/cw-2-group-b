@@ -56,7 +56,7 @@ public class InstattDataInitializer {
             student1.setUsername("student1");
             student1.setFullName("Alice Johnson");
             student1.setRole(User.UserRole.STUDENT);
-            student1.setStudentId("S001");
+            student1.setStudentId(20210001L);
             student1.setFaculty("Faculty of Science");
             student1.setMajor("Computer Science");
             student1.setYearOfStudy(3);
@@ -68,7 +68,7 @@ public class InstattDataInitializer {
             student2.setUsername("student2");
             student2.setFullName("Bob Williams");
             student2.setRole(User.UserRole.STUDENT);
-            student2.setStudentId("S002");
+            student2.setStudentId(20220002L);
             student2.setFaculty("Faculty of Science");
             student2.setMajor("Computer Science");
             student2.setYearOfStudy(3);

@@ -29,7 +29,7 @@ data class UserDto(
     val fullName: String,
     @SerializedName("role")  // Map backend's "role" field to "userType"
     val userType: String,
-    val studentId: String?,
+    val studentId: Long?,
     val employeeId: String?,
     val phoneNumber: String?,
     val avatarUrl: String?

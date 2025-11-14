@@ -18,6 +18,8 @@ class TokenManager(private val context: Context) {
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USERNAME_KEY = stringPreferencesKey("username")
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
+        private val FULL_NAME_KEY = stringPreferencesKey("full_name")
+        private val STUDENT_ID_KEY = stringPreferencesKey("student_id")
     }
 
     suspend fun saveToken(token: String) {
@@ -31,6 +33,18 @@ class TokenManager(private val context: Context) {
             preferences[USER_ID_KEY] = userId
             preferences[USERNAME_KEY] = username
             preferences[USER_TYPE_KEY] = userType
+        }
+    }
+
+    suspend fun saveFullName(fullName: String) {
+        context.dataStore.edit { preferences ->
+            preferences[FULL_NAME_KEY] = fullName
+        }
+    }
+
+    suspend fun saveStudentId(studentId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[STUDENT_ID_KEY] = studentId
         }
     }
 
@@ -55,6 +69,18 @@ class TokenManager(private val context: Context) {
     fun getUserType(): Flow<String?> {
         return context.dataStore.data.map { preferences ->
             preferences[USER_TYPE_KEY]
+        }
+    }
+
+    fun getFullName(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[FULL_NAME_KEY]
+        }
+    }
+
+    fun getStudentId(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[STUDENT_ID_KEY]
         }
     }
 
