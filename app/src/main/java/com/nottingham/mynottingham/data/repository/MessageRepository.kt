@@ -116,7 +116,9 @@ class MessageRepository(context: Context) {
                         }
                         participantDao.insertParticipants(participantEntities)
 
-                        val conversation = entityToConversation(entity, participantEntities, "")
+                        // Get current user ID from TokenManager
+                        val currentUserId = getCurrentUserId()
+                        val conversation = entityToConversation(entity, participantEntities, currentUserId)
                         Result.success(conversation)
                     } else {
                         Result.failure(Exception("Conversation data is null"))
@@ -128,6 +130,14 @@ class MessageRepository(context: Context) {
                 Result.failure(e)
             }
         }
+    }
+
+    /**
+     * Get current user ID from DataStore
+     */
+    private suspend fun getCurrentUserId(): String {
+        val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(Constants.KEY_USER_ID, "") ?: ""
     }
 
     /**
@@ -155,11 +165,12 @@ class MessageRepository(context: Context) {
     /**
      * Search conversations locally
      */
-    fun searchConversations(query: String): Flow<List<Conversation>> {
+    suspend fun searchConversations(query: String): Flow<List<Conversation>> {
+        val currentUserId = getCurrentUserId()
         return conversationDao.searchConversations(query).map { entities ->
             entities.map { entity ->
                 val participants = participantDao.getParticipantsForConversationSync(entity.id)
-                entityToConversation(entity, participants, "")
+                entityToConversation(entity, participants, currentUserId)
             }
         }
     }

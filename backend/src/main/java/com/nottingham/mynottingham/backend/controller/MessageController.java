@@ -5,7 +5,11 @@ import com.nottingham.mynottingham.backend.dto.response.ApiResponse;
 import com.nottingham.mynottingham.backend.entity.Student;
 import com.nottingham.mynottingham.backend.entity.Teacher;
 import com.nottingham.mynottingham.backend.entity.User;
+import com.nottingham.mynottingham.backend.repository.StudentRepository;
+import com.nottingham.mynottingham.backend.repository.TeacherRepository;
+import com.nottingham.mynottingham.backend.service.MessageService;
 import com.nottingham.mynottingham.backend.service.UserService;
+import com.nottingham.mynottingham.backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,42 +27,140 @@ public class MessageController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private TeacherRepository teacherRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private MessageService messageService;
+
     /**
      * Get contact suggestions for current user
-     * Students see their teachers, teachers see their students
+     * Students see their faculty first, then other faculties (relaxed filtering)
+     * Teachers see their department first, then other departments
      */
     @GetMapping("/contacts/suggestions")
     public ResponseEntity<ApiResponse<List<ContactSuggestionDto>>> getContactSuggestions(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @RequestHeader(value = "Authorization") String token) {
         try {
-            // Extract user ID from token (simplified - in production use JWT)
-            // For now, return all users except current user
-            List<User> allUsers = userService.getAllUsers();
+            // Extract user ID from JWT token
+            Long currentUserId = jwtUtil.extractUserId(token);
+            User currentUser = userService.getUserById(currentUserId)
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
 
-            List<ContactSuggestionDto> suggestions = new ArrayList<>();
+            List<ContactSuggestionDto> sameFacultySuggestions = new ArrayList<>();
+            List<ContactSuggestionDto> otherFacultySuggestions = new ArrayList<>();
 
-            for (User user : allUsers) {
-                ContactSuggestionDto dto = ContactSuggestionDto.builder()
-                        .userId(user.getId().toString())
-                        .userName(user.getFullName())
-                        .userAvatar(user.getAvatarUrl())
-                        .isOnline(false) // Default to offline for now
-                        .build();
+            if (currentUser instanceof Student) {
+                Student student = (Student) currentUser;
+                String currentFaculty = student.getFaculty();
 
-                // Add student-specific info
-                if (user instanceof Student) {
-                    Student student = (Student) user;
-                    dto.setProgram(student.getMajor());
-                    dto.setYear(student.getYearOfStudy());
+                // Get same faculty students and teachers
+                List<Student> sameFacultyStudents = studentRepository.findByFaculty(currentFaculty);
+                List<Teacher> sameFacultyTeachers = teacherRepository.findByDepartment(currentFaculty);
+
+                // Get other faculty students and teachers
+                List<Student> allStudents = studentRepository.findAll();
+                List<Teacher> allTeachers = teacherRepository.findAll();
+
+                // Build same faculty contacts
+                for (Student s : sameFacultyStudents) {
+                    if (!s.getId().equals(currentUserId)) {
+                        sameFacultySuggestions.add(buildContactDto(s, true));
+                    }
+                }
+                for (Teacher t : sameFacultyTeachers) {
+                    sameFacultySuggestions.add(buildContactDto(t, true));
                 }
 
-                suggestions.add(dto);
+                // Build other faculty contacts
+                for (Student s : allStudents) {
+                    if (!s.getId().equals(currentUserId) && !currentFaculty.equals(s.getFaculty())) {
+                        otherFacultySuggestions.add(buildContactDto(s, false));
+                    }
+                }
+                for (Teacher t : allTeachers) {
+                    if (!currentFaculty.equals(t.getDepartment())) {
+                        otherFacultySuggestions.add(buildContactDto(t, false));
+                    }
+                }
+
+            } else if (currentUser instanceof Teacher) {
+                Teacher teacher = (Teacher) currentUser;
+                String currentDepartment = teacher.getDepartment();
+
+                // Get same department teachers and students
+                List<Teacher> sameDeptTeachers = teacherRepository.findByDepartment(currentDepartment);
+                List<Student> sameDeptStudents = studentRepository.findByFaculty(currentDepartment);
+
+                // Get all teachers and students
+                List<Teacher> allTeachers = teacherRepository.findAll();
+                List<Student> allStudents = studentRepository.findAll();
+
+                // Build same department contacts
+                for (Teacher t : sameDeptTeachers) {
+                    if (!t.getId().equals(currentUserId)) {
+                        sameFacultySuggestions.add(buildContactDto(t, true));
+                    }
+                }
+                for (Student s : sameDeptStudents) {
+                    sameFacultySuggestions.add(buildContactDto(s, true));
+                }
+
+                // Build other department contacts
+                for (Teacher t : allTeachers) {
+                    if (!t.getId().equals(currentUserId) && !currentDepartment.equals(t.getDepartment())) {
+                        otherFacultySuggestions.add(buildContactDto(t, false));
+                    }
+                }
+                for (Student s : allStudents) {
+                    if (!currentDepartment.equals(s.getFaculty())) {
+                        otherFacultySuggestions.add(buildContactDto(s, false));
+                    }
+                }
             }
 
-            return ResponseEntity.ok(ApiResponse.success(suggestions));
+            // Combine lists: same faculty first, then others
+            List<ContactSuggestionDto> allSuggestions = new ArrayList<>();
+            allSuggestions.addAll(sameFacultySuggestions);
+            allSuggestions.addAll(otherFacultySuggestions);
+
+            return ResponseEntity.ok(ApiResponse.success(allSuggestions));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.ok(ApiResponse.error("Failed to get contact suggestions: " + e.getMessage()));
         }
+    }
+
+    /**
+     * Helper method to build ContactSuggestionDto
+     */
+    private ContactSuggestionDto buildContactDto(User user, boolean isSameFaculty) {
+        ContactSuggestionDto.ContactSuggestionDtoBuilder builder = ContactSuggestionDto.builder()
+                .userId(user.getId().toString())
+                .userName(user.getFullName())
+                .userAvatar(user.getAvatarUrl())
+                .isOnline(false);
+
+        // Add student-specific info
+        if (user instanceof Student) {
+            Student student = (Student) user;
+            builder.program(student.getMajor())
+                   .year(student.getYearOfStudy());
+        }
+
+        // Add teacher-specific info
+        if (user instanceof Teacher) {
+            Teacher teacher = (Teacher) user;
+            builder.program(teacher.getDepartment());
+        }
+
+        return builder.build();
     }
 
     /**
@@ -133,52 +235,41 @@ public class MessageController {
      */
     @PostMapping("/conversations")
     public ResponseEntity<ApiResponse<ConversationDto>> createConversation(
-            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestHeader(value = "Authorization") String token,
             @RequestBody CreateConversationRequest request) {
         try {
-            // Generate conversation ID
-            String conversationId = UUID.randomUUID().toString();
-            long currentTime = System.currentTimeMillis();
+            // Extract current user ID from JWT
+            Long currentUserId = jwtUtil.extractUserId(token);
 
-            // Get participant details
-            List<ParticipantDto> participants = new ArrayList<>();
+            // Validate request
+            if (request.getParticipantIds() == null || request.getParticipantIds().isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.error("Participant IDs are required"));
+            }
+
+            // Convert participant IDs from String to Long
+            List<Long> participantIds = new ArrayList<>();
             for (String participantId : request.getParticipantIds()) {
                 try {
-                    Long userId = Long.parseLong(participantId);
-                    userService.getUserById(userId).ifPresent(user -> {
-                        ParticipantDto participant = ParticipantDto.builder()
-                                .userId(user.getId().toString())
-                                .userName(user.getFullName())
-                                .userAvatar(user.getAvatarUrl())
-                                .isOnline(false)
-                                .isTyping(false)
-                                .lastSeenAt(currentTime)
-                                .build();
-                        participants.add(participant);
-                    });
+                    participantIds.add(Long.parseLong(participantId));
                 } catch (NumberFormatException e) {
-                    // Skip invalid user ID
+                    return ResponseEntity.ok(ApiResponse.error("Invalid participant ID: " + participantId));
                 }
             }
 
-            // Create conversation DTO
-            ConversationDto conversation = ConversationDto.builder()
-                    .id(conversationId)
-                    .isGroup(request.getIsGroup() != null && request.getIsGroup())
-                    .groupName(request.getGroupName())
-                    .groupAvatar(null)
-                    .lastMessage(null)
-                    .lastMessageTime(currentTime)
-                    .lastMessageSenderId(null)
-                    .unreadCount(0)
-                    .isPinned(false)
-                    .participants(participants)
-                    .createdAt(currentTime)
-                    .updatedAt(currentTime)
-                    .build();
+            // Create conversation using service
+            ConversationDto conversation = messageService.createConversation(
+                    currentUserId,
+                    participantIds,
+                    request.getIsGroup(),
+                    request.getGroupName()
+            );
 
             return ResponseEntity.ok(ApiResponse.success("Conversation created successfully", conversation));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.ok(ApiResponse.error("Failed to create conversation: " + e.getMessage()));
         }
     }
@@ -188,9 +279,15 @@ public class MessageController {
      */
     @GetMapping("/conversations")
     public ResponseEntity<ApiResponse<List<ConversationDto>>> getConversations(
-            @RequestHeader(value = "Authorization", required = false) String token) {
-        // Return empty list for now - frontend will create conversations locally
-        return ResponseEntity.ok(ApiResponse.success(new ArrayList<>()));
+            @RequestHeader(value = "Authorization") String token) {
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            List<ConversationDto> conversations = messageService.getUserConversations(currentUserId);
+            return ResponseEntity.ok(ApiResponse.success(conversations));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to get conversations: " + e.getMessage()));
+        }
     }
 
     /**
@@ -198,9 +295,17 @@ public class MessageController {
      */
     @GetMapping("/conversations/{conversationId}")
     public ResponseEntity<ApiResponse<ConversationDto>> getConversation(
-            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestHeader(value = "Authorization") String token,
             @PathVariable String conversationId) {
-        return ResponseEntity.ok(ApiResponse.error("Conversation not found"));
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            return messageService.getConversationByUuid(conversationId, currentUserId)
+                    .map(conv -> ResponseEntity.ok(ApiResponse.success(conv)))
+                    .orElse(ResponseEntity.ok(ApiResponse.error("Conversation not found")));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to get conversation: " + e.getMessage()));
+        }
     }
 
     /**

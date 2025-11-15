@@ -5,6 +5,7 @@ import com.nottingham.mynottingham.backend.dto.LoginRequest;
 import com.nottingham.mynottingham.backend.dto.LoginResponse;
 import com.nottingham.mynottingham.backend.entity.User;
 import com.nottingham.mynottingham.backend.service.UserService;
+import com.nottingham.mynottingham.backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +20,9 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
@@ -46,11 +50,12 @@ public class AuthController {
                 return ResponseEntity.ok(ApiResponse.error("Invalid password"));
             }
 
-            // Generate simple token (in production, use JWT)
-            String token = "Bearer " + java.util.UUID.randomUUID().toString();
+            // Generate JWT token with user information
+            String token = jwtUtil.generateToken(user);
+            System.out.println("Generated JWT token for user: " + user.getUsername());
 
             LoginResponse loginResponse = new LoginResponse();
-            loginResponse.setToken(token);
+            loginResponse.setToken("Bearer " + token);
             loginResponse.setUser(com.nottingham.mynottingham.backend.dto.UserDto.fromUser(user));
 
             System.out.println("Login successful!");
