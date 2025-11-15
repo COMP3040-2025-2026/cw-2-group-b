@@ -67,6 +67,10 @@ class HomeFragment : Fragment() {
         viewModel.welcomeMessage.observe(viewLifecycleOwner) { message ->
             binding.tvWelcome.text = message
         }
+
+        viewModel.facultyYearMessage.observe(viewLifecycleOwner) { message ->
+            binding.tvFacultyYear.text = message
+        }
     }
 
     override fun onDestroyView() {

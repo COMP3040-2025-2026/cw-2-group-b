@@ -15,11 +15,16 @@ import kotlinx.coroutines.launch
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager(application)
+
     private val _welcomeMessage = MutableLiveData<String>()
     val welcomeMessage: LiveData<String> = _welcomeMessage
 
+    private val _facultyYearMessage = MutableLiveData<String>()
+    val facultyYearMessage: LiveData<String> = _facultyYearMessage
+
     init {
         loadWelcomeMessage()
+        loadFacultyYearInfo()
     }
 
     private fun loadWelcomeMessage() {
@@ -30,6 +35,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 "Welcome to My Nottingham"
             }
+        }
+    }
+
+    private fun loadFacultyYearInfo() {
+        viewModelScope.launch {
+            val faculty = tokenManager.getFaculty().firstOrNull()
+            val year = tokenManager.getYearOfStudy().firstOrNull()
+
+            val message = when {
+                faculty != null && year != null -> "$faculty, Year $year"
+                faculty != null -> faculty
+                year != null -> "Year $year"
+                else -> "My Nottingham Student"
+            }
+
+            _facultyYearMessage.value = message
         }
     }
 }
