@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.remote.dto.LoginRequest
+import com.nottingham.mynottingham.data.repository.MessageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -14,6 +15,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager(application)
     private val apiService = RetrofitInstance.apiService
+    private val messageRepository = MessageRepository(application)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -70,6 +72,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             tokenManager.saveYearOfStudy(year.toString())
                         }
 
+                        // Create default conversations (teachers/students)
+                        createDefaultConversations(loginData.token, loginData.user.id.toString())
+
                         _loginSuccess.value = true
                     } else {
                         _error.value = apiResponse.message ?: "Login failed"
@@ -81,6 +86,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 _error.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Create default conversations with teachers (for students) or students (for teachers)
+     */
+    private fun createDefaultConversations(token: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                messageRepository.createDefaultConversations(token, userId)
+                // Silently create conversations, don't show error to user
+            } catch (e: Exception) {
+                // Ignore errors in creating default conversations
+                // User can still manually create conversations
             }
         }
     }

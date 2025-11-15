@@ -303,6 +303,61 @@ class MessageRepository(context: Context) {
         }
     }
 
+    /**
+     * Get default contacts for a user (teachers for students, students for teachers)
+     */
+    suspend fun getDefaultContacts(userId: String): Result<List<ContactSuggestionDto>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.getDefaultContacts(userId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val contacts = response.body()?.data ?: emptyList()
+                    Result.success(contacts)
+                } else {
+                    Result.failure(Exception(response.body()?.message ?: "Failed to get default contacts"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Create default conversations for a user
+     * Returns the list of created conversations
+     */
+    suspend fun createDefaultConversations(token: String, userId: String): Result<List<Conversation>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val defaultContactsResult = getDefaultContacts(userId)
+                if (defaultContactsResult.isFailure) {
+                    return@withContext defaultContactsResult.exceptionOrNull()?.let { Result.failure<List<Conversation>>(it) }
+                        ?: Result.failure(Exception("Failed to get default contacts"))
+                }
+
+                val contacts = defaultContactsResult.getOrNull() ?: emptyList()
+                val createdConversations = mutableListOf<Conversation>()
+
+                // Create conversation with each default contact
+                for (contact in contacts) {
+                    val createResult = createConversation(
+                        token = token,
+                        participantIds = listOf(contact.userId),
+                        isGroup = false
+                    )
+
+                    if (createResult.isSuccess) {
+                        createResult.getOrNull()?.let { createdConversations.add(it) }
+                    }
+                }
+
+                Result.success(createdConversations)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
     // ========== Data Retention ==========
 
     /**

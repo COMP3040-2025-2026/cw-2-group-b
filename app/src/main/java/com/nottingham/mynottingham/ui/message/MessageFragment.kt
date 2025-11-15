@@ -51,10 +51,17 @@ class MessageFragment : Fragment() {
 
         setupRecyclerView()
         setupSearchView()
+        setupFab()
         setupObservers()
 
         // Sync conversations from API
         viewModel.syncConversations(token)
+    }
+
+    private fun setupFab() {
+        binding.fabNewMessage.setOnClickListener {
+            findNavController().navigate(R.id.action_message_to_new_message)
+        }
     }
 
     private fun setupRecyclerView() {

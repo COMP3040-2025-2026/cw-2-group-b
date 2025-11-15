@@ -195,6 +195,11 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<ContactSuggestionResponse>
 
+    @GET("message/contacts/default/{userId}")
+    suspend fun getDefaultContacts(
+        @Path("userId") userId: String
+    ): Response<ContactSuggestionResponse>
+
     @DELETE("message/conversations/{conversationId}")
     suspend fun deleteConversation(
         @Header("Authorization") token: String,
