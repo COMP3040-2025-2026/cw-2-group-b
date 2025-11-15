@@ -34,7 +34,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Welcome text (保留以兼容原代码) -->
+    <!-- Welcome text -->
     <TextView
         android:id="@+id/tvWelcome"
         android:layout_width="wrap_content"
@@ -141,7 +141,7 @@
             android:textSize="14sp"
             tools:text="Invalid username or password" />
 
-        <!-- Login area: gradient background + centered image (你的按钮文字图) -->
+        <!-- Login area: gradient background + centered image -->
         <!-- ripple on click -->
         <FrameLayout
             android:id="@+id/btnLogin"
@@ -184,7 +184,7 @@
             android:id="@+id/tvWarnText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Only use the official school email to log in. Login means agreeing to the real name authentication system"
+            android:text="Only use the official school account to log in. Login means agreeing to the real name authentication system"
             android:textSize="15sp"
             android:textColor="#9E9E9E"
             android:layout_weight="1" />
