@@ -51,7 +51,7 @@ public class AuthController {
 
             LoginResponse loginResponse = new LoginResponse();
             loginResponse.setToken(token);
-            loginResponse.setUser(user);
+            loginResponse.setUser(com.nottingham.mynottingham.backend.dto.UserDto.fromUser(user));
 
             System.out.println("Login successful!");
             return ResponseEntity.ok(ApiResponse.success("Login successful", loginResponse));

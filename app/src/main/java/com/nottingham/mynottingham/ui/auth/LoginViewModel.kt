@@ -50,9 +50,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         // Save full name
                         tokenManager.saveFullName(loginData.user.fullName)
 
-                        // Save student ID if available
+                        // Save email
+                        tokenManager.saveEmail(loginData.user.email)
+
+                        // Save student-specific fields if available
                         loginData.user.studentId?.let { studentId ->
                             tokenManager.saveStudentId(studentId.toString())
+                        }
+
+                        loginData.user.faculty?.let { faculty ->
+                            tokenManager.saveFaculty(faculty)
+                        }
+
+                        loginData.user.major?.let { major ->
+                            tokenManager.saveMajor(major)
+                        }
+
+                        loginData.user.yearOfStudy?.let { year ->
+                            tokenManager.saveYearOfStudy(year.toString())
                         }
 
                         _loginSuccess.value = true

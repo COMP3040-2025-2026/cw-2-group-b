@@ -55,10 +55,36 @@ class ProfileFragment : Fragment() {
         }
 
         lifecycleScope.launch {
+            tokenManager.getEmail().collect { email ->
+                email?.let {
+                    binding.tvEmail.text = it
+                }
+            }
+        }
+
+        lifecycleScope.launch {
             tokenManager.getStudentId().collect { studentId ->
                 studentId?.let {
-                    binding.tvStudentId.text = it
+                    binding.tvStudentId.text = "Student ID: $it"
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getFaculty().collect { faculty ->
+                binding.valueFaculty.text = faculty ?: "—"
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getMajor().collect { major ->
+                binding.valueProgram.text = major ?: "—"
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getYearOfStudy().collect { year ->
+                binding.valueYear.text = year?.let { "Year $it" } ?: "—"
             }
         }
     }

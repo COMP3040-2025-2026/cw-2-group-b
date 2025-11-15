@@ -20,6 +20,10 @@ class TokenManager(private val context: Context) {
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
         private val FULL_NAME_KEY = stringPreferencesKey("full_name")
         private val STUDENT_ID_KEY = stringPreferencesKey("student_id")
+        private val EMAIL_KEY = stringPreferencesKey("email")
+        private val FACULTY_KEY = stringPreferencesKey("faculty")
+        private val MAJOR_KEY = stringPreferencesKey("major")
+        private val YEAR_OF_STUDY_KEY = stringPreferencesKey("year_of_study")
     }
 
     suspend fun saveToken(token: String) {
@@ -45,6 +49,30 @@ class TokenManager(private val context: Context) {
     suspend fun saveStudentId(studentId: String) {
         context.dataStore.edit { preferences ->
             preferences[STUDENT_ID_KEY] = studentId
+        }
+    }
+
+    suspend fun saveEmail(email: String) {
+        context.dataStore.edit { preferences ->
+            preferences[EMAIL_KEY] = email
+        }
+    }
+
+    suspend fun saveFaculty(faculty: String) {
+        context.dataStore.edit { preferences ->
+            preferences[FACULTY_KEY] = faculty
+        }
+    }
+
+    suspend fun saveMajor(major: String) {
+        context.dataStore.edit { preferences ->
+            preferences[MAJOR_KEY] = major
+        }
+    }
+
+    suspend fun saveYearOfStudy(yearOfStudy: String) {
+        context.dataStore.edit { preferences ->
+            preferences[YEAR_OF_STUDY_KEY] = yearOfStudy
         }
     }
 
@@ -81,6 +109,30 @@ class TokenManager(private val context: Context) {
     fun getStudentId(): Flow<String?> {
         return context.dataStore.data.map { preferences ->
             preferences[STUDENT_ID_KEY]
+        }
+    }
+
+    fun getEmail(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[EMAIL_KEY]
+        }
+    }
+
+    fun getFaculty(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[FACULTY_KEY]
+        }
+    }
+
+    fun getMajor(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[MAJOR_KEY]
+        }
+    }
+
+    fun getYearOfStudy(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[YEAR_OF_STUDY_KEY]
         }
     }
 
