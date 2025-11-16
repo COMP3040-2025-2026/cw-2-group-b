@@ -1,6 +1,5 @@
 package com.nottingham.mynottingham.ui.message
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +14,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentMessageBinding
-import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -49,20 +47,18 @@ class MessageFragment : Fragment() {
         // Initialize TokenManager
         tokenManager = TokenManager(requireContext())
 
-        // Get user credentials from SharedPreferences (userId) and DataStore (token)
-        val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        currentUserId = prefs.getString(Constants.KEY_USER_ID, "") ?: ""
-
-        // Set current user ID in ViewModel
-        viewModel.setCurrentUserId(currentUserId)
-
         setupRecyclerView()
         setupSearchView()
         setupFab()
         setupObservers()
 
-        // Get token from DataStore and sync conversations
+        // Get user credentials from DataStore (both userId and token)
         lifecycleScope.launch {
+            // Get userId from DataStore
+            currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
+            viewModel.setCurrentUserId(currentUserId)
+
+            // Get token from DataStore
             token = tokenManager.getToken().firstOrNull() ?: ""
             // Remove "Bearer " prefix if present (for backward compatibility)
             token = token.removePrefix("Bearer ").trim()
