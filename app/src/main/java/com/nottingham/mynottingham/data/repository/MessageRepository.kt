@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
  * Repository for Message operations
  * Coordinates between local database and remote API
  */
-class MessageRepository(context: Context) {
+class MessageRepository(private val context: Context) {
 
     private val database = AppDatabase.getInstance(context)
     private val messageDao = database.messageDao()

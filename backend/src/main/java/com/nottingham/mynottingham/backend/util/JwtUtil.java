@@ -5,11 +5,10 @@ import com.nottingham.mynottingham.backend.entity.Teacher;
 import com.nottingham.mynottingham.backend.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +20,7 @@ public class JwtUtil {
     private static final String SECRET_KEY = "MyNottinghamSecretKeyForJWTTokenGeneration2024ThisIsAVeryLongSecretKey";
     private static final long EXPIRATION_TIME = 86400000; // 24 hours in milliseconds
 
-    private final Key key;
+    private final SecretKey key;
 
     public JwtUtil() {
         this.key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
@@ -55,11 +54,11 @@ public class JwtUtil {
         }
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(user.getUsername())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key, SignatureAlgorithm.HS512)
+                .claims(claims)
+                .subject(user.getUsername())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .signWith(key)
                 .compact();
     }
 
@@ -71,11 +70,11 @@ public class JwtUtil {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     /**
