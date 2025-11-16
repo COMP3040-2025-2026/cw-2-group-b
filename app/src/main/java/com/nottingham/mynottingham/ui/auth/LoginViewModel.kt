@@ -42,7 +42,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         val loginData = apiResponse.data
 
                         // Save token and user info
-                        tokenManager.saveToken(loginData.token)
+                        // Remove "Bearer " prefix before saving
+                        val pureToken = loginData.token.removePrefix("Bearer ").trim()
+                        tokenManager.saveToken(pureToken)
                         tokenManager.saveUserInfo(
                             userId = loginData.user.id.toString(),
                             username = loginData.user.username,

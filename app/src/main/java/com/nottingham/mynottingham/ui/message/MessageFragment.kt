@@ -64,6 +64,9 @@ class MessageFragment : Fragment() {
         // Get token from DataStore and sync conversations
         lifecycleScope.launch {
             token = tokenManager.getToken().firstOrNull() ?: ""
+            // Remove "Bearer " prefix if present (for backward compatibility)
+            token = token.removePrefix("Bearer ").trim()
+
             if (token.isNotEmpty()) {
                 viewModel.syncConversations(token)
             } else {
@@ -88,7 +91,9 @@ class MessageFragment : Fragment() {
             onConversationLongClick = { conversation ->
                 // Toggle pinned status
                 lifecycleScope.launch {
-                    val currentToken = tokenManager.getToken().firstOrNull() ?: ""
+                    var currentToken = tokenManager.getToken().firstOrNull() ?: ""
+                    // Remove "Bearer " prefix if present (for backward compatibility)
+                    currentToken = currentToken.removePrefix("Bearer ").trim()
                     if (currentToken.isNotEmpty()) {
                         viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
                         Toast.makeText(
