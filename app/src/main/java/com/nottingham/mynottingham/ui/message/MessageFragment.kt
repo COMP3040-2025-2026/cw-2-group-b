@@ -9,11 +9,15 @@ import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentMessageBinding
 import com.nottingham.mynottingham.util.Constants
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 /**
  * Message fragment showing conversation list
@@ -25,6 +29,7 @@ class MessageFragment : Fragment() {
 
     private val viewModel: MessageViewModel by viewModels()
     private lateinit var adapter: ConversationAdapter
+    private lateinit var tokenManager: TokenManager
 
     private var currentUserId: String = ""
     private var token: String = ""
@@ -41,10 +46,12 @@ class MessageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Get user credentials from SharedPreferences
+        // Initialize TokenManager
+        tokenManager = TokenManager(requireContext())
+
+        // Get user credentials from SharedPreferences (userId) and DataStore (token)
         val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         currentUserId = prefs.getString(Constants.KEY_USER_ID, "") ?: ""
-        token = prefs.getString(Constants.KEY_USER_TOKEN, "") ?: ""
 
         // Set current user ID in ViewModel
         viewModel.setCurrentUserId(currentUserId)
@@ -54,8 +61,15 @@ class MessageFragment : Fragment() {
         setupFab()
         setupObservers()
 
-        // Sync conversations from API
-        viewModel.syncConversations(token)
+        // Get token from DataStore and sync conversations
+        lifecycleScope.launch {
+            token = tokenManager.getToken().firstOrNull() ?: ""
+            if (token.isNotEmpty()) {
+                viewModel.syncConversations(token)
+            } else {
+                Toast.makeText(context, "No authentication token found", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupFab() {
@@ -73,12 +87,17 @@ class MessageFragment : Fragment() {
             },
             onConversationLongClick = { conversation ->
                 // Toggle pinned status
-                viewModel.togglePinned(token, conversation.id, conversation.isPinned)
-                Toast.makeText(
-                    context,
-                    if (conversation.isPinned) "Unpinned" else "Pinned",
-                    Toast.LENGTH_SHORT
-                ).show()
+                lifecycleScope.launch {
+                    val currentToken = tokenManager.getToken().firstOrNull() ?: ""
+                    if (currentToken.isNotEmpty()) {
+                        viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
+                        Toast.makeText(
+                            context,
+                            if (conversation.isPinned) "Unpinned" else "Pinned",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         )
 
