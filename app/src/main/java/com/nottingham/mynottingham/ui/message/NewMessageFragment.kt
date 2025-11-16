@@ -8,10 +8,14 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentNewMessageBinding
 import com.nottingham.mynottingham.util.Constants
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 /**
  * New message screen showing contact suggestions
@@ -23,6 +27,7 @@ class NewMessageFragment : Fragment() {
 
     private val viewModel: NewMessageViewModel by viewModels()
     private lateinit var adapter: ContactSuggestionAdapter
+    private lateinit var tokenManager: TokenManager
 
     private var token: String = ""
 
@@ -38,16 +43,25 @@ class NewMessageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Get token from SharedPreferences
-        val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        token = prefs.getString(Constants.KEY_USER_TOKEN, "") ?: ""
+        // Initialize TokenManager
+        tokenManager = TokenManager(requireContext())
 
         setupToolbar()
         setupRecyclerView()
         setupObservers()
 
-        // Load contacts
-        viewModel.loadContactSuggestions(token)
+        // Get token from DataStore and load contacts
+        lifecycleScope.launch {
+            token = tokenManager.getToken().firstOrNull() ?: ""
+            // Remove "Bearer " prefix if present (for backward compatibility)
+            token = token.removePrefix("Bearer ").trim()
+
+            if (token.isNotEmpty()) {
+                viewModel.loadContactSuggestions(token)
+            } else {
+                Toast.makeText(context, "No authentication token found", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupToolbar() {
@@ -59,7 +73,14 @@ class NewMessageFragment : Fragment() {
     private fun setupRecyclerView() {
         adapter = ContactSuggestionAdapter { contact ->
             // Create conversation with selected contact
-            viewModel.createOneOnOneConversation(token, contact.userId)
+            lifecycleScope.launch {
+                var currentToken = tokenManager.getToken().firstOrNull() ?: ""
+                // Remove "Bearer " prefix if present (for backward compatibility)
+                currentToken = currentToken.removePrefix("Bearer ").trim()
+                if (currentToken.isNotEmpty()) {
+                    viewModel.createOneOnOneConversation(currentToken, contact.userId)
+                }
+            }
         }
 
         binding.recyclerContacts.apply {
