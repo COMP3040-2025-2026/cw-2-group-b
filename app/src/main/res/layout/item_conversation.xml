@@ -1,103 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="0dp"
-    app:strokeColor="@color/divider"
-    app:strokeWidth="1dp">
+    android:layout_marginBottom="8dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- Background layer - action buttons -->
+    <LinearLayout
+        android:id="@+id/layout_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:background="@color/white">
+
+        <!-- Pin/Unpin Button -->
+        <LinearLayout
+            android:id="@+id/btn_pin_swipe"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:background="#FF9800"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_push_pin"
+                android:tint="@color/white" />
+
+            <TextView
+                android:id="@+id/tv_pin_swipe"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Pin"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Delete Button -->
+        <LinearLayout
+            android:id="@+id/btn_delete_swipe"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:background="#F44336"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_delete"
+                android:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Delete"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Foreground layer - conversation item -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_foreground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp">
 
-        <!-- Avatar -->
-        <TextView
-            android:id="@+id/tv_avatar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_avatar"
-            android:gravity="center"
-            android:text="JD"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Online Indicator -->
-        <View
-            android:id="@+id/view_online"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
-            android:background="@drawable/bg_online_indicator"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/tv_avatar"
-            app:layout_constraintEnd_toEndOf="@id/tv_avatar" />
-
-        <!-- Name -->
-        <TextView
-            android:id="@+id/tv_name"
-            android:layout_width="0dp"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="John Doe"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/tv_time"
-            app:layout_constraintStart_toEndOf="@id/tv_avatar"
-            app:layout_constraintTop_toTopOf="@id/tv_avatar" />
+            android:padding="16dp"
+            android:background="@color/white">
 
-        <!-- Last Message -->
-        <TextView
-            android:id="@+id/tv_last_message"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="8dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:text="Hey, are you free for basketball this evening?"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
-            app:layout_constraintStart_toEndOf="@id/tv_avatar"
-            app:layout_constraintTop_toBottomOf="@id/tv_name" />
+            <!-- Avatar -->
+            <TextView
+                android:id="@+id/tv_avatar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_avatar"
+                android:gravity="center"
+                android:text="JD"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Time -->
-        <TextView
-            android:id="@+id/tv_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="10:30 AM"
-            android:textColor="@color/text_hint"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_name" />
+            <!-- Online Indicator -->
+            <View
+                android:id="@+id/view_online"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/bg_online_indicator"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/tv_avatar"
+                app:layout_constraintEnd_toEndOf="@id/tv_avatar" />
 
-        <!-- Unread Count Badge -->
-        <TextView
-            android:id="@+id/tv_unread_count"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:background="@drawable/bg_unread_badge"
-            android:gravity="center"
-            android:text="3"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
-            app:layout_constraintEnd_toEndOf="parent" />
+            <!-- Name -->
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="John Doe"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@id/tv_time"
+                app:layout_constraintStart_toEndOf="@id/tv_avatar"
+                app:layout_constraintTop_toTopOf="@id/tv_avatar" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Last Message -->
+            <TextView
+                android:id="@+id/tv_last_message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="8dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="Hey, are you free for basketball this evening?"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
+                app:layout_constraintStart_toEndOf="@id/tv_avatar"
+                app:layout_constraintTop_toBottomOf="@id/tv_name" />
 
-</com.google.android.material.card.MaterialCardView>
+            <!-- Time -->
+            <TextView
+                android:id="@+id/tv_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10:30 AM"
+                android:textColor="@color/text_hint"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/tv_name" />
+
+            <!-- Unread Count Badge -->
+            <TextView
+                android:id="@+id/tv_unread_count"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/bg_unread_badge"
+                android:gravity="center"
+                android:text="3"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

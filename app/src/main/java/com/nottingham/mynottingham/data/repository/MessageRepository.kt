@@ -293,9 +293,21 @@ class MessageRepository(private val context: Context) {
     /**
      * Delete conversation
      */
-    suspend fun deleteConversation(conversationId: String) {
-        withContext(Dispatchers.IO) {
-            conversationDao.deleteConversationById(conversationId)
+    suspend fun deleteConversation(token: String, conversationId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Call backend API to delete conversation
+                val response = apiService.deleteConversation("Bearer $token", conversationId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    // Delete from local database only after successful API call
+                    conversationDao.deleteConversationById(conversationId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception(response.body()?.message ?: "Failed to delete conversation"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
     }
 

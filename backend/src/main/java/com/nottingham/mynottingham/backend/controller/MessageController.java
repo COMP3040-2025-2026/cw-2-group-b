@@ -328,4 +328,21 @@ public class MessageController {
             @PathVariable String conversationId) {
         return ResponseEntity.ok(ApiResponse.success("Marked as read", null));
     }
+
+    /**
+     * Delete conversation
+     */
+    @DeleteMapping("/conversations/{conversationId}")
+    public ResponseEntity<ApiResponse<Object>> deleteConversation(
+            @RequestHeader(value = "Authorization") String token,
+            @PathVariable String conversationId) {
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            messageService.deleteConversation(conversationId, currentUserId);
+            return ResponseEntity.ok(ApiResponse.success("Conversation deleted successfully", null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to delete conversation: " + e.getMessage()));
+        }
+    }
 }

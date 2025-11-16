@@ -16,7 +16,9 @@ import java.util.*
  */
 class ConversationAdapter(
     private val onConversationClick: (Conversation) -> Unit,
-    private val onConversationLongClick: (Conversation) -> Unit
+    private val onConversationLongClick: (Conversation) -> Unit,
+    private val onPinClick: (Conversation) -> Unit = {},
+    private val onDeleteClick: (Conversation) -> Unit = {}
 ) : ListAdapter<Conversation, ConversationAdapter.ConversationViewHolder>(ConversationDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ConversationViewHolder {
@@ -36,15 +38,18 @@ class ConversationAdapter(
         private val binding: ItemConversationBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
+        // Expose foreground for swipe animations
+        val foreground: View get() = binding.cardForeground
+
         init {
-            binding.root.setOnClickListener {
+            binding.cardForeground.setOnClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onConversationClick(getItem(position))
                 }
             }
 
-            binding.root.setOnLongClickListener {
+            binding.cardForeground.setOnLongClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onConversationLongClick(getItem(position))
@@ -57,6 +62,9 @@ class ConversationAdapter(
 
         fun bind(conversation: Conversation) {
             binding.apply {
+                // Reset foreground position when binding
+                cardForeground.translationX = 0f
+
                 // Set avatar initials
                 val initials = conversation.participantName.split(" ")
                     .take(2)
@@ -86,6 +94,26 @@ class ConversationAdapter(
                     }
                 } else {
                     tvUnreadCount.visibility = View.GONE
+                }
+
+                // Update pin button text
+                if (conversation.isPinned) {
+                    tvPinSwipe.text = "Unpin"
+                } else {
+                    tvPinSwipe.text = "Pin"
+                }
+
+                // Setup swipe button click listeners
+                btnPinSwipe.setOnClickListener {
+                    onPinClick(conversation)
+                    // Reset swipe position
+                    cardForeground.animate().translationX(0f).setDuration(200).start()
+                }
+
+                btnDeleteSwipe.setOnClickListener {
+                    onDeleteClick(conversation)
+                    // Reset swipe position
+                    cardForeground.animate().translationX(0f).setDuration(200).start()
                 }
 
                 // Show pin indicator (you may want to add this to the layout)

@@ -138,9 +138,12 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     /**
      * Delete conversation
      */
-    fun deleteConversation(conversationId: String) {
+    fun deleteConversation(token: String, conversationId: String) {
         viewModelScope.launch {
-            repository.deleteConversation(conversationId)
+            val result = repository.deleteConversation(token, conversationId)
+            result.onFailure { e ->
+                _error.value = e.message ?: "Failed to delete conversation"
+            }
         }
     }
 

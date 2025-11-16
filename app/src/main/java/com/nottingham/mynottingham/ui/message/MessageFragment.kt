@@ -92,6 +92,28 @@ class MessageFragment : Fragment() {
             onConversationLongClick = { conversation ->
                 // Show action bottom sheet
                 showConversationActions(conversation)
+            },
+            onPinClick = { conversation ->
+                lifecycleScope.launch {
+                    val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+                    if (currentToken.isNotEmpty()) {
+                        viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
+                        Toast.makeText(
+                            context,
+                            if (conversation.isPinned) "Unpinned" else "Pinned",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            },
+            onDeleteClick = { conversation ->
+                lifecycleScope.launch {
+                    val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+                    if (currentToken.isNotEmpty()) {
+                        viewModel.deleteConversation(currentToken, conversation.id)
+                        Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         )
 
@@ -111,6 +133,8 @@ class MessageFragment : Fragment() {
             0,
             ItemTouchHelper.LEFT
         ) {
+            private val swipeThreshold = 160 * resources.displayMetrics.density // 160dp in pixels
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -120,14 +144,55 @@ class MessageFragment : Fragment() {
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.bindingAdapterPosition
-                val conversation = adapter.currentList[position]
+                // Not used - we handle swipe in onChildDraw
+            }
 
-                // Show action bottom sheet
-                showConversationActions(conversation)
+            override fun onChildDraw(
+                c: android.graphics.Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                    val adapterViewHolder = viewHolder as ConversationAdapter.ConversationViewHolder
+                    val foreground = adapterViewHolder.foreground
 
-                // Reset the swipe
-                adapter.notifyItemChanged(position)
+                    // Limit swipe distance to show action buttons (max 160dp)
+                    val clampedDx = Math.max(-swipeThreshold, dX)
+
+                    // Translate the foreground view
+                    foreground.translationX = clampedDx
+                } else {
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                val adapterViewHolder = viewHolder as ConversationAdapter.ConversationViewHolder
+                val foreground = adapterViewHolder.foreground
+
+                // Snap to open or closed position
+                if (Math.abs(foreground.translationX) > swipeThreshold / 2) {
+                    // Snap to open (show buttons)
+                    foreground.animate()
+                        .translationX(-swipeThreshold)
+                        .setDuration(200)
+                        .start()
+                } else {
+                    // Snap to closed
+                    foreground.animate()
+                        .translationX(0f)
+                        .setDuration(200)
+                        .start()
+                }
+            }
+
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float {
+                return 0.5f // Allow full swipe when past 50%
             }
         })
 
@@ -194,8 +259,11 @@ class MessageFragment : Fragment() {
         // Delete action
         binding.layoutDelete.setOnClickListener {
             lifecycleScope.launch {
-                viewModel.deleteConversation(conversation.id)
-                Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+                if (currentToken.isNotEmpty()) {
+                    viewModel.deleteConversation(currentToken, conversation.id)
+                    Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                }
             }
             bottomSheet.dismiss()
         }

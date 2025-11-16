@@ -108,6 +108,29 @@ public class MessageService {
     }
 
     /**
+     * Delete conversation
+     */
+    public void deleteConversation(String conversationUuid, Long currentUserId) {
+        // Find conversation by UUID
+        Conversation conversation = conversationRepository.findByConversationUuid(conversationUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        // Verify user is a participant
+        boolean isParticipant = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(currentUserId));
+
+        if (!isParticipant) {
+            throw new IllegalArgumentException("User is not a participant of this conversation");
+        }
+
+        // Delete all participants first (cascade will handle this, but being explicit)
+        participantRepository.deleteByConversationId(conversation.getId());
+
+        // Delete the conversation
+        conversationRepository.delete(conversation);
+    }
+
+    /**
      * Convert Conversation entity to DTO
      */
     private ConversationDto convertToDto(Conversation conversation, Long currentUserId) {
