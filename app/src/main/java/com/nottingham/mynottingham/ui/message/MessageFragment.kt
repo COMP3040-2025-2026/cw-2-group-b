@@ -10,9 +10,14 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.model.Conversation
+import com.nottingham.mynottingham.databinding.BottomSheetConversationActionsBinding
 import com.nottingham.mynottingham.databinding.FragmentMessageBinding
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -85,32 +90,117 @@ class MessageFragment : Fragment() {
                 Toast.makeText(context, "Chat with ${conversation.participantName}", Toast.LENGTH_SHORT).show()
             },
             onConversationLongClick = { conversation ->
-                // Toggle pinned status
-                lifecycleScope.launch {
-                    var currentToken = tokenManager.getToken().firstOrNull() ?: ""
-                    // Remove "Bearer " prefix if present (for backward compatibility)
-                    currentToken = currentToken.removePrefix("Bearer ").trim()
-                    if (currentToken.isNotEmpty()) {
-                        viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
-                        Toast.makeText(
-                            context,
-                            if (conversation.isPinned) "Unpinned" else "Pinned",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                // Show action bottom sheet
+                showConversationActions(conversation)
             }
         )
 
         binding.recyclerConversations.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = this@MessageFragment.adapter
+            // Disable item animations to prevent jump effect
+            itemAnimator = null
         }
+
+        // Setup swipe gestures
+        setupSwipeGestures()
+    }
+
+    private fun setupSwipeGestures() {
+        val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            0,
+            ItemTouchHelper.LEFT
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                return false
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.bindingAdapterPosition
+                val conversation = adapter.currentList[position]
+
+                // Show action bottom sheet
+                showConversationActions(conversation)
+
+                // Reset the swipe
+                adapter.notifyItemChanged(position)
+            }
+        })
+
+        itemTouchHelper.attachToRecyclerView(binding.recyclerConversations)
     }
 
     private fun setupSearchView() {
         // Note: You may need to add a SearchView to fragment_message.xml
         // For now, we'll skip this if it doesn't exist in the layout
+    }
+
+    private fun showConversationActions(conversation: Conversation) {
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val binding = BottomSheetConversationActionsBinding.inflate(layoutInflater)
+        bottomSheet.setContentView(binding.root)
+
+        // Update pin text and icon based on current status
+        if (conversation.isPinned) {
+            binding.tvPin.text = "Unpin conversation"
+        } else {
+            binding.tvPin.text = "Pin conversation"
+        }
+
+        // Update mark read text based on unread count
+        if (conversation.unreadCount > 0) {
+            binding.tvMarkRead.text = "Mark as read"
+        } else {
+            binding.tvMarkRead.text = "Mark as unread"
+        }
+
+        // Pin/Unpin action
+        binding.layoutPin.setOnClickListener {
+            lifecycleScope.launch {
+                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+                if (currentToken.isNotEmpty()) {
+                    viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
+                    Toast.makeText(
+                        context,
+                        if (conversation.isPinned) "Unpinned" else "Pinned",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            bottomSheet.dismiss()
+        }
+
+        // Mark as read/unread action
+        binding.layoutMarkRead.setOnClickListener {
+            lifecycleScope.launch {
+                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+                if (currentToken.isNotEmpty()) {
+                    if (conversation.unreadCount > 0) {
+                        viewModel.markAsRead(currentToken, conversation.id, currentUserId)
+                        Toast.makeText(context, "Marked as read", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.markAsUnread(conversation.id)
+                        Toast.makeText(context, "Marked as unread", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            bottomSheet.dismiss()
+        }
+
+        // Delete action
+        binding.layoutDelete.setOnClickListener {
+            lifecycleScope.launch {
+                viewModel.deleteConversation(conversation.id)
+                Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+            }
+            bottomSheet.dismiss()
+        }
+
+        bottomSheet.show()
     }
 
     private fun setupObservers() {

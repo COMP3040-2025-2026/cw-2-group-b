@@ -115,6 +115,36 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
+     * Mark conversation as read
+     */
+    fun markAsRead(token: String, conversationId: String, currentUserId: String) {
+        viewModelScope.launch {
+            val result = repository.markMessagesAsRead(token, conversationId, currentUserId)
+            result.onFailure { e ->
+                _error.value = e.message ?: "Failed to mark as read"
+            }
+        }
+    }
+
+    /**
+     * Mark conversation as unread
+     */
+    fun markAsUnread(conversationId: String) {
+        viewModelScope.launch {
+            repository.markConversationAsUnread(conversationId)
+        }
+    }
+
+    /**
+     * Delete conversation
+     */
+    fun deleteConversation(conversationId: String) {
+        viewModelScope.launch {
+            repository.deleteConversation(conversationId)
+        }
+    }
+
+    /**
      * Clear error message
      */
     fun clearError() {

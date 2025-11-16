@@ -54,13 +54,12 @@ class MessageRepository(private val context: Context) {
 
                     // Save conversations to database
                     conversations.forEach { dto ->
-                        // DEBUG: Print conversation and participants info
-                        android.util.Log.d("MessageRepository", "Conversation ${dto.id}: participants count=${dto.participants.size}")
-                        dto.participants.forEach { p ->
-                            android.util.Log.d("MessageRepository", "  - Participant: userId=${p.userId}, userName=${p.userName}")
-                        }
-
-                        val entity = dtoToConversationEntity(dto)
+                        // Check if conversation exists locally to preserve pin status
+                        val existingConversation = conversationDao.getConversationById(dto.id)
+                        val entity = dtoToConversationEntity(dto).copy(
+                            // Preserve local pin status if conversation exists
+                            isPinned = existingConversation?.isPinned ?: dto.isPinned
+                        )
                         conversationDao.insertConversation(entity)
 
                         // Save participants
@@ -282,6 +281,25 @@ class MessageRepository(private val context: Context) {
     }
 
     /**
+     * Mark conversation as unread
+     */
+    suspend fun markConversationAsUnread(conversationId: String) {
+        withContext(Dispatchers.IO) {
+            // Set unread count to 1
+            conversationDao.updateUnreadCount(conversationId, 1)
+        }
+    }
+
+    /**
+     * Delete conversation
+     */
+    suspend fun deleteConversation(conversationId: String) {
+        withContext(Dispatchers.IO) {
+            conversationDao.deleteConversationById(conversationId)
+        }
+    }
+
+    /**
      * Update typing status
      */
     suspend fun updateTypingStatus(token: String, conversationId: String, isTyping: Boolean): Result<Unit> {
@@ -415,20 +433,12 @@ class MessageRepository(private val context: Context) {
         participants: List<ConversationParticipantEntity>,
         currentUserId: String
     ): Conversation {
-        // DEBUG: Print participant selection
-        android.util.Log.d("MessageRepository", "entityToConversation: conversationId=${entity.id}, currentUserId=$currentUserId, participants:")
-        participants.forEach { p ->
-            android.util.Log.d("MessageRepository", "  - userId=${p.userId}, userName=${p.userName}, isCurrentUser=${p.userId == currentUserId}")
-        }
-
         // For one-on-one chats, get the other participant's info
         val otherParticipant = if (!entity.isGroup && participants.isNotEmpty()) {
             participants.firstOrNull { it.userId != currentUserId } ?: participants.first()
         } else {
             null
         }
-
-        android.util.Log.d("MessageRepository", "  -> Selected otherParticipant: userId=${otherParticipant?.userId}, userName=${otherParticipant?.userName}")
 
         return Conversation(
             id = entity.id,
