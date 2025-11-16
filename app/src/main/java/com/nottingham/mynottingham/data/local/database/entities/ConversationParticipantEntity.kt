@@ -17,13 +17,10 @@ import androidx.room.Index
             parentColumns = ["id"],
             childColumns = ["conversationId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = UserEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
         )
+        // Note: Removed UserEntity foreign key constraint
+        // ConversationParticipantEntity contains all necessary user info (userName, userAvatar)
+        // This avoids FOREIGN KEY constraint errors when users are not cached locally
     ],
     indices = [Index("conversationId"), Index("userId")]
 )

@@ -11,7 +11,7 @@ object Constants {
 
     // Database Configuration
     const val DATABASE_NAME = "my_nottingham_db"
-    const val DATABASE_VERSION = 2
+    const val DATABASE_VERSION = 3  // v3: Removed UserEntity foreign key from ConversationParticipantEntity
 
     // SharedPreferences / DataStore
     const val PREFS_NAME = "my_nottingham_prefs"
