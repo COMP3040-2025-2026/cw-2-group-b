@@ -72,7 +72,7 @@ class CreatePostFragment : Fragment() {
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClick {
+        binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
 
