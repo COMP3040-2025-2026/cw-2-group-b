@@ -16,7 +16,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIcon="@drawable/ic_back"
             app:title="Create Post"
             app:titleTextColor="@color/text_primary"
             app:menu="@menu/menu_create_post" />
