@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.data.repository
 
 import android.content.Context
+import com.google.gson.Gson
 import com.nottingham.mynottingham.data.local.database.AppDatabase
 import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEntity
 import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
@@ -10,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -23,6 +26,7 @@ class ForumRepository(private val context: Context) {
     private val database = AppDatabase.getInstance(context)
     private val forumDao = database.forumDao()
     private val apiService = RetrofitInstance.apiService
+    private val gson = Gson()
 
     // ========== Post Operations ==========
 
@@ -108,7 +112,11 @@ class ForumRepository(private val context: Context) {
     ): Result<ForumPostDto> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.createForumPost("Bearer $token", request, image)
+                // Convert request to JSON RequestBody
+                val requestJson = gson.toJson(request)
+                val requestBody = requestJson.toRequestBody("application/json".toMediaTypeOrNull())
+
+                val response = apiService.createForumPost("Bearer $token", requestBody, image)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val post = response.body()?.data!!
 

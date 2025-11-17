@@ -233,7 +233,7 @@ interface ApiService {
     @POST("forum/posts")
     suspend fun createForumPost(
         @Header("Authorization") token: String,
-        @Part("post") request: CreateForumPostRequest,
+        @Part("post") request: okhttp3.RequestBody,
         @Part image: okhttp3.MultipartBody.Part? = null
     ): Response<ForumPostResponse>
 
