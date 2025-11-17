@@ -98,7 +98,7 @@ public class ForumService {
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
         post.setCategory(request.getCategory());
-        post.setTags(request.getTags());
+        post.setTags(request.getTags() != null ? String.join(",", request.getTags()) : null);
         post.setLikes(0);
         post.setViews(0);
         post.setIsPinned(false);
@@ -129,7 +129,7 @@ public class ForumService {
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
         post.setCategory(request.getCategory());
-        post.setTags(request.getTags());
+        post.setTags(request.getTags() != null ? String.join(",", request.getTags()) : null);
 
         ForumPost updatedPost = postRepository.save(post);
         return toPostDto(updatedPost, userId);
@@ -221,7 +221,9 @@ public class ForumService {
                 .isPinned(post.getIsPinned())
                 .isLocked(post.getIsLocked())
                 .isLikedByCurrentUser(false) // TODO: Implement like tracking
-                .tags(post.getTags())
+                .tags(post.getTags() != null && !post.getTags().isEmpty()
+                    ? List.of(post.getTags().split(","))
+                    : null)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();

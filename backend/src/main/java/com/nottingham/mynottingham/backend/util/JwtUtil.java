@@ -90,6 +90,13 @@ public class JwtUtil {
     }
 
     /**
+     * Get user ID from token (alias for extractUserId)
+     */
+    public Long getUserIdFromToken(String token) {
+        return extractUserId(token);
+    }
+
+    /**
      * Extract username from token
      */
     public String extractUsername(String token) {

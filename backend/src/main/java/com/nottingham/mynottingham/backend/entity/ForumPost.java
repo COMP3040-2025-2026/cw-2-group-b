@@ -44,6 +44,9 @@ public class ForumPost extends BaseEntity {
     @Column(length = 100)
     private String tags;
 
+    @Column(length = 255)
+    private String imageUrl;
+
     private Boolean isPinned = false;
 
     private Boolean isLocked = false;
