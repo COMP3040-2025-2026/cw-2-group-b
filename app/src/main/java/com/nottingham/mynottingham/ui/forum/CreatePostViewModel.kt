@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.ui.forum
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -59,11 +60,16 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
                 tags = tags?.filter { it.isNotBlank() }
             )
 
+            Log.d("CreatePostViewModel", "Creating post: title=$title, category=$category, tags=$tags, hasImage=${image != null}")
+            Log.d("CreatePostViewModel", "Token: ${if (token.isNotEmpty()) "present (${token.length} chars)" else "EMPTY!"}")
+
             val result = repository.createPost(token, request, image)
 
             result.onSuccess {
+                Log.d("CreatePostViewModel", "Post created successfully")
                 _postCreated.postValue(true)
             }.onFailure { exception ->
+                Log.e("CreatePostViewModel", "Failed to create post", exception)
                 _error.postValue(exception.message ?: "Failed to create post")
             }
 

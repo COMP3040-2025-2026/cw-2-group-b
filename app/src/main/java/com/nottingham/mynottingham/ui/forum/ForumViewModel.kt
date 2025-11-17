@@ -1,15 +1,16 @@
 package com.nottingham.mynottingham.ui.forum
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEntity
 import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
-import com.nottingham.mynottingham.data.remote.dto.*
 import com.nottingham.mynottingham.data.repository.ForumRepository
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -19,70 +20,52 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ForumRepository(application)
 
-    private val _loading = MutableLiveData<Boolean>()
+    private val _loading = MutableLiveData<Boolean>(false)
     val loading: LiveData<Boolean> = _loading
 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    private val _posts = MutableLiveData<List<ForumPostEntity>>()
-    val posts: LiveData<List<ForumPostEntity>> = _posts
+    private val _currentCategory = MutableStateFlow<String?>(null)
 
-    private val _selectedCategory = MutableLiveData<String?>(null)
-    val selectedCategory: LiveData<String?> = _selectedCategory
+    // Expose posts as Flow from repository
+    val posts: Flow<List<ForumPostEntity>> = repository.getPostsFlow(null)
 
     private var currentPage = 0
     private var hasMore = true
 
     /**
-     * Set category filter and reload posts
+     * Load posts from API and observe from database
      */
-    fun setCategory(category: String?) {
-        _selectedCategory.value = category
-        currentPage = 0
-        hasMore = true
-        observePosts(category)
-    }
+    fun loadPosts(token: String, category: String? = null, refresh: Boolean = false) {
+        Log.d("ForumViewModel", "loadPosts called with category: $category, refresh: $refresh")
 
-    /**
-     * Observe posts from local database
-     */
-    fun observePosts(category: String? = _selectedCategory.value) {
-        viewModelScope.launch {
-            repository.getPostsFlow(category).collect { postList ->
-                _posts.postValue(postList)
-            }
+        if (_loading.value == true) {
+            Log.d("ForumViewModel", "Already loading, skipping")
+            return
         }
-    }
-
-    /**
-     * Fetch posts from API (with pagination)
-     */
-    fun fetchPosts(token: String, loadMore: Boolean = false) {
-        if (_loading.value == true || (!hasMore && loadMore)) return
 
         _loading.value = true
         _error.value = null
 
-        val page = if (loadMore) currentPage + 1 else 0
+        val page = if (refresh) 0 else currentPage
 
         viewModelScope.launch {
+            Log.d("ForumViewModel", "Fetching posts from API: page=$page, category=$category")
             val result = repository.fetchPosts(
                 token = token,
                 page = page,
                 size = 20,
-                category = _selectedCategory.value
+                category = category
             )
 
             result.onSuccess { pagedResponse ->
+                Log.d("ForumViewModel", "Successfully fetched ${pagedResponse.posts.size} posts")
                 hasMore = pagedResponse.hasNext
-                if (!loadMore) {
-                    currentPage = 0
-                } else {
-                    currentPage = page
-                }
+                currentPage = if (refresh) 0 else page
             }.onFailure { exception ->
-                _error.postValue(exception.message)
+                Log.e("ForumViewModel", "Failed to fetch posts", exception)
+                _error.postValue(exception.message ?: "Failed to load posts")
             }
 
             _loading.postValue(false)
@@ -90,12 +73,18 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Refresh posts
+     * Filter posts by category
      */
-    fun refreshPosts(token: String) {
-        currentPage = 0
-        hasMore = true
-        fetchPosts(token, loadMore = false)
+    fun filterByCategory(category: String?) {
+        Log.d("ForumViewModel", "filterByCategory called with: $category")
+        _currentCategory.value = category
+
+        // Update posts flow to observe from filtered category
+        viewModelScope.launch {
+            repository.getPostsFlow(category).collect { postList ->
+                Log.d("ForumViewModel", "Received ${postList.size} posts for category: $category")
+            }
+        }
     }
 
     /**
@@ -103,9 +92,13 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun likePost(token: String, postId: Long) {
         viewModelScope.launch {
+            Log.d("ForumViewModel", "Liking post: $postId")
             val result = repository.likePost(token, postId)
-            result.onFailure { exception ->
-                _error.postValue(exception.message)
+            result.onSuccess {
+                Log.d("ForumViewModel", "Post liked successfully")
+            }.onFailure { exception ->
+                Log.e("ForumViewModel", "Failed to like post", exception)
+                _error.postValue(exception.message ?: "Failed to like post")
             }
         }
     }
@@ -117,9 +110,10 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = repository.deletePost(token, postId)
             result.onSuccess {
-                // Post will be removed automatically via Flow observation
+                Log.d("ForumViewModel", "Post deleted successfully")
             }.onFailure { exception ->
-                _error.postValue(exception.message)
+                Log.e("ForumViewModel", "Failed to delete post", exception)
+                _error.postValue(exception.message ?: "Failed to delete post")
             }
         }
     }

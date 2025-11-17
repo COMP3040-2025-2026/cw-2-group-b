@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import com.nottingham.mynottingham.data.local.database.AppDatabase
 import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEntity
@@ -114,9 +115,16 @@ class ForumRepository(private val context: Context) {
             try {
                 // Convert request to JSON RequestBody
                 val requestJson = gson.toJson(request)
+                Log.d("ForumRepository", "Request JSON: $requestJson")
                 val requestBody = requestJson.toRequestBody("application/json".toMediaTypeOrNull())
 
+                Log.d("ForumRepository", "Calling API with token: Bearer ${token.take(20)}...")
                 val response = apiService.createForumPost("Bearer $token", requestBody, image)
+
+                Log.d("ForumRepository", "Response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
+                Log.d("ForumRepository", "Response body: ${response.body()}")
+                Log.d("ForumRepository", "Error body: ${response.errorBody()?.string()}")
+
                 if (response.isSuccessful && response.body()?.success == true) {
                     val post = response.body()?.data!!
 
@@ -125,9 +133,12 @@ class ForumRepository(private val context: Context) {
 
                     Result.success(post)
                 } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to create post"))
+                    val errorMsg = response.body()?.message ?: response.errorBody()?.string() ?: "Failed to create post"
+                    Log.e("ForumRepository", "Failed to create post: $errorMsg")
+                    Result.failure(Exception(errorMsg))
                 }
             } catch (e: Exception) {
+                Log.e("ForumRepository", "Exception creating post", e)
                 Result.failure(e)
             }
         }
