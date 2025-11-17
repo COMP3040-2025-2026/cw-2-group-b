@@ -92,7 +92,7 @@ class ForumAdapter(
                             isClickable = false
                             isCheckable = false
                             setChipBackgroundColorResource(R.color.chip_background)
-                            setTextAppearanceResource(R.style.TextAppearance_Material3_BodySmall)
+                            textSize = 11f
                         }
                         chipGroupTags.addView(chip)
                     }
