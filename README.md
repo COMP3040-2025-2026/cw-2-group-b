@@ -20,9 +20,9 @@ My Nottingham is a comprehensive mobile application designed to integrate all es
 4.  **Sports Facility Booking** – Reserve sports facilities with ease
 5.  **Campus Errand Service** – Peer-to-peer delivery marketplace
 6.  **AI Assistant (Notti)** – Intelligent chatbot for campus queries
-7.  **Messaging System** – Direct communication with automatic 7-day message retention, online status, and typing indicators
+7.  **Messaging System** – Direct communication with automatic 7-day message retention, online status, typing indicators, and contact search with alphabetical index
 8.  **Campus Forum** – Community discussions and announcements
-9.  **User Profile** – Manage personal information and settings
+9.  **User Profile** – Manage personal information and settings (student/teacher-specific fields)
 
 ---
 
@@ -226,21 +226,29 @@ The app implements a secure authentication flow:
     - [x] File-based H2 database for data persistence
 - [x] **Messaging System**
     - [x] Room database with 7-day retention policy
-    - [x] Conversation list with pinned support
+    - [x] Conversation list with pinned support (visual indicator with background color)
     - [x] One-on-one and group chat support
     - [x] Real-time message synchronization with pagination
     - [x] Online status indicators
     - [x] Typing indicators (3-second timeout)
-    - [x] Message search functionality
+    - [x] Message search functionality (excludes current user from results)
     - [x] Read receipts
-    - [x] Swipe gestures for quick actions (pin/delete)
+    - [x] Long-press context menu for pin/delete actions
     - [x] Message alignment (sent messages on right, received on left)
     - [x] Privacy protection (local database cleared on logout and sync)
     - [x] Auto-cleanup on app startup
+    - [x] Sync throttling to prevent data loss during navigation
     - [x] Backend API integration with proper null handling
     - [x] Safe Args navigation
-    - [x] Contact suggestions based on faculty/department
+    - [x] Contact search with alphabetical index sidebar (A-Z + #)
+    - [x] All contacts display (including teachers from other departments)
     - [x] DataStore token management
+
+- [x] **User Profile System**
+    - [x] Student profile with faculty, major, and year of study
+    - [x] Teacher profile with title, department, and office information
+    - [x] Dynamic field display based on user type
+    - [x] Notification settings (errand and delivery mode toggles)
 
 ### 🔄 In Progress
 
@@ -377,6 +385,13 @@ feat: implement login authentication system
 - ✅ Type mismatch in StudentAttendanceDto (checkInTime as String instead of LocalDateTime)
 - ✅ JWT token double-prefix issue
 - ✅ DataStore Flow-based token retrieval
+- ✅ Message search showing all conversations (now excludes current user from participant matching)
+- ✅ Conversation data loss during navigation (added sync throttling)
+- ✅ Swipe-to-delete unreliability (replaced with stable long-press menu)
+- ✅ Pinned conversations visual distinction (added background color indicator)
+- ✅ Contact list only showing same department (now shows all users)
+- ✅ Teacher profile missing information (added title, department, office fields)
+- ✅ Database initialization missing users (fixed data.sql and H2 setup)
 
 ### Known Limitations
 - WebSocket integration is implemented but not fully tested
@@ -440,4 +455,4 @@ feat: implement login authentication system
 
 ---
 
-Last Updated: November 17, 2025
+Last Updated: December 2024
