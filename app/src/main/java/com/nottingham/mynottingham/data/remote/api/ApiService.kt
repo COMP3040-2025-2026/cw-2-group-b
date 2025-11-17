@@ -212,4 +212,60 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("conversationId") conversationId: String
     ): Response<ApiResponse<Any>>
+
+    // ========== Forum ==========
+
+    @GET("forum/posts")
+    suspend fun getForumPosts(
+        @Header("Authorization") token: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("category") category: String? = null
+    ): Response<PagedForumPostsResponse>
+
+    @GET("forum/posts/{id}")
+    suspend fun getForumPostById(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long
+    ): Response<ForumPostDetailResponse>
+
+    @Multipart
+    @POST("forum/posts")
+    suspend fun createForumPost(
+        @Header("Authorization") token: String,
+        @Part("post") request: CreateForumPostRequest,
+        @Part image: okhttp3.MultipartBody.Part? = null
+    ): Response<ForumPostResponse>
+
+    @PUT("forum/posts/{id}")
+    suspend fun updateForumPost(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long,
+        @Body request: UpdateForumPostRequest
+    ): Response<ForumPostResponse>
+
+    @DELETE("forum/posts/{id}")
+    suspend fun deleteForumPost(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long
+    ): Response<ApiResponse<Any>>
+
+    @POST("forum/posts/{id}/like")
+    suspend fun likeForumPost(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long
+    ): Response<ForumPostResponse>
+
+    @POST("forum/posts/{id}/comments")
+    suspend fun createForumComment(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long,
+        @Body request: CreateCommentRequest
+    ): Response<ForumCommentResponse>
+
+    @POST("forum/comments/{id}/like")
+    suspend fun likeForumComment(
+        @Header("Authorization") token: String,
+        @Path("id") commentId: Long
+    ): Response<ForumCommentResponse>
 }

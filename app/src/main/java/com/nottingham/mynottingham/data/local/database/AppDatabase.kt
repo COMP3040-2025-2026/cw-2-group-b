@@ -8,12 +8,15 @@ import com.nottingham.mynottingham.data.local.database.dao.BookingDao
 import com.nottingham.mynottingham.data.local.database.dao.ConversationDao
 import com.nottingham.mynottingham.data.local.database.dao.ConversationParticipantDao
 import com.nottingham.mynottingham.data.local.database.dao.ErrandDao
+import com.nottingham.mynottingham.data.local.database.dao.ForumDao
 import com.nottingham.mynottingham.data.local.database.dao.MessageDao
 import com.nottingham.mynottingham.data.local.database.dao.UserDao
 import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import com.nottingham.mynottingham.data.local.database.entities.ConversationEntity
 import com.nottingham.mynottingham.data.local.database.entities.ConversationParticipantEntity
 import com.nottingham.mynottingham.data.local.database.entities.ErrandEntity
+import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEntity
+import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
 import com.nottingham.mynottingham.data.local.database.entities.MessageEntity
 import com.nottingham.mynottingham.data.local.database.entities.UserEntity
 import com.nottingham.mynottingham.util.Constants
@@ -29,7 +32,9 @@ import com.nottingham.mynottingham.util.Constants
         ErrandEntity::class,
         MessageEntity::class,
         ConversationEntity::class,
-        ConversationParticipantEntity::class
+        ConversationParticipantEntity::class,
+        ForumPostEntity::class,
+        ForumCommentEntity::class
     ],
     version = Constants.DATABASE_VERSION,
     exportSchema = false
@@ -43,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun conversationDao(): ConversationDao
     abstract fun conversationParticipantDao(): ConversationParticipantDao
+    abstract fun forumDao(): ForumDao
 
     companion object {
         @Volatile

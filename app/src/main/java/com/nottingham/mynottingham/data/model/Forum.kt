@@ -36,15 +36,13 @@ data class ForumComment(
 )
 
 /**
- * Forum category
+ * Forum category - matches backend ForumPost.ForumCategory enum
  */
 enum class ForumCategory(val displayName: String) {
-    GENERAL("General Discussion"),
-    ACADEMIC("Academic Help"),
-    EVENTS("Campus Events"),
-    SPORTS("Sports & Recreation"),
-    HOUSING("Housing & Accommodation"),
-    JOBS("Jobs & Internships"),
-    SOCIAL("Social & Meetups"),
-    MARKETPLACE("Buy & Sell")
+    ACADEMIC("Academic"),
+    EVENTS("Events"),
+    SPORTS("Sports"),
+    SOCIAL("Social"),
+    GENERAL("General"),
+    ANNOUNCEMENTS("Announcements")
 }
