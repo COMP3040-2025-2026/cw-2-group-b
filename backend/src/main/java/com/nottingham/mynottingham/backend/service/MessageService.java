@@ -1,20 +1,31 @@
 package com.nottingham.mynottingham.backend.service;
 
 import com.nottingham.mynottingham.backend.dto.ConversationDto;
+import com.nottingham.mynottingham.backend.dto.MessageDto;
 import com.nottingham.mynottingham.backend.dto.ParticipantDto;
+import com.nottingham.mynottingham.backend.dto.SendMessageRequest;
 import com.nottingham.mynottingham.backend.entity.Conversation;
 import com.nottingham.mynottingham.backend.entity.ConversationParticipant;
+import com.nottingham.mynottingham.backend.entity.Message;
 import com.nottingham.mynottingham.backend.entity.User;
 import com.nottingham.mynottingham.backend.repository.ConversationParticipantRepository;
 import com.nottingham.mynottingham.backend.repository.ConversationRepository;
+import com.nottingham.mynottingham.backend.repository.MessageRepository;
+import com.nottingham.mynottingham.backend.websocket.MessageWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -30,7 +41,13 @@ public class MessageService {
     private ConversationParticipantRepository participantRepository;
 
     @Autowired
+    private MessageRepository messageRepository;
+
+    @Autowired
     private UserService userService;
+
+    @Autowired
+    private MessageWebSocketHandler webSocketHandler;
 
     /**
      * Create a new conversation
@@ -196,5 +213,190 @@ public class MessageService {
             return System.currentTimeMillis();
         }
         return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    /**
+     * Send a message in a conversation
+     */
+    public MessageDto sendMessage(String conversationUuid, Long senderId, SendMessageRequest request) {
+        // Find conversation by UUID
+        Conversation conversation = conversationRepository.findByConversationUuid(conversationUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        // Verify sender is a participant
+        boolean isParticipant = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(senderId));
+
+        if (!isParticipant) {
+            throw new IllegalArgumentException("User is not a participant of this conversation");
+        }
+
+        // Get sender user
+        User sender = userService.getUserById(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+
+        // Create message
+        Message message = new Message();
+        message.setConversation(conversation);
+        message.setSender(sender);
+        message.setContent(request.getContent());
+        message.setIsRead(false);
+        message.setCreatedAt(LocalDateTime.now());
+        message.setUpdatedAt(LocalDateTime.now());
+
+        // Set message type
+        if (request.getMessageType() != null) {
+            message.setType(Message.MessageType.valueOf(request.getMessageType()));
+        } else {
+            message.setType(Message.MessageType.TEXT);
+        }
+
+        // Set attachment URL if provided
+        if (request.getAttachmentUrl() != null && !request.getAttachmentUrl().isEmpty()) {
+            message.setAttachmentUrl(request.getAttachmentUrl());
+        }
+
+        // Set initial status
+        message.setStatus(Message.MessageStatus.SENT);
+
+        // Save message
+        message = messageRepository.save(message);
+
+        // Update conversation's last message info
+        conversation.setLastMessage(request.getContent());
+        conversation.setLastMessageTime(message.getCreatedAt());
+        conversation.setLastMessageSenderId(senderId);
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+
+        // Increment unread count for all participants except sender
+        for (ConversationParticipant participant : conversation.getParticipants()) {
+            if (!participant.getUser().getId().equals(senderId)) {
+                participant.setUnreadCount(participant.getUnreadCount() + 1);
+                participantRepository.save(participant);
+            }
+        }
+
+        // Notify via WebSocket
+        MessageDto messageDto = convertMessageToDto(message);
+        Map<String, Object> wsData = new HashMap<>();
+        wsData.put("conversationId", conversationUuid);
+        wsData.put("message", messageDto);
+
+        MessageWebSocketHandler.WebSocketMessage wsMessage =
+            new MessageWebSocketHandler.WebSocketMessage("NEW_MESSAGE", "New message received", wsData);
+        webSocketHandler.sendToConversation(conversationUuid, wsMessage);
+
+        return messageDto;
+    }
+
+    /**
+     * Get messages in a conversation with pagination
+     */
+    public Page<MessageDto> getMessages(String conversationUuid, Long userId, int page, int size) {
+        // Find conversation by UUID
+        Conversation conversation = conversationRepository.findByConversationUuid(conversationUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        // Verify user is a participant
+        boolean isParticipant = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(userId));
+
+        if (!isParticipant) {
+            throw new IllegalArgumentException("User is not a participant of this conversation");
+        }
+
+        // Create pageable (descending order - most recent first)
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // Get messages with pagination
+        Page<Message> messagePage = messageRepository.findByConversationOrderByCreatedAtDesc(conversation, pageable);
+
+        // Convert to DTOs
+        return messagePage.map(this::convertMessageToDto);
+    }
+
+    /**
+     * Mark all messages in a conversation as read for the current user
+     */
+    public void markConversationAsRead(String conversationUuid, Long userId) {
+        // Find conversation by UUID
+        Conversation conversation = conversationRepository.findByConversationUuid(conversationUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        // Mark all messages as read (messages not sent by this user)
+        messageRepository.markAllAsRead(conversation.getId(), userId);
+
+        // Reset unread count for this user's participant entry
+        Optional<ConversationParticipant> participantOpt =
+                participantRepository.findByConversationIdAndUserId(conversation.getId(), userId);
+
+        participantOpt.ifPresent(participant -> {
+            participant.setUnreadCount(0);
+            participantRepository.save(participant);
+        });
+    }
+
+    /**
+     * Update pinned status for a conversation
+     */
+    public void updatePinnedStatus(String conversationUuid, Long userId, Boolean isPinned) {
+        // Find conversation by UUID
+        Conversation conversation = conversationRepository.findByConversationUuid(conversationUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        // Find participant entry for this user
+        ConversationParticipant participant = participantRepository
+                .findByConversationIdAndUserId(conversation.getId(), userId)
+                .orElseThrow(() -> new IllegalArgumentException("User is not a participant"));
+
+        // Update pinned status
+        participant.setIsPinned(isPinned);
+        participantRepository.save(participant);
+    }
+
+    /**
+     * Delete a single message
+     */
+    public void deleteMessage(Long messageId, Long userId) {
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
+
+        // Verify user is the sender
+        if (!message.getSender().getId().equals(userId)) {
+            throw new IllegalArgumentException("Only the sender can delete this message");
+        }
+
+        messageRepository.delete(message);
+    }
+
+    /**
+     * Convert Message entity to MessageDto
+     */
+    private MessageDto convertMessageToDto(Message message) {
+        MessageDto dto = new MessageDto();
+
+        // Convert Long to String for Android compatibility
+        dto.setId(String.valueOf(message.getId()));
+        dto.setConversationId(message.getConversation().getConversationUuid());
+        dto.setSenderId(String.valueOf(message.getSender().getId()));
+        dto.setSenderName(message.getSender().getFullName());
+        dto.setSenderAvatar(message.getSender().getAvatarUrl());
+        dto.setContent(message.getContent());
+
+        // Convert LocalDateTime to Unix timestamp (milliseconds)
+        long timestamp = message.getCreatedAt()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+        dto.setTimestamp(timestamp);
+        dto.setCreatedAt(timestamp);
+
+        dto.setIsRead(message.getIsRead());
+        dto.setMessageType(message.getType().name());
+        dto.setAttachmentUrl(message.getAttachmentUrl());
+        dto.setStatus(message.getStatus().name());
+        dto.setUpdatedAt(message.getUpdatedAt());
+        return dto;
     }
 }

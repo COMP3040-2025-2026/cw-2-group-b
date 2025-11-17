@@ -99,8 +99,8 @@ enum class UserRole {
 data class StudentAttendance(
     val studentId: Long,
     val studentName: String,
-    val matricNumber: String,
-    val email: String,
+    val matricNumber: String?,  // Nullable as it may not be set for all students
+    val email: String?,  // Nullable as it may not be set for all students
     val hasAttended: Boolean,
     val attendanceStatus: AttendanceStatus?,
     val checkInTime: String?  // ISO datetime format

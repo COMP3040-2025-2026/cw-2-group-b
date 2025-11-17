@@ -314,7 +314,7 @@ public class AttendanceService {
                     .email(student.getEmail())
                     .hasAttended(attendance.isPresent())
                     .attendanceStatus(attendance.map(a -> a.getStatus().name()).orElse(null))
-                    .checkInTime(attendance.map(Attendance::getCheckInTime).orElse(null))
+                    .checkInTime(attendance.map(a -> a.getCheckInTime().toString()).orElse(null))
                     .build();
 
             result.add(dto);

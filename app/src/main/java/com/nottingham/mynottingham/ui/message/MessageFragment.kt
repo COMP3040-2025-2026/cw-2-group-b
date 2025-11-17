@@ -78,16 +78,31 @@ class MessageFragment : Fragment() {
 
     private fun setupFab() {
         binding.fabNewMessage.setOnClickListener {
-            findNavController().navigate(R.id.action_message_to_new_message)
+            // Show options: New Message or New Group
+            val options = arrayOf("New Message", "New Group")
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Create")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> findNavController().navigate(R.id.action_message_to_new_message)
+                        1 -> findNavController().navigate(R.id.action_message_to_new_group)
+                    }
+                }
+                .show()
         }
     }
 
     private fun setupRecyclerView() {
         adapter = ConversationAdapter(
             onConversationClick = { conversation ->
-                // TODO: Navigate to chat detail screen
-                // Temporarily disabled until Safe Args generates navigation classes
-                Toast.makeText(context, "Chat with ${conversation.participantName}", Toast.LENGTH_SHORT).show()
+                // Navigate to chat detail screen using Safe Args
+                val action = MessageFragmentDirections.actionMessageToChatDetail(
+                    conversationId = conversation.id,
+                    participantName = conversation.participantName,
+                    participantAvatar = conversation.participantAvatar,
+                    isOnline = conversation.isOnline
+                )
+                findNavController().navigate(action)
             },
             onConversationLongClick = { conversation ->
                 // Show action bottom sheet
@@ -200,8 +215,41 @@ class MessageFragment : Fragment() {
     }
 
     private fun setupSearchView() {
-        // Note: You may need to add a SearchView to fragment_message.xml
-        // For now, we'll skip this if it doesn't exist in the layout
+        // Setup search view in toolbar
+        binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { viewModel.searchConversations(it) }
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                newText?.let { viewModel.searchConversations(it) }
+                return true
+            }
+        })
+
+        // Add search menu item to toolbar
+        binding.toolbar.inflateMenu(R.menu.menu_message)
+        binding.toolbar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_search -> {
+                    // Toggle search view visibility
+                    if (binding.searchView.visibility == View.VISIBLE) {
+                        binding.searchView.visibility = View.GONE
+                        binding.searchView.setQuery("", false)
+                        binding.searchView.clearFocus()
+                        binding.toolbar.title = "Messages"
+                    } else {
+                        binding.searchView.visibility = View.VISIBLE
+                        binding.searchView.isIconified = false
+                        binding.searchView.requestFocus()
+                        binding.toolbar.title = ""
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun showConversationActions(conversation: Conversation) {
@@ -295,6 +343,14 @@ class MessageFragment : Fragment() {
                 Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh conversations when returning from chat detail
+        if (token.isNotEmpty()) {
+            viewModel.syncConversations(token)
         }
     }
 

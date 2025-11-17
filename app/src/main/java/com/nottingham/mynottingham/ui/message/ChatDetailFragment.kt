@@ -1,6 +1,5 @@
 package com.nottingham.mynottingham.ui.message
 
-import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -10,11 +9,16 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentChatDetailBinding
 import com.nottingham.mynottingham.util.Constants
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 /**
  * Chat detail screen showing conversation messages
@@ -26,13 +30,10 @@ class ChatDetailFragment : Fragment() {
 
     private val viewModel: ChatDetailViewModel by viewModels()
     private lateinit var adapter: ChatMessageAdapter
+    private lateinit var tokenManager: TokenManager
 
-    // Arguments - TODO: Use Safe Args when available
-    // private val args: ChatDetailFragmentArgs by navArgs()
-    private var conversationId: String = ""
-    private var participantName: String = ""
-    private var participantAvatar: String? = null
-    private var isOnline: Boolean = false
+    // Arguments - Using Safe Args
+    private val args: ChatDetailFragmentArgs by navArgs()
     private var currentUserId: String = ""
     private var token: String = ""
     private var isTyping = false
@@ -49,31 +50,38 @@ class ChatDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Get user credentials from SharedPreferences
-        val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        currentUserId = prefs.getString(Constants.KEY_USER_ID, "") ?: ""
-        token = prefs.getString(Constants.KEY_USER_TOKEN, "") ?: ""
+        // Initialize TokenManager
+        tokenManager = TokenManager(requireContext())
 
-        // Get arguments from bundle
-        conversationId = arguments?.getString("conversationId") ?: ""
-        participantName = arguments?.getString("participantName") ?: ""
-        participantAvatar = arguments?.getString("participantAvatar")
-        isOnline = arguments?.getBoolean("isOnline", false) ?: false
+        // Get arguments from Safe Args
+        val conversationId = args.conversationId
+        val participantName = args.participantName
+        val participantAvatar = args.participantAvatar
+        val isOnline = args.isOnline
 
-        setupToolbar()
-        setupRecyclerView()
+        setupToolbar(participantName, participantAvatar, isOnline)
         setupInputField()
-        setupObservers()
+        setupObservers(participantName, isOnline)
 
-        // Initialize chat if conversationId is available
-        if (conversationId.isNotEmpty()) {
-            viewModel.initializeChat(conversationId, currentUserId)
-            viewModel.loadMessages(token)
-            viewModel.markAsRead(token)
+        // Get user credentials from DataStore and initialize chat
+        lifecycleScope.launch {
+            currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
+            token = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
+
+            // Setup RecyclerView AFTER currentUserId is loaded
+            setupRecyclerView()
+
+            // Initialize chat if conversationId is available
+            if (conversationId.isNotEmpty() && token.isNotEmpty()) {
+                val currentUserName = tokenManager.getUsername().firstOrNull() ?: ""
+                viewModel.initializeChat(conversationId, currentUserId, currentUserName)
+                viewModel.loadMessages(token)
+                viewModel.markAsRead(token)
+            }
         }
     }
 
-    private fun setupToolbar() {
+    private fun setupToolbar(participantName: String, participantAvatar: String?, isOnline: Boolean) {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
@@ -132,7 +140,7 @@ class ChatDetailFragment : Fragment() {
         })
     }
 
-    private fun setupObservers() {
+    private fun setupObservers(participantName: String, isOnline: Boolean) {
         // Observe messages
         viewModel.messages.observe(viewLifecycleOwner) { messagesLiveData ->
             messagesLiveData?.observe(viewLifecycleOwner) { messages ->
@@ -172,6 +180,15 @@ class ChatDetailFragment : Fragment() {
             error?.let {
                 Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
+            }
+        }
+
+        // Observe typing status
+        viewModel.typingStatus.observe(viewLifecycleOwner) { typingText ->
+            if (typingText != null) {
+                binding.textStatus.text = typingText
+            } else {
+                binding.textStatus.text = if (isOnline) "Active now" else "Offline"
             }
         }
     }

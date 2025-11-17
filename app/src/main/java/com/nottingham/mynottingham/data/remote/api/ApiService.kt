@@ -149,15 +149,22 @@ interface ApiService {
     suspend fun getMessages(
         @Header("Authorization") token: String,
         @Path("conversationId") conversationId: String,
-        @Query("limit") limit: Int = 50,
-        @Query("before") before: Long? = null
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 50
     ): Response<MessageListResponse>
 
-    @POST("message/send")
+    @POST("message/conversations/{conversationId}/messages")
     suspend fun sendMessage(
         @Header("Authorization") token: String,
+        @Path("conversationId") conversationId: String,
         @Body request: SendMessageRequest
     ): Response<SendMessageResponse>
+
+    @DELETE("message/messages/{messageId}")
+    suspend fun deleteMessage(
+        @Header("Authorization") token: String,
+        @Path("messageId") messageId: Long
+    ): Response<ApiResponse<Any>>
 
     @POST("message/conversations")
     suspend fun createConversation(

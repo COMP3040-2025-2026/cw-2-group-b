@@ -221,26 +221,43 @@ The app implements a secure authentication flow:
     - [x] Manual attendance marking (Present/Absent/Late/Excused)
     - [x] Real-time status synchronization
     - [x] Attendance statistics and progress tracking
+    - [x] Enrolled students list with null-safe field handling
+    - [x] Course management bottom sheet dialog
     - [x] File-based H2 database for data persistence
 - [x] **Messaging System**
     - [x] Room database with 7-day retention policy
     - [x] Conversation list with pinned support
     - [x] One-on-one and group chat support
-    - [x] Real-time message synchronization
+    - [x] Real-time message synchronization with pagination
     - [x] Online status indicators
-    - [x] Typing indicators
+    - [x] Typing indicators (3-second timeout)
     - [x] Message search functionality
     - [x] Read receipts
+    - [x] Swipe gestures for quick actions (pin/delete)
+    - [x] Message alignment (sent messages on right, received on left)
+    - [x] Privacy protection (local database cleared on logout and sync)
     - [x] Auto-cleanup on app startup
-    - [x] Backend API integration
+    - [x] Backend API integration with proper null handling
+    - [x] Safe Args navigation
+    - [x] Contact suggestions based on faculty/department
+    - [x] DataStore token management
 
 ### 🔄 In Progress
 
+- [ ] Message attachments (image picker UI ready, file upload backend pending)
+- [ ] Firebase Cloud Messaging for push notifications
+- [ ] WebSocket real-time message delivery (partially implemented)
 - [ ] Sports Booking system (backend ready)
 - [ ] Campus Errand marketplace (backend ready)
 - [ ] Notti AI integration
 - [ ] Forum functionality (backend ready)
-- [ ] Profile management
+
+### ⏳ Planned
+
+- [ ] Online status tracking and presence system
+- [ ] Avatar image upload with Glide
+- [ ] Message reactions, forward, and export features
+- [ ] Group chat enhancements
 
 ---
 
@@ -350,9 +367,21 @@ feat: implement login authentication system
 
 ---
 
-## 🐛 Known Issues
+## 🐛 Known Issues and Recent Fixes
 
-- None at the moment
+### Recently Fixed
+- ✅ Message alignment issue (sent messages now appear on right side)
+- ✅ Unread badge persistence (now clears after reading messages)
+- ✅ Privacy leak in messaging (local database now clears on logout and sync)
+- ✅ Enrolled students loading error (null-safe handling for matricNumber and email)
+- ✅ Type mismatch in StudentAttendanceDto (checkInTime as String instead of LocalDateTime)
+- ✅ JWT token double-prefix issue
+- ✅ DataStore Flow-based token retrieval
+
+### Known Limitations
+- WebSocket integration is implemented but not fully tested
+- Message attachments UI prepared but backend upload not implemented
+- Push notifications setup pending Firebase configuration
 
 ---
 
@@ -411,4 +440,4 @@ feat: implement login authentication system
 
 ---
 
-Last Updated: November 2025
+Last Updated: November 17, 2025

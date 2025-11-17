@@ -79,10 +79,10 @@ data class StudentAttendanceDto(
     val studentName: String,
 
     @SerializedName("matricNumber")
-    val matricNumber: String,
+    val matricNumber: String?,  // Nullable as it may not be set for all students
 
     @SerializedName("email")
-    val email: String,
+    val email: String?,  // Nullable as it may not be set for all students
 
     @SerializedName("hasAttended")
     val hasAttended: Boolean,

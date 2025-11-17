@@ -137,7 +137,15 @@ class ProfileFragment : Fragment() {
 
     private fun performLogout() {
         lifecycleScope.launch {
+            // Clear authentication data
             tokenManager.clearToken()
+
+            // Clear all local database data to prevent privacy leaks
+            val database = com.nottingham.mynottingham.data.local.database.AppDatabase.getInstance(requireContext())
+            database.conversationDao().deleteAllConversations()
+            database.conversationParticipantDao().deleteAllParticipants()
+            database.messageDao().deleteAllMessages()
+
             findNavController().navigate(R.id.action_profile_to_login)
         }
     }

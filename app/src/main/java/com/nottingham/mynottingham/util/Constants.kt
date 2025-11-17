@@ -7,6 +7,7 @@ object Constants {
     // API Configuration
     // Use 10.0.2.2 to access host machine's localhost from Android emulator
     const val BASE_URL = "http://10.0.2.2:8080/api/"
+    const val WS_BASE_URL = "ws://10.0.2.2:8080/ws/message"
     const val TIMEOUT_SECONDS = 30L
 
     // Database Configuration

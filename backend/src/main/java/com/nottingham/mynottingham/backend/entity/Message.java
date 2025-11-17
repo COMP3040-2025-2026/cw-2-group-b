@@ -16,14 +16,14 @@ import lombok.NoArgsConstructor;
 public class Message extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id", nullable = false)
+    @JsonIgnoreProperties({"participants", "messages"})
+    private Conversation conversation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", nullable = false)
     @JsonIgnoreProperties({"password"})
     private User sender;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "receiver_id", nullable = false)
-    @JsonIgnoreProperties({"password"})
-    private User receiver;
 
     @Column(nullable = false, length = 2000)
     private String content;
@@ -37,7 +37,16 @@ public class Message extends BaseEntity {
 
     private String attachmentUrl;
 
+    // Delivery status for tracking message lifecycle
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private MessageStatus status = MessageStatus.SENT;
+
     public enum MessageType {
         TEXT, IMAGE, FILE
+    }
+
+    public enum MessageStatus {
+        SENT, DELIVERED, READ
     }
 }

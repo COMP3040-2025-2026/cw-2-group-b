@@ -282,7 +282,9 @@ public class MessageController {
             @RequestHeader(value = "Authorization") String token) {
         try {
             Long currentUserId = jwtUtil.extractUserId(token);
+            System.out.println("[DEBUG] Getting conversations for userId: " + currentUserId);
             List<ConversationDto> conversations = messageService.getUserConversations(currentUserId);
+            System.out.println("[DEBUG] Found " + conversations.size() + " conversations for userId: " + currentUserId);
             return ResponseEntity.ok(ApiResponse.success(conversations));
         } catch (Exception e) {
             e.printStackTrace();
@@ -313,10 +315,17 @@ public class MessageController {
      */
     @PutMapping("/conversations/{conversationId}/pin")
     public ResponseEntity<ApiResponse<ConversationDto>> updatePinnedStatus(
-            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestHeader(value = "Authorization") String token,
             @PathVariable String conversationId,
             @RequestBody UpdatePinnedStatusRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Pinned status updated", null));
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            messageService.updatePinnedStatus(conversationId, currentUserId, request.getIsPinned());
+            return ResponseEntity.ok(ApiResponse.success("Pinned status updated", null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to update pinned status: " + e.getMessage()));
+        }
     }
 
     /**
@@ -324,9 +333,16 @@ public class MessageController {
      */
     @PostMapping("/conversations/{conversationId}/read")
     public ResponseEntity<ApiResponse<Object>> markAsRead(
-            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestHeader(value = "Authorization") String token,
             @PathVariable String conversationId) {
-        return ResponseEntity.ok(ApiResponse.success("Marked as read", null));
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            messageService.markConversationAsRead(conversationId, currentUserId);
+            return ResponseEntity.ok(ApiResponse.success("Marked as read", null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to mark as read: " + e.getMessage()));
+        }
     }
 
     /**
@@ -343,6 +359,71 @@ public class MessageController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.ok(ApiResponse.error("Failed to delete conversation: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Send a message in a conversation
+     */
+    @PostMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<ApiResponse<MessageDto>> sendMessage(
+            @RequestHeader(value = "Authorization") String token,
+            @PathVariable String conversationId,
+            @RequestBody SendMessageRequest request) {
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            MessageDto message = messageService.sendMessage(conversationId, currentUserId, request);
+            return ResponseEntity.ok(ApiResponse.success("Message sent successfully", message));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to send message: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get messages in a conversation with pagination
+     * @param page Page number (0-indexed)
+     * @param size Number of messages per page (default: 50)
+     */
+    @GetMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<ApiResponse<MessageListDto>> getMessages(
+            @RequestHeader(value = "Authorization") String token,
+            @PathVariable String conversationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            org.springframework.data.domain.Page<MessageDto> messagesPage =
+                    messageService.getMessages(conversationId, currentUserId, page, size);
+
+            // Convert Spring Page to custom response format
+            MessageListDto messageList = MessageListDto.builder()
+                    .messages(messagesPage.getContent())
+                    .hasMore(!messagesPage.isLast())
+                    .totalCount(messagesPage.getTotalElements())
+                    .build();
+
+            return ResponseEntity.ok(ApiResponse.success(messageList));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to get messages: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a single message
+     */
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<ApiResponse<Object>> deleteMessage(
+            @RequestHeader(value = "Authorization") String token,
+            @PathVariable Long messageId) {
+        try {
+            Long currentUserId = jwtUtil.extractUserId(token);
+            messageService.deleteMessage(messageId, currentUserId);
+            return ResponseEntity.ok(ApiResponse.success("Message deleted successfully", null));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(ApiResponse.error("Failed to delete message: " + e.getMessage()));
         }
     }
 }

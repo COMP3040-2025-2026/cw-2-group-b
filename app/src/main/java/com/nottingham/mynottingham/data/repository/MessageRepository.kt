@@ -52,14 +52,14 @@ class MessageRepository(private val context: Context) {
                 if (response.isSuccessful && response.body()?.success == true) {
                     val conversations = response.body()?.data ?: emptyList()
 
+                    // Clear all local conversations first to prevent showing other users' conversations
+                    // This ensures we only show the current user's conversations
+                    conversationDao.deleteAllConversations()
+                    participantDao.deleteAllParticipants()
+
                     // Save conversations to database
                     conversations.forEach { dto ->
-                        // Check if conversation exists locally to preserve pin status
-                        val existingConversation = conversationDao.getConversationById(dto.id)
-                        val entity = dtoToConversationEntity(dto).copy(
-                            // Preserve local pin status if conversation exists
-                            isPinned = existingConversation?.isPinned ?: dto.isPinned
-                        )
+                        val entity = dtoToConversationEntity(dto)
                         conversationDao.insertConversation(entity)
 
                         // Save participants
@@ -194,10 +194,15 @@ class MessageRepository(private val context: Context) {
     /**
      * Sync messages from API and save to local database
      */
-    suspend fun syncMessages(token: String, conversationId: String, limit: Int = Constants.MESSAGE_PAGE_SIZE): Result<List<ChatMessage>> {
+    suspend fun syncMessages(
+        token: String,
+        conversationId: String,
+        page: Int = 0,
+        size: Int = Constants.MESSAGE_PAGE_SIZE
+    ): Result<List<ChatMessage>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getMessages("Bearer $token", conversationId, limit)
+                val response = apiService.getMessages("Bearer $token", conversationId, page, size)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val messages = response.body()?.data?.messages ?: emptyList()
 
@@ -227,8 +232,8 @@ class MessageRepository(private val context: Context) {
     ): Result<ChatMessage> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = SendMessageRequest(conversationId, content, messageType)
-                val response = apiService.sendMessage("Bearer $token", request)
+                val request = SendMessageRequest(content, messageType, null)
+                val response = apiService.sendMessage("Bearer $token", conversationId, request)
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     val dto = response.body()?.data

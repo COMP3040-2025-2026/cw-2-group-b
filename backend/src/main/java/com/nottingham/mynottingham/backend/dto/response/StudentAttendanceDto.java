@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,5 +16,5 @@ public class StudentAttendanceDto {
     private String email;
     private Boolean hasAttended;
     private String attendanceStatus; // PRESENT, ABSENT, LATE, EXCUSED, or null if not marked
-    private LocalDateTime checkInTime;
+    private String checkInTime; // ISO datetime format: "2025-11-12T14:30:00"
 }

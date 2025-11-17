@@ -7,6 +7,7 @@ plugins {
     id("kotlin-parcelize")
     // Kotlin Symbol Processing API, used for code generation in libraries like Room and Glide.
     alias(libs.plugins.ksp)
+    alias(libs.plugins.navigation.safeargs)
 }
 
 android {
@@ -97,6 +98,7 @@ dependencies {
     implementation(libs.retrofit)
     // A converter which uses Gson for JSON serialization/deserialization.
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp)
     // An OkHttp interceptor which logs HTTP request and response data.
     implementation(libs.okhttp.logging.interceptor)
 

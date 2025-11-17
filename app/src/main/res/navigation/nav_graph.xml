@@ -102,6 +102,11 @@
             android:id="@+id/action_message_to_new_message"
             app:destination="@id/newMessageFragment" />
 
+        <!-- Navigate to New Group -->
+        <action
+            android:id="@+id/action_message_to_new_group"
+            app:destination="@id/newGroupFragment" />
+
     </fragment>
 
     <!-- Chat Detail Fragment -->
@@ -142,6 +147,21 @@
         <!-- Navigate to Chat Detail after creating conversation -->
         <action
             android:id="@+id/action_new_message_to_chat_detail"
+            app:destination="@id/chatDetailFragment"
+            app:popUpTo="@id/messageFragment" />
+
+    </fragment>
+
+    <!-- New Group Fragment -->
+    <fragment
+        android:id="@+id/newGroupFragment"
+        android:name="com.nottingham.mynottingham.ui.message.NewGroupFragment"
+        android:label="New Group"
+        tools:layout="@layout/fragment_new_group">
+
+        <!-- Navigate to Chat Detail after creating group -->
+        <action
+            android:id="@+id/action_new_group_to_chat_detail"
             app:destination="@id/chatDetailFragment"
             app:popUpTo="@id/messageFragment" />
 

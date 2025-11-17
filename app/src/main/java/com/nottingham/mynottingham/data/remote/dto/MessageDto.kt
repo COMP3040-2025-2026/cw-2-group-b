@@ -69,11 +69,11 @@ data class ParticipantDto(
 
 // Request DTOs
 data class SendMessageRequest(
-    @SerializedName("conversation_id")
-    val conversationId: String,
     val content: String,
     @SerializedName("message_type")
-    val messageType: String = "TEXT"
+    val messageType: String = "TEXT",
+    @SerializedName("attachment_url")
+    val attachmentUrl: String? = null
 )
 
 data class CreateConversationRequest(
