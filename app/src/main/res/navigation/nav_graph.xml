@@ -199,7 +199,21 @@
         android:id="@+id/forumFragment"
         android:name="com.nottingham.mynottingham.ui.forum.ForumFragment"
         android:label="@string/nav_forum"
-        tools:layout="@layout/fragment_forum" />
+        tools:layout="@layout/fragment_forum">
+
+        <!-- Navigate to Create Post -->
+        <action
+            android:id="@+id/action_forum_to_create_post"
+            app:destination="@id/createPostFragment" />
+
+    </fragment>
+
+    <!-- Create Post Fragment -->
+    <fragment
+        android:id="@+id/createPostFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.CreatePostFragment"
+        android:label="Create Post"
+        tools:layout="@layout/fragment_create_post" />
 
     <!-- Instatt Fragment - can be accessed from Home -->
     <fragment
