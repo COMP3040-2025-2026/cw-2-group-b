@@ -169,10 +169,10 @@ class MessageRepository(private val context: Context) {
 
     /**
      * Search conversations locally
+     * Only searches in other participants' names (excludes current user), group names, and messages
      */
-    suspend fun searchConversations(query: String): Flow<List<Conversation>> {
-        val currentUserId = getCurrentUserId()
-        return conversationDao.searchConversations(query).map { entities ->
+    fun searchConversations(query: String, currentUserId: String): Flow<List<Conversation>> {
+        return conversationDao.searchConversations(query, currentUserId).map { entities ->
             entities.map { entity ->
                 val participants = participantDao.getParticipantsForConversationSync(entity.id)
                 entityToConversation(entity, participants, currentUserId)

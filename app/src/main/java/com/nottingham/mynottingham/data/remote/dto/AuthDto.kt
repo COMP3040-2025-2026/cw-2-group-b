@@ -38,7 +38,10 @@ data class UserDto(
     val major: String?,
     val yearOfStudy: Int?,
     // Teacher specific fields
-    val department: String?
+    val department: String?,
+    val title: String?,
+    val officeRoom: String?,
+    val officeHours: String?
 )
 
 data class ApiResponse<T>(

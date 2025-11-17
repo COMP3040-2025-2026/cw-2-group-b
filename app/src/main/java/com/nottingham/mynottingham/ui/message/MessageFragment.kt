@@ -10,9 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
@@ -107,28 +105,6 @@ class MessageFragment : Fragment() {
             onConversationLongClick = { conversation ->
                 // Show action bottom sheet
                 showConversationActions(conversation)
-            },
-            onPinClick = { conversation ->
-                lifecycleScope.launch {
-                    val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
-                    if (currentToken.isNotEmpty()) {
-                        viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
-                        Toast.makeText(
-                            context,
-                            if (conversation.isPinned) "Unpinned" else "Pinned",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            },
-            onDeleteClick = { conversation ->
-                lifecycleScope.launch {
-                    val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
-                    if (currentToken.isNotEmpty()) {
-                        viewModel.deleteConversation(currentToken, conversation.id)
-                        Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
-                    }
-                }
             }
         )
 
@@ -138,81 +114,8 @@ class MessageFragment : Fragment() {
             // Disable item animations to prevent jump effect
             itemAnimator = null
         }
-
-        // Setup swipe gestures
-        setupSwipeGestures()
     }
 
-    private fun setupSwipeGestures() {
-        val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-            0,
-            ItemTouchHelper.LEFT
-        ) {
-            private val swipeThreshold = 160 * resources.displayMetrics.density // 160dp in pixels
-
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-                return false
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                // Not used - we handle swipe in onChildDraw
-            }
-
-            override fun onChildDraw(
-                c: android.graphics.Canvas,
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                dX: Float,
-                dY: Float,
-                actionState: Int,
-                isCurrentlyActive: Boolean
-            ) {
-                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
-                    val adapterViewHolder = viewHolder as ConversationAdapter.ConversationViewHolder
-                    val foreground = adapterViewHolder.foreground
-
-                    // Limit swipe distance to show action buttons (max 160dp)
-                    val clampedDx = Math.max(-swipeThreshold, dX)
-
-                    // Translate the foreground view
-                    foreground.translationX = clampedDx
-                } else {
-                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-                }
-            }
-
-            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                super.clearView(recyclerView, viewHolder)
-                val adapterViewHolder = viewHolder as ConversationAdapter.ConversationViewHolder
-                val foreground = adapterViewHolder.foreground
-
-                // Snap to open or closed position
-                if (Math.abs(foreground.translationX) > swipeThreshold / 2) {
-                    // Snap to open (show buttons)
-                    foreground.animate()
-                        .translationX(-swipeThreshold)
-                        .setDuration(200)
-                        .start()
-                } else {
-                    // Snap to closed
-                    foreground.animate()
-                        .translationX(0f)
-                        .setDuration(200)
-                        .start()
-                }
-            }
-
-            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float {
-                return 0.5f // Allow full swipe when past 50%
-            }
-        })
-
-        itemTouchHelper.attachToRecyclerView(binding.recyclerConversations)
-    }
 
     private fun setupSearchView() {
         // Setup search view in toolbar
@@ -309,8 +212,14 @@ class MessageFragment : Fragment() {
             lifecycleScope.launch {
                 val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
                 if (currentToken.isNotEmpty()) {
-                    viewModel.deleteConversation(currentToken, conversation.id)
-                    Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                    val result = viewModel.deleteConversation(currentToken, conversation.id)
+                    result.onSuccess {
+                        Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                    }.onFailure { error ->
+                        Toast.makeText(context, "Failed to delete: ${error.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Authentication token not found", Toast.LENGTH_SHORT).show()
                 }
             }
             bottomSheet.dismiss()
@@ -349,6 +258,7 @@ class MessageFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         // Refresh conversations when returning from chat detail
+        // Throttled to prevent data loss during frequent navigation switches
         if (token.isNotEmpty()) {
             viewModel.syncConversations(token)
         }

@@ -52,13 +52,14 @@ interface ConversationDao {
         WHERE (isGroup = 0 AND EXISTS(
             SELECT 1 FROM conversation_participants
             WHERE conversation_participants.conversationId = conversations.id
+            AND conversation_participants.userId != :currentUserId
             AND conversation_participants.userName LIKE '%' || :query || '%'
         ))
         OR (isGroup = 1 AND groupName LIKE '%' || :query || '%')
         OR lastMessage LIKE '%' || :query || '%'
         ORDER BY isPinned DESC, lastMessageTime DESC
     """)
-    fun searchConversations(query: String): Flow<List<ConversationEntity>>
+    fun searchConversations(query: String, currentUserId: String): Flow<List<ConversationEntity>>
 
     @Delete
     suspend fun deleteConversation(conversation: ConversationEntity)

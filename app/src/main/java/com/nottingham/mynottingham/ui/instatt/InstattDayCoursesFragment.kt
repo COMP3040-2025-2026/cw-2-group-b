@@ -41,6 +41,7 @@ class InstattDayCoursesFragment : Fragment() {
     // Server time cache - updated when fragment is created
     private var serverDate: String? = null
     private var serverDayOfWeek: DayOfWeek? = null
+    private var serverTime: String? = null
 
     companion object {
         private const val ARG_DAY_OF_WEEK = "day_of_week"
@@ -120,6 +121,7 @@ class InstattDayCoursesFragment : Fragment() {
                 // Cache server time
                 serverDate = systemTime.currentDate
                 serverDayOfWeek = systemTime.dayOfWeek
+                serverTime = systemTime.currentTime
 
                 // Now load courses with server date
                 loadCourses()
@@ -135,6 +137,7 @@ class InstattDayCoursesFragment : Fragment() {
                 // Use local time as fallback
                 serverDate = null
                 serverDayOfWeek = null
+                serverTime = null
                 loadCourses()
                 startPolling()
             }
@@ -181,8 +184,11 @@ class InstattDayCoursesFragment : Fragment() {
             binding.rvCourses.isVisible = true
             binding.layoutEmpty.isVisible = false
 
+            // Get current time - use server time if available, otherwise system time
+            val currentTime = serverTime ?: getCurrentTime()
+
             // Use TodayClassAdapter for today's view with sign-in callback
-            val adapter = TodayClassAdapter(courses) { course ->
+            val adapter = TodayClassAdapter(courses, currentTime) { course ->
                 handleSignIn(course)
             }
             binding.rvCourses.adapter = adapter

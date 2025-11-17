@@ -29,8 +29,12 @@ class NewMessageViewModel(application: Application) : AndroidViewModel(applicati
     private val _conversationCreated = MutableLiveData<Conversation?>()
     val conversationCreated: LiveData<Conversation?> = _conversationCreated
 
+    // Store all contacts for filtering
+    private var allContacts: List<ContactSuggestionDto> = emptyList()
+    private var currentSearchQuery: String = ""
+
     /**
-     * Load contact suggestions
+     * Load contact suggestions (now loads all contacts)
      */
     fun loadContactSuggestions(token: String) {
         _loading.value = true
@@ -39,11 +43,78 @@ class NewMessageViewModel(application: Application) : AndroidViewModel(applicati
             _loading.value = false
 
             result.onSuccess { contacts ->
-                _contactSuggestions.value = contacts
+                // Sort contacts alphabetically by name
+                allContacts = contacts.sortedBy { it.userName.uppercase() }
+                applyFilters()
             }
 
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to load contacts"
+            }
+        }
+    }
+
+    /**
+     * Search contacts by query
+     */
+    fun searchContacts(query: String) {
+        currentSearchQuery = query
+        applyFilters()
+    }
+
+    /**
+     * Scroll to letter
+     */
+    fun scrollToLetter(letter: String) {
+        val filteredContacts = getFilteredContacts()
+        val index = filteredContacts.indexOfFirst {
+            val firstChar = it.userName.firstOrNull()?.uppercaseChar()
+            if (letter == "#") {
+                firstChar == null || firstChar !in 'A'..'Z'
+            } else {
+                firstChar?.toString() == letter
+            }
+        }
+        // Index will be used by the Fragment to scroll RecyclerView
+        // We return the filtered list which is already in correct order
+    }
+
+    /**
+     * Apply current filters (search query)
+     */
+    private fun applyFilters() {
+        val filtered = getFilteredContacts()
+        _contactSuggestions.value = filtered
+    }
+
+    /**
+     * Get filtered and sorted contacts
+     */
+    private fun getFilteredContacts(): List<ContactSuggestionDto> {
+        var filtered = allContacts
+
+        // Apply search query
+        if (currentSearchQuery.isNotEmpty()) {
+            filtered = filtered.filter {
+                it.userName.contains(currentSearchQuery, ignoreCase = true) ||
+                it.program?.contains(currentSearchQuery, ignoreCase = true) == true
+            }
+        }
+
+        return filtered
+    }
+
+    /**
+     * Get index of first contact starting with given letter
+     */
+    fun getIndexForLetter(letter: String): Int {
+        val filteredContacts = getFilteredContacts()
+        return filteredContacts.indexOfFirst {
+            val firstChar = it.userName.firstOrNull()?.uppercaseChar()
+            if (letter == "#") {
+                firstChar == null || firstChar !in 'A'..'Z'
+            } else {
+                firstChar?.toString() == letter
             }
         }
     }

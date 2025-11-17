@@ -78,9 +78,9 @@ INSERT INTO forum_comments (post_id, author_id, content, likes, created_at, upda
 (1, 3, 'Count me in too!', 1, NOW(), NOW()),
 (3, 1, 'I''ll join! When is the sign up deadline?', 0, NOW(), NOW());
 
--- Messages
-INSERT INTO messages (sender_id, receiver_id, content, is_read, type, attachment_url, created_at, updated_at) VALUES
-(1, 2, 'Hey! Did you understand the lecture today?', TRUE, 'TEXT', NULL, DATEADD('HOUR', -2, NOW()), DATEADD('HOUR', -2, NOW())),
-(2, 1, 'Yeah, but I''m confused about the MVC pattern. Can we discuss?', TRUE, 'TEXT', NULL, DATEADD('HOUR', -1, NOW()), DATEADD('HOUR', -1, NOW())),
-(1, 2, 'Sure! Let''s meet at the library tomorrow.', FALSE, 'TEXT', NULL, DATEADD('MINUTE', -30, NOW()), DATEADD('MINUTE', -30, NOW())),
-(4, 1, 'Your assignment submission was excellent! Keep up the good work.', FALSE, 'TEXT', NULL, NOW(), NOW());
+-- Messages (commented out - using new conversation-based messaging system)
+-- INSERT INTO messages (sender_id, receiver_id, content, is_read, type, attachment_url, created_at, updated_at) VALUES
+-- (1, 2, 'Hey! Did you understand the lecture today?', TRUE, 'TEXT', NULL, DATEADD('HOUR', -2, NOW()), DATEADD('HOUR', -2, NOW())),
+-- (2, 1, 'Yeah, but I''m confused about the MVC pattern. Can we discuss?', TRUE, 'TEXT', NULL, DATEADD('HOUR', -1, NOW()), DATEADD('HOUR', -1, NOW())),
+-- (1, 2, 'Sure! Let''s meet at the library tomorrow.', FALSE, 'TEXT', NULL, DATEADD('MINUTE', -30, NOW()), DATEADD('MINUTE', -30, NOW())),
+-- (4, 1, 'Your assignment submission was excellent! Keep up the good work.', FALSE, 'TEXT', NULL, NOW(), NOW());

@@ -30,6 +30,9 @@ public class UserDto {
     // Teacher specific fields
     private String employeeId;
     private String department;
+    private String title;
+    private String officeRoom;
+    private String officeHours;
 
     /**
      * Create UserDto from User entity
@@ -57,7 +60,10 @@ public class UserDto {
         if (user instanceof Teacher) {
             Teacher teacher = (Teacher) user;
             builder.employeeId(teacher.getEmployeeId())
-                   .department(teacher.getDepartment());
+                   .department(teacher.getDepartment())
+                   .title(teacher.getTitle())
+                   .officeRoom(teacher.getOfficeRoom())
+                   .officeHours(teacher.getOfficeHours());
         }
 
         return builder.build();

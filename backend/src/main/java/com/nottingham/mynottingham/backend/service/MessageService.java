@@ -140,7 +140,10 @@ public class MessageService {
             throw new IllegalArgumentException("User is not a participant of this conversation");
         }
 
-        // Delete all participants first (cascade will handle this, but being explicit)
+        // Delete all messages first (to avoid foreign key constraint violation)
+        messageRepository.deleteByConversationId(conversation.getId());
+
+        // Delete all participants (cascade will handle this, but being explicit)
         participantRepository.deleteByConversationId(conversation.getId());
 
         // Delete the conversation

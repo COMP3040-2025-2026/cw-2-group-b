@@ -16,9 +16,7 @@ import java.util.*
  */
 class ConversationAdapter(
     private val onConversationClick: (Conversation) -> Unit,
-    private val onConversationLongClick: (Conversation) -> Unit,
-    private val onPinClick: (Conversation) -> Unit = {},
-    private val onDeleteClick: (Conversation) -> Unit = {}
+    private val onConversationLongClick: (Conversation) -> Unit
 ) : ListAdapter<Conversation, ConversationAdapter.ConversationViewHolder>(ConversationDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ConversationViewHolder {
@@ -37,9 +35,6 @@ class ConversationAdapter(
     inner class ConversationViewHolder(
         private val binding: ItemConversationBinding
     ) : RecyclerView.ViewHolder(binding.root) {
-
-        // Expose foreground for swipe animations
-        val foreground: View get() = binding.cardForeground
 
         init {
             binding.cardForeground.setOnClickListener {
@@ -62,9 +57,6 @@ class ConversationAdapter(
 
         fun bind(conversation: Conversation) {
             binding.apply {
-                // Reset foreground position when binding
-                cardForeground.translationX = 0f
-
                 // Set avatar initials
                 val initials = conversation.participantName.split(" ")
                     .take(2)
@@ -96,29 +88,16 @@ class ConversationAdapter(
                     tvUnreadCount.visibility = View.GONE
                 }
 
-                // Update pin button text
+                // Show pin indicator with background color change
                 if (conversation.isPinned) {
-                    tvPinSwipe.text = "Unpin"
+                    layoutContent.setBackgroundColor(
+                        itemView.context.getColor(com.nottingham.mynottingham.R.color.primary_light)
+                    )
                 } else {
-                    tvPinSwipe.text = "Pin"
+                    layoutContent.setBackgroundColor(
+                        itemView.context.getColor(com.nottingham.mynottingham.R.color.white)
+                    )
                 }
-
-                // Setup swipe button click listeners
-                btnPinSwipe.setOnClickListener {
-                    onPinClick(conversation)
-                    // Reset swipe position
-                    cardForeground.animate().translationX(0f).setDuration(200).start()
-                }
-
-                btnDeleteSwipe.setOnClickListener {
-                    onDeleteClick(conversation)
-                    // Reset swipe position
-                    cardForeground.animate().translationX(0f).setDuration(200).start()
-                }
-
-                // Show pin indicator (you may want to add this to the layout)
-                // For now, we can use a subtle background or text style change
-                root.alpha = if (conversation.isPinned) 1.0f else 0.9f
             }
         }
 

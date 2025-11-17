@@ -19,11 +19,20 @@ class TokenManager(private val context: Context) {
         private val USERNAME_KEY = stringPreferencesKey("username")
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
         private val FULL_NAME_KEY = stringPreferencesKey("full_name")
-        private val STUDENT_ID_KEY = stringPreferencesKey("student_id")
         private val EMAIL_KEY = stringPreferencesKey("email")
+
+        // Student fields
+        private val STUDENT_ID_KEY = stringPreferencesKey("student_id")
         private val FACULTY_KEY = stringPreferencesKey("faculty")
         private val MAJOR_KEY = stringPreferencesKey("major")
         private val YEAR_OF_STUDY_KEY = stringPreferencesKey("year_of_study")
+
+        // Teacher fields
+        private val EMPLOYEE_ID_KEY = stringPreferencesKey("employee_id")
+        private val DEPARTMENT_KEY = stringPreferencesKey("department")
+        private val TITLE_KEY = stringPreferencesKey("title")
+        private val OFFICE_ROOM_KEY = stringPreferencesKey("office_room")
+        private val OFFICE_HOURS_KEY = stringPreferencesKey("office_hours")
     }
 
     suspend fun saveToken(token: String) {
@@ -73,6 +82,37 @@ class TokenManager(private val context: Context) {
     suspend fun saveYearOfStudy(yearOfStudy: String) {
         context.dataStore.edit { preferences ->
             preferences[YEAR_OF_STUDY_KEY] = yearOfStudy
+        }
+    }
+
+    // Teacher save methods
+    suspend fun saveEmployeeId(employeeId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[EMPLOYEE_ID_KEY] = employeeId
+        }
+    }
+
+    suspend fun saveDepartment(department: String) {
+        context.dataStore.edit { preferences ->
+            preferences[DEPARTMENT_KEY] = department
+        }
+    }
+
+    suspend fun saveTitle(title: String) {
+        context.dataStore.edit { preferences ->
+            preferences[TITLE_KEY] = title
+        }
+    }
+
+    suspend fun saveOfficeRoom(officeRoom: String) {
+        context.dataStore.edit { preferences ->
+            preferences[OFFICE_ROOM_KEY] = officeRoom
+        }
+    }
+
+    suspend fun saveOfficeHours(officeHours: String) {
+        context.dataStore.edit { preferences ->
+            preferences[OFFICE_HOURS_KEY] = officeHours
         }
     }
 
@@ -133,6 +173,37 @@ class TokenManager(private val context: Context) {
     fun getYearOfStudy(): Flow<String?> {
         return context.dataStore.data.map { preferences ->
             preferences[YEAR_OF_STUDY_KEY]
+        }
+    }
+
+    // Teacher get methods
+    fun getEmployeeId(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[EMPLOYEE_ID_KEY]
+        }
+    }
+
+    fun getDepartment(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[DEPARTMENT_KEY]
+        }
+    }
+
+    fun getTitle(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[TITLE_KEY]
+        }
+    }
+
+    fun getOfficeRoom(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[OFFICE_ROOM_KEY]
+        }
+    }
+
+    fun getOfficeHours(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[OFFICE_HOURS_KEY]
         }
     }
 

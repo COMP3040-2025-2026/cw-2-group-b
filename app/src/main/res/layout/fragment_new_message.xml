@@ -19,27 +19,52 @@
         app:title="@string/title_new_message"
         app:titleTextColor="@android:color/white" />
 
+    <!-- Search Bar -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/search_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        app:iconifiedByDefault="false"
+        app:queryHint="Search contacts..."
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+
     <!-- Section Header -->
     <TextView
         android:id="@+id/text_header"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:padding="16dp"
-        android:text="@string/label_suggested_contacts"
+        android:text="@string/label_all_contacts"
         android:textSize="14sp"
         android:textStyle="bold"
         android:textColor="?android:attr/textColorSecondary"
-        app:layout_constraintTop_toBottomOf="@id/toolbar" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_view" />
 
     <!-- Contact Suggestions RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_contacts"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/alphabet_index"
         app:layout_constraintTop_toBottomOf="@id/text_header"
         app:layout_constraintBottom_toBottomOf="parent"
         tools:listitem="@layout/item_contact_suggestion" />
+
+    <!-- Alphabet Index -->
+    <com.nottingham.mynottingham.ui.message.AlphabetIndexView
+        android:id="@+id/alphabet_index"
+        android:layout_width="32dp"
+        android:layout_height="0dp"
+        android:layout_marginEnd="4dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_header"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
     <!-- Loading Indicator -->
     <ProgressBar

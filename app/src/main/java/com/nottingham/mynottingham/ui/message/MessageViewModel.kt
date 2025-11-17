@@ -31,6 +31,11 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     private val _conversations = MutableLiveData<List<Conversation>>()
     val conversations: LiveData<List<Conversation>> = _conversations
 
+    // Sync throttling to prevent data loss during frequent navigation
+    private var lastSyncTime: Long = 0
+    private var isSyncing: Boolean = false
+    private val SYNC_THROTTLE_MS = 5000L // 5 seconds minimum between syncs
+
     // Pinned conversations
     val pinnedConversations: LiveData<List<Conversation>> = conversations.map { list ->
         list.filter { it.isPinned }
@@ -68,12 +73,29 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Sync conversations from API
+     * Throttled to prevent data loss during frequent navigation switches
      */
-    fun syncConversations(token: String) {
+    fun syncConversations(token: String, forceSync: Boolean = false) {
+        val currentTime = System.currentTimeMillis()
+
+        // Skip if already syncing
+        if (isSyncing && !forceSync) {
+            return
+        }
+
+        // Skip if synced recently (unless forced)
+        if (!forceSync && (currentTime - lastSyncTime) < SYNC_THROTTLE_MS) {
+            return
+        }
+
+        isSyncing = true
         _loading.value = true
+        lastSyncTime = currentTime
+
         viewModelScope.launch {
             val result = repository.syncConversations(token)
             _loading.value = false
+            isSyncing = false
 
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to sync conversations"
@@ -90,8 +112,8 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                 // Revert to full list
                 observeConversations()
             } else {
-                // Search in repository
-                repository.searchConversations(query).collect { conversationList ->
+                // Search in repository with current user ID
+                repository.searchConversations(query, currentUserId).collect { conversationList ->
                     val sorted = conversationList.sortedWith(
                         compareByDescending<Conversation> { it.isPinned }
                             .thenByDescending { it.lastMessageTime }
@@ -137,14 +159,14 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Delete conversation
+     * Returns Result indicating success or failure
      */
-    fun deleteConversation(token: String, conversationId: String) {
-        viewModelScope.launch {
-            val result = repository.deleteConversation(token, conversationId)
-            result.onFailure { e ->
-                _error.value = e.message ?: "Failed to delete conversation"
-            }
+    suspend fun deleteConversation(token: String, conversationId: String): Result<Unit> {
+        val result = repository.deleteConversation(token, conversationId)
+        result.onFailure { e ->
+            _error.value = e.message ?: "Failed to delete conversation"
         }
+        return result
     }
 
     /**

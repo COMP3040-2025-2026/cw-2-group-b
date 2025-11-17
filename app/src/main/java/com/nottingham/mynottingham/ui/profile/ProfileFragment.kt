@@ -62,6 +62,19 @@ class ProfileFragment : Fragment() {
             }
         }
 
+        // Determine user type and load appropriate info
+        lifecycleScope.launch {
+            tokenManager.getUserType().collect { userType ->
+                if (userType == "TEACHER") {
+                    loadTeacherInfo()
+                } else {
+                    loadStudentInfo()
+                }
+            }
+        }
+    }
+
+    private fun loadStudentInfo() {
         lifecycleScope.launch {
             tokenManager.getStudentId().collect { studentId ->
                 studentId?.let {
@@ -72,19 +85,53 @@ class ProfileFragment : Fragment() {
 
         lifecycleScope.launch {
             tokenManager.getFaculty().collect { faculty ->
+                binding.labelFaculty.text = "Faculty"
                 binding.valueFaculty.text = faculty ?: "—"
             }
         }
 
         lifecycleScope.launch {
-            tokenManager.getMajor().collect { major ->
-                binding.valueProgram.text = major ?: "—"
+            tokenManager.getYearOfStudy().collect { year ->
+                binding.labelYear.text = "Year"
+                binding.valueYear.text = year?.let { "Year $it" } ?: "—"
             }
         }
 
         lifecycleScope.launch {
-            tokenManager.getYearOfStudy().collect { year ->
-                binding.valueYear.text = year?.let { "Year $it" } ?: "—"
+            tokenManager.getMajor().collect { major ->
+                binding.labelProgram.text = "Program"
+                binding.valueProgram.text = major ?: "—"
+            }
+        }
+    }
+
+    private fun loadTeacherInfo() {
+        lifecycleScope.launch {
+            tokenManager.getEmployeeId().collect { employeeId ->
+                employeeId?.let {
+                    binding.tvStudentId.text = "Employee ID: $it"
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getDepartment().collect { department ->
+                binding.labelFaculty.text = "Department"
+                binding.valueFaculty.text = department ?: "—"
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getTitle().collect { title ->
+                binding.labelYear.text = "Title"
+                binding.valueYear.text = title ?: "—"
+            }
+        }
+
+        lifecycleScope.launch {
+            tokenManager.getOfficeRoom().collect { officeRoom ->
+                binding.labelProgram.text = "Office"
+                binding.valueProgram.text = officeRoom ?: "—"
             }
         }
     }

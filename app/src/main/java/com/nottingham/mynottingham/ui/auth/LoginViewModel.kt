@@ -74,6 +74,27 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             tokenManager.saveYearOfStudy(year.toString())
                         }
 
+                        // Save teacher-specific fields if available
+                        loginData.user.employeeId?.let { employeeId ->
+                            tokenManager.saveEmployeeId(employeeId)
+                        }
+
+                        loginData.user.department?.let { department ->
+                            tokenManager.saveDepartment(department)
+                        }
+
+                        loginData.user.title?.let { title ->
+                            tokenManager.saveTitle(title)
+                        }
+
+                        loginData.user.officeRoom?.let { officeRoom ->
+                            tokenManager.saveOfficeRoom(officeRoom)
+                        }
+
+                        loginData.user.officeHours?.let { officeHours ->
+                            tokenManager.saveOfficeHours(officeHours)
+                        }
+
                         // Create default conversations (teachers/students)
                         createDefaultConversations(loginData.token, loginData.user.id.toString())
 

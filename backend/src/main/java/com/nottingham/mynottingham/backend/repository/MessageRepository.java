@@ -43,4 +43,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     // Search messages by content in a conversation
     @Query("SELECT m FROM Message m WHERE m.conversation.id = :conversationId AND LOWER(m.content) LIKE LOWER(CONCAT('%', :searchTerm, '%')) ORDER BY m.createdAt DESC")
     List<Message> searchInConversation(@Param("conversationId") Long conversationId, @Param("searchTerm") String searchTerm);
+
+    // Delete all messages in a conversation
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.conversation.id = :conversationId")
+    void deleteByConversationId(@Param("conversationId") Long conversationId);
 }

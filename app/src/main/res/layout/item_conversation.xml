@@ -1,88 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_foreground"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp">
-
-    <!-- Background layer - action buttons -->
-    <LinearLayout
-        android:id="@+id/layout_background"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:gravity="end"
-        android:background="@color/white">
-
-        <!-- Pin/Unpin Button -->
-        <LinearLayout
-            android:id="@+id/btn_pin_swipe"
-            android:layout_width="80dp"
-            android:layout_height="match_parent"
-            android:background="#FF9800"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_push_pin"
-                android:tint="@color/white" />
-
-            <TextView
-                android:id="@+id/tv_pin_swipe"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Pin"
-                android:textColor="@color/white"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <!-- Delete Button -->
-        <LinearLayout
-            android:id="@+id/btn_delete_swipe"
-            android:layout_width="80dp"
-            android:layout_height="match_parent"
-            android:background="#F44336"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_delete"
-                android:tint="@color/white" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Delete"
-                android:textColor="@color/white"
-                android:textSize="12sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Foreground layer - conversation item -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/card_foreground"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp">
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layout_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:background="@color/white">
+            android:padding="16dp">
 
             <!-- Avatar -->
             <TextView
@@ -168,8 +98,6 @@
                 app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
                 app:layout_constraintEnd_toEndOf="parent" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    </com.google.android.material.card.MaterialCardView>
-
-</FrameLayout>
+</com.google.android.material.card.MaterialCardView>

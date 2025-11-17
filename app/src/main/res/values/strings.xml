@@ -92,6 +92,7 @@
     <string name="type_message">Type a message…</string>
     <string name="title_new_message">New Message</string>
     <string name="label_suggested_contacts">SUGGESTED CONTACTS</string>
+    <string name="label_all_contacts">ALL CONTACTS</string>
     <string name="msg_no_contacts">No contacts available</string>
     <string name="msg_start_conversation">Start a conversation</string>
     <string name="hint_type_message">Type a message…</string>

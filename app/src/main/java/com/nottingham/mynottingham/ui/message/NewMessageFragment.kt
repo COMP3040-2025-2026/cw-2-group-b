@@ -47,6 +47,8 @@ class NewMessageFragment : Fragment() {
         tokenManager = TokenManager(requireContext())
 
         setupToolbar()
+        setupSearchView()
+        setupAlphabetIndex()
         setupRecyclerView()
         setupObservers()
 
@@ -67,6 +69,28 @@ class NewMessageFragment : Fragment() {
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
+        }
+    }
+
+    private fun setupSearchView() {
+        binding.searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                viewModel.searchContacts(newText ?: "")
+                return true
+            }
+        })
+    }
+
+    private fun setupAlphabetIndex() {
+        binding.alphabetIndex.setOnLetterSelectedListener { letter ->
+            val index = viewModel.getIndexForLetter(letter)
+            if (index >= 0) {
+                binding.recyclerContacts.scrollToPosition(index)
+            }
         }
     }
 

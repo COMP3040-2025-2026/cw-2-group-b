@@ -15,6 +15,7 @@ import com.nottingham.mynottingham.databinding.ItemTodayClassBinding
 
 class TodayClassAdapter(
     private val courses: List<Course>,
+    private val currentTime: String? = null,
     private val onSignInClick: ((Course) -> Unit)? = null
 ) : RecyclerView.Adapter<TodayClassAdapter.TodayClassViewHolder>() {
 
@@ -41,8 +42,11 @@ class TodayClassAdapter(
             binding.tvCourseType.text = course.courseType.displayName
 
             // Status indicator (vertical line on left of course name)
-            // Attendance indicator with custom icons based on attendance status
+            // New logic: Color based on time comparison with course duration
+            val lineColor = determineLineColor(startTime, endTime)
+            binding.viewStatusLine.setBackgroundColor(Color.parseColor(lineColor))
 
+            // Attendance indicator with custom icons based on attendance status
             // Priority order:
             // 1. todayStatus == ATTENDED (green check) - student signed in or teacher marked PRESENT
             // 2. todayStatus == MISSED (red X) - teacher marked ABSENT/LATE/EXCUSED or session closed without sign-in
@@ -51,21 +55,18 @@ class TodayClassAdapter(
             when (course.todayStatus) {
                 TodayClassStatus.ATTENDED -> {
                     // Student signed in or teacher marked as PRESENT
-                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_check)
                     binding.ivAttendanceIcon.isClickable = false
                 }
                 TodayClassStatus.MISSED -> {
                     // Teacher marked as ABSENT/LATE/EXCUSED or session closed without sign-in
-                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_attendance_cross)
                     binding.ivAttendanceIcon.isClickable = false
                 }
                 TodayClassStatus.IN_PROGRESS -> {
                     // Session is unlocked and available for sign-in
-                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#2196F3"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_pencil)
                     binding.ivAttendanceIcon.isClickable = true
@@ -75,12 +76,34 @@ class TodayClassAdapter(
                 }
                 else -> {
                     // Session is locked (default state)
-                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#9E9E9E"))
                     binding.ivAttendanceIcon.isVisible = true
                     binding.ivAttendanceIcon.setImageResource(R.drawable.ic_sign_locked)
                     binding.ivAttendanceIcon.isClickable = false
                 }
             }
+        }
+
+        private fun determineLineColor(startTime: String, endTime: String): String {
+            // Get current time from adapter or use system time as fallback
+            val now = currentTime ?: getCurrentTime()
+
+            // Convert times to comparable integers (e.g., "09:00" -> 900)
+            val start = startTime.replace(":", "").toIntOrNull() ?: 0
+            val end = endTime.replace(":", "").toIntOrNull() ?: 0
+            val current = now.replace(":", "").toIntOrNull() ?: 0
+
+            return when {
+                current < start -> "#F44336"  // Red - class hasn't started yet
+                current in start..end -> "#4CAF50"  // Green - class is in progress
+                current > end -> "#2196F3"  // Blue - class has ended
+                else -> "#9E9E9E"  // Gray - fallback
+            }
+        }
+
+        private fun getCurrentTime(): String {
+            val calendar = java.util.Calendar.getInstance()
+            val format = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+            return format.format(calendar.time)
         }
 
         private fun extractTime(timeString: String): String {
