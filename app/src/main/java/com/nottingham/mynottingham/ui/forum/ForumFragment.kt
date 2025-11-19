@@ -53,8 +53,11 @@ class ForumFragment : Fragment() {
     private fun setupRecyclerView() {
         adapter = ForumAdapter(
             onPostClick = { post ->
-                // TODO: Navigate to post detail
-                Toast.makeText(context, "Post detail coming soon", Toast.LENGTH_SHORT).show()
+                // Navigate to post detail
+                val bundle = Bundle().apply {
+                    putLong("postId", post.id)
+                }
+                findNavController().navigate(R.id.action_forum_to_post_detail, bundle)
             },
             onLikeClick = { post ->
                 lifecycleScope.launch {

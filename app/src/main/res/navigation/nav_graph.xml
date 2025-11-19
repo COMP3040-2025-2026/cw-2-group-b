@@ -206,6 +206,11 @@
             android:id="@+id/action_forum_to_create_post"
             app:destination="@id/createPostFragment" />
 
+        <!-- Navigate to Post Detail -->
+        <action
+            android:id="@+id/action_forum_to_post_detail"
+            app:destination="@id/forumDetailFragment" />
+
     </fragment>
 
     <!-- Create Post Fragment -->
@@ -214,6 +219,19 @@
         android:name="com.nottingham.mynottingham.ui.forum.CreatePostFragment"
         android:label="Create Post"
         tools:layout="@layout/fragment_create_post" />
+
+    <!-- Forum Detail Fragment -->
+    <fragment
+        android:id="@+id/forumDetailFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.ForumDetailFragment"
+        android:label="Post Detail"
+        tools:layout="@layout/fragment_forum_detail">
+
+        <argument
+            android:name="postId"
+            app:argType="long" />
+
+    </fragment>
 
     <!-- Instatt Fragment - can be accessed from Home -->
     <fragment

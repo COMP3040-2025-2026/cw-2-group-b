@@ -3,8 +3,10 @@ package com.nottingham.mynottingham.backend.service;
 import com.nottingham.mynottingham.backend.dto.ForumDto.*;
 import com.nottingham.mynottingham.backend.entity.ForumComment;
 import com.nottingham.mynottingham.backend.entity.ForumPost;
+import com.nottingham.mynottingham.backend.entity.ForumPostLike;
 import com.nottingham.mynottingham.backend.entity.User;
 import com.nottingham.mynottingham.backend.repository.ForumCommentRepository;
+import com.nottingham.mynottingham.backend.repository.ForumPostLikeRepository;
 import com.nottingham.mynottingham.backend.repository.ForumPostRepository;
 import com.nottingham.mynottingham.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,6 +34,7 @@ public class ForumService {
 
     private final ForumPostRepository postRepository;
     private final ForumCommentRepository commentRepository;
+    private final ForumPostLikeRepository postLikeRepository;
     private final UserRepository userRepository;
 
     private static final String UPLOAD_DIR = "uploads/forum/";
@@ -151,17 +155,33 @@ public class ForumService {
     }
 
     /**
-     * Like/unlike post
+     * Like/unlike post (toggle)
      */
     @Transactional
     public ForumPostDto likePost(Long postId, Long userId) {
         ForumPost post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        // Simple like toggle (in production, use a separate likes table)
-        post.setLikes(post.getLikes() + 1);
-        ForumPost savedPost = postRepository.save(post);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Check if user has already liked the post
+        Optional<ForumPostLike> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+
+        if (existingLike.isPresent()) {
+            // Unlike: remove the like
+            postLikeRepository.delete(existingLike.get());
+            post.setLikes(Math.max(0, post.getLikes() - 1)); // Prevent negative likes
+        } else {
+            // Like: add a new like
+            ForumPostLike like = new ForumPostLike();
+            like.setPost(post);
+            like.setUser(user);
+            postLikeRepository.save(like);
+            post.setLikes(post.getLikes() + 1);
+        }
+
+        ForumPost savedPost = postRepository.save(post);
         return toPostDto(savedPost, userId);
     }
 
@@ -205,6 +225,7 @@ public class ForumService {
      */
     private ForumPostDto toPostDto(ForumPost post, Long currentUserId) {
         Long commentCount = commentRepository.countByPost(post);
+        boolean isLiked = postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUserId);
 
         return ForumPostDto.builder()
                 .id(post.getId())
@@ -220,7 +241,7 @@ public class ForumService {
                 .views(post.getViews())
                 .isPinned(post.getIsPinned())
                 .isLocked(post.getIsLocked())
-                .isLikedByCurrentUser(false) // TODO: Implement like tracking
+                .isLikedByCurrentUser(isLiked)
                 .tags(post.getTags() != null && !post.getTags().isEmpty()
                     ? List.of(post.getTags().split(","))
                     : null)

@@ -97,6 +97,13 @@ class ForumRepository(private val context: Context) {
     }
 
     /**
+     * Get post by ID as Flow from local database
+     */
+    fun getPostByIdFlow(postId: Long): Flow<ForumPostEntity?> {
+        return forumDao.getPostByIdFlow(postId)
+    }
+
+    /**
      * Get comments for a post from local database
      */
     fun getCommentsFlow(postId: Long): Flow<List<ForumCommentEntity>> {
