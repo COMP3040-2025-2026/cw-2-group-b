@@ -31,7 +31,7 @@
                 android:paddingTop="28dp"
                 android:paddingBottom="24dp">
 
-                <!-- Profile Avatar (TextView 形式，占位) -->
+                <!-- Profile Avatar -->
                 <TextView
                     android:id="@+id/tv_avatar"
                     android:layout_width="80dp"
@@ -46,7 +46,7 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
-                <!-- 用户名 -->
+                <!-- Username -->
                 <TextView
                     android:id="@+id/tv_name"
                     android:layout_width="wrap_content"
@@ -73,7 +73,7 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/tv_name" />
 
-                <!-- 学号 -->
+                <!-- ID -->
                 <TextView
                     android:id="@+id/tv_student_id"
                     android:layout_width="wrap_content"

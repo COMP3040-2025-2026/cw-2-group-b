@@ -9,9 +9,6 @@ import com.nottingham.mynottingham.data.local.TokenManager
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
-/**
- * ViewModel for Home Fragment
- */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager(application)
@@ -21,6 +18,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _facultyYearMessage = MutableLiveData<String>()
     val facultyYearMessage: LiveData<String> = _facultyYearMessage
+
+    private val _isTeacher = MutableLiveData<Boolean>(false)
+    val isTeacher: LiveData<Boolean> = _isTeacher
 
     init {
         loadWelcomeMessage()
@@ -47,10 +47,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 faculty != null && year != null -> "$faculty, Year $year"
                 faculty != null -> faculty
                 year != null -> "Year $year"
-                else -> "My Nottingham Student"
+                else -> ""
             }
 
             _facultyYearMessage.value = message
+
+            _isTeacher.value = (year == null && faculty != null)
         }
     }
 }

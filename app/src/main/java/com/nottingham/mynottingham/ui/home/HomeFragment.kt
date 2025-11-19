@@ -9,11 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentHomeBinding
-import com.nottingham.mynottingham.util.showToast
 
-/**
- * Home Fragment - Main landing page showing all campus services
- */
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
@@ -39,7 +35,6 @@ class HomeFragment : Fragment() {
 
     private fun setupUI() {
         binding.apply {
-            // Setup card click listeners for navigation with smooth animations
             cardInstatt.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_instatt)
             }
@@ -63,13 +58,23 @@ class HomeFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        // Observe ViewModel LiveData here
         viewModel.welcomeMessage.observe(viewLifecycleOwner) { message ->
             binding.tvWelcome.text = message
         }
 
         viewModel.facultyYearMessage.observe(viewLifecycleOwner) { message ->
             binding.tvFacultyYear.text = message
+            binding.tvFacultyYear.visibility = if (message.isBlank()) View.GONE else View.VISIBLE
+        }
+
+        viewModel.isTeacher.observe(viewLifecycleOwner) { isTeacher ->
+            if (isTeacher) {
+                binding.tvFacultyYear.visibility = View.GONE
+            } else {
+                if (binding.tvFacultyYear.text.isNotBlank()) {
+                    binding.tvFacultyYear.visibility = View.VISIBLE
+                }
+            }
         }
     }
 
