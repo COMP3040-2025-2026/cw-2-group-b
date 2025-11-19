@@ -24,35 +24,49 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadWelcomeMessage()
-        loadFacultyYearInfo()
+        loadUserRoleInfo()
     }
 
     private fun loadWelcomeMessage() {
         viewModelScope.launch {
             val fullName = tokenManager.getFullName().firstOrNull()
-            _welcomeMessage.value = if (fullName != null) {
-                "Hi, $fullName"
-            } else {
-                "Welcome to My Nottingham"
-            }
+            _welcomeMessage.value = if (fullName != null) "Hi, $fullName" else "Welcome to My Nottingham"
         }
     }
 
-    private fun loadFacultyYearInfo() {
+    private fun loadUserRoleInfo() {
         viewModelScope.launch {
+            val userType = tokenManager.getUserType().firstOrNull()
             val faculty = tokenManager.getFaculty().firstOrNull()
             val year = tokenManager.getYearOfStudy().firstOrNull()
+            val department = tokenManager.getDepartment().firstOrNull()
 
-            val message = when {
-                faculty != null && year != null -> "$faculty, Year $year"
-                faculty != null -> faculty
-                year != null -> "Year $year"
-                else -> ""
+            if (userType != null) {
+                if (userType.equals("TEACHER", ignoreCase = true)) {
+                    _isTeacher.value = true
+                    _facultyYearMessage.value = department ?: ""
+                } else {
+                    _isTeacher.value = false
+                    _facultyYearMessage.value = when {
+                        faculty != null && year != null -> "$faculty, Year $year"
+                        faculty != null -> faculty
+                        year != null -> "Year $year"
+                        else -> ""
+                    }
+                }
+            } else {
+                _isTeacher.value = (year == null && faculty != null)
+                _facultyYearMessage.value = if (_isTeacher.value == true) {
+                    department ?: ""
+                } else {
+                    when {
+                        faculty != null && year != null -> "$faculty, Year $year"
+                        faculty != null -> faculty
+                        year != null -> "Year $year"
+                        else -> ""
+                    }
+                }
             }
-
-            _facultyYearMessage.value = message
-
-            _isTeacher.value = (year == null && faculty != null)
         }
     }
 }

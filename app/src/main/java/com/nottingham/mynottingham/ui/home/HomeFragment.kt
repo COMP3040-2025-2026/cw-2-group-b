@@ -38,19 +38,15 @@ class HomeFragment : Fragment() {
             cardInstatt.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_instatt)
             }
-
             cardShuttle.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_shuttle)
             }
-
             cardErrand.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_errand)
             }
-
             cardNotti.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_notti)
             }
-
             cardSports.setOnClickListener {
                 findNavController().navigate(R.id.action_home_to_sports)
             }
@@ -69,11 +65,9 @@ class HomeFragment : Fragment() {
 
         viewModel.isTeacher.observe(viewLifecycleOwner) { isTeacher ->
             if (isTeacher) {
-                binding.tvFacultyYear.visibility = View.GONE
+                binding.tvFacultyYear.visibility = if (binding.tvFacultyYear.text.isBlank()) View.GONE else View.VISIBLE
             } else {
-                if (binding.tvFacultyYear.text.isNotBlank()) {
-                    binding.tvFacultyYear.visibility = View.VISIBLE
-                }
+                binding.tvFacultyYear.visibility = if (binding.tvFacultyYear.text.isBlank()) View.GONE else View.VISIBLE
             }
         }
     }
