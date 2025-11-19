@@ -143,7 +143,7 @@ public class ForumService {
     }
 
     /**
-     * Delete post
+     * Delete post and all related records
      */
     @Transactional
     public void deletePost(Long postId, Long userId) {
@@ -154,6 +154,17 @@ public class ForumService {
             throw new RuntimeException("Not authorized to delete this post");
         }
 
+        // Delete all related records first to avoid foreign key constraint violations
+        // 1. Delete all comment likes for this post
+        commentLikeRepository.deleteByPostId(postId);
+
+        // 2. Delete all comments for this post
+        commentRepository.deleteByPostId(postId);
+
+        // 3. Delete all post likes
+        postLikeRepository.deleteByPostId(postId);
+
+        // 4. Finally, delete the post itself
         postRepository.delete(post);
     }
 

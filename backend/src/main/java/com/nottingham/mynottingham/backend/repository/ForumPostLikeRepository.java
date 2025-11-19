@@ -2,6 +2,7 @@ package com.nottingham.mynottingham.backend.repository;
 
 import com.nottingham.mynottingham.backend.entity.ForumPostLike;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,11 @@ public interface ForumPostLikeRepository extends JpaRepository<ForumPostLike, Lo
      */
     @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM ForumPostLike l WHERE l.post.id = :postId AND l.user.id = :userId")
     boolean existsByPostIdAndUserId(@Param("postId") Long postId, @Param("userId") Long userId);
+
+    /**
+     * Delete all likes for a post
+     */
+    @Query("DELETE FROM ForumPostLike l WHERE l.post.id = :postId")
+    @Modifying
+    void deleteByPostId(@Param("postId") Long postId);
 }
