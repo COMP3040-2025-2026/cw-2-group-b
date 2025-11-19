@@ -28,10 +28,15 @@
 
     <!-- Login -->
     <string name="login_title">Login</string>
+    <string name="username">Username</string>
+    <string name="username_hint">please enter your username</string>
     <string name="email">Email</string>
     <string name="password">Password</string>
+    <string name="password_hint">please enter your password</string>
     <string name="student_id">Student ID</string>
     <string name="login_button">Login</string>
+    <string name="welcome_back">Welcome Back</string>
+    <string name="login_warning">Only use the official school account to log in. Login means agreeing to the real name authentication system</string>
     <string name="forgot_password">Forgot Password?</string>
     <string name="error_invalid_email">Invalid email address</string>
     <string name="error_invalid_password">Password must be at least 6 characters</string>

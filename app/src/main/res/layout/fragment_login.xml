@@ -27,7 +27,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/app_name"
-        android:textColor="#222222"
+        android:textColor="@color/text_dark"
         android:textSize="18sp"
         android:layout_marginTop="12dp"
         app:layout_constraintTop_toBottomOf="@id/ivLogo"
@@ -39,7 +39,7 @@
         android:id="@+id/tvWelcome"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Welcome Back"
+        android:text="@string/welcome_back"
         android:textColor="@color/text_secondary"
         android:textSize="16sp"
         android:layout_marginTop="8dp"
@@ -61,24 +61,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Username"
-            android:textColor="#222222"
-            android:textSize="18sp"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/ivLogo"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
         <!-- Username Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilUsername"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="please enter your username"
+            android:layout_marginTop="12dp"
+            android:hint="@string/username"
             app:startIconDrawable="@android:drawable/ic_menu_info_details"
             android:layout_marginBottom="8dp">
 
@@ -91,20 +81,9 @@
                 android:paddingEnd="16dp"
                 android:gravity="center_vertical"
                 android:inputType="text"
-                android:textColorHint="#BDBDBD"
-                android:textColor="#222222" />
+                android:textColorHint="@color/text_hint"
+                android:textColor="@color/text_dark" />
         </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Password"
-            android:textColor="#222222"
-            android:textSize="18sp"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/ivLogo"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
 
         <!-- Password Input -->
         <com.google.android.material.textfield.TextInputLayout
@@ -112,7 +91,8 @@
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="please enter your password"
+            android:layout_marginTop="12dp"
+            android:hint="@string/password"
             app:endIconMode="password_toggle"
             app:startIconDrawable="@android:drawable/ic_lock_lock"
             android:layout_marginBottom="8dp">
@@ -126,8 +106,8 @@
                 android:paddingEnd="16dp"
                 android:gravity="center_vertical"
                 android:inputType="textPassword"
-                android:textColorHint="#BDBDBD"
-                android:textColor="#222222" />
+                android:textColorHint="@color/text_hint"
+                android:textColor="@color/text_dark" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Error Message -->
@@ -141,21 +121,18 @@
             android:textSize="14sp"
             tools:text="Invalid username or password" />
 
-        <!-- Login area: gradient background + centered image -->
-        <!-- ripple on click -->
-        <FrameLayout
+        <!-- Login Button -->
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogin"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="32dp"
             android:layout_marginBottom="16dp"
-            android:foreground="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:background="@drawable/gradient_button_bg">
-        </FrameLayout>
+            app:backgroundTint="@null"
+            android:background="@drawable/gradient_button_bg"
+            app:rippleColor="@color/ripple"
+            app:cornerRadius="8dp"
+            android:contentDescription="@string/login_button" />
 
     </LinearLayout>
 
@@ -184,9 +161,9 @@
             android:id="@+id/tvWarnText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Only use the official school account to log in. Login means agreeing to the real name authentication system"
+            android:text="@string/login_warning"
             android:textSize="15sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/text_disabled"
             android:layout_weight="1" />
     </LinearLayout>
 

@@ -14,8 +14,10 @@
 
     <!-- Text colors -->
     <color name="text_primary">#212121</color>
+    <color name="text_dark">#222222</color>
     <color name="text_secondary">#757575</color>
     <color name="text_hint">#BDBDBD</color>
+    <color name="text_disabled">#9E9E9E</color>
     <color name="text_white">#FFFFFF</color>
 
     <!-- Status colors -->
