@@ -26,6 +26,9 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
     private val _commentSuccess = MutableLiveData<Boolean>()
     val commentSuccess: LiveData<Boolean> = _commentSuccess
 
+    private val _deleteSuccess = MutableLiveData<Boolean>()
+    val deleteSuccess: LiveData<Boolean> = _deleteSuccess
+
     // Fetch local data flows
     fun getPostFlow(postId: Long): Flow<ForumPostEntity?> {
         return repository.getPostByIdFlow(postId)
@@ -78,8 +81,28 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun deletePost(token: String, postId: Long) {
+        if (_loading.value == true) return
+
+        _loading.value = true
+        viewModelScope.launch {
+            val result = repository.deletePost(token, postId)
+            result.onSuccess {
+                _deleteSuccess.postValue(true)
+            }.onFailure { exception ->
+                Log.e("ForumDetailViewModel", "Failed to delete post", exception)
+                _error.postValue(exception.message ?: "Failed to delete post")
+            }
+            _loading.postValue(false)
+        }
+    }
+
     fun clearCommentSuccess() {
         _commentSuccess.value = false
+    }
+
+    fun clearDeleteSuccess() {
+        _deleteSuccess.value = false
     }
 
     fun clearError() {

@@ -7,7 +7,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -34,6 +36,7 @@ class ForumDetailFragment : Fragment() {
     private lateinit var commentAdapter: ForumCommentAdapter
 
     private var postId: Long = 0L
+    private var currentUserId: Long? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -59,6 +62,11 @@ class ForumDetailFragment : Fragment() {
             return
         }
 
+        // Get current user ID
+        lifecycleScope.launch {
+            currentUserId = tokenManager.getUserId().first()?.toLongOrNull()
+        }
+
         setupUI()
         setupObservers()
         loadData()
@@ -68,6 +76,11 @@ class ForumDetailFragment : Fragment() {
         // Back button
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
+        }
+
+        // More options button
+        binding.btnMoreOptions.setOnClickListener {
+            showPostOptionsMenu()
         }
 
         // Comments RecyclerView
@@ -152,6 +165,56 @@ class ForumDetailFragment : Fragment() {
                 }
             }
         }
+
+        // Delete Success
+        viewModel.deleteSuccess.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(context, "Post deleted successfully", Toast.LENGTH_SHORT).show()
+                viewModel.clearDeleteSuccess()
+                findNavController().navigateUp()
+            }
+        }
+    }
+
+    private fun showPostOptionsMenu() {
+        val popupMenu = PopupMenu(requireContext(), binding.btnMoreOptions)
+        popupMenu.menuInflater.inflate(R.menu.menu_forum_post_options, popupMenu.menu)
+
+        popupMenu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_edit_post -> {
+                    Toast.makeText(context, "Edit feature coming soon", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.action_delete_post -> {
+                    showDeleteConfirmationDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+        popupMenu.show()
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Post")
+            .setMessage("Are you sure you want to delete this post? This action cannot be undone.")
+            .setPositiveButton("Delete") { dialog, _ ->
+                lifecycleScope.launch {
+                    val token = tokenManager.getToken().first() ?: ""
+                    if (token.isNotEmpty() && postId != 0L) {
+                        viewModel.deletePost(token, postId)
+                    } else {
+                        Toast.makeText(context, "Unable to delete post", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun bindPostData(post: ForumPostEntity) {
@@ -217,6 +280,9 @@ class ForumDetailFragment : Fragment() {
                     chipGroupTags.addView(chip)
                 }
             }
+
+            // Show/hide more options button based on author
+            btnMoreOptions.isVisible = (currentUserId == post.authorId)
         }
     }
 
