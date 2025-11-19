@@ -2,9 +2,11 @@ package com.nottingham.mynottingham.backend.service;
 
 import com.nottingham.mynottingham.backend.dto.ForumDto.*;
 import com.nottingham.mynottingham.backend.entity.ForumComment;
+import com.nottingham.mynottingham.backend.entity.ForumCommentLike;
 import com.nottingham.mynottingham.backend.entity.ForumPost;
 import com.nottingham.mynottingham.backend.entity.ForumPostLike;
 import com.nottingham.mynottingham.backend.entity.User;
+import com.nottingham.mynottingham.backend.repository.ForumCommentLikeRepository;
 import com.nottingham.mynottingham.backend.repository.ForumCommentRepository;
 import com.nottingham.mynottingham.backend.repository.ForumPostLikeRepository;
 import com.nottingham.mynottingham.backend.repository.ForumPostRepository;
@@ -35,6 +37,7 @@ public class ForumService {
     private final ForumPostRepository postRepository;
     private final ForumCommentRepository commentRepository;
     private final ForumPostLikeRepository postLikeRepository;
+    private final ForumCommentLikeRepository commentLikeRepository;
     private final UserRepository userRepository;
 
     private static final String UPLOAD_DIR = "uploads/forum/";
@@ -207,16 +210,33 @@ public class ForumService {
     }
 
     /**
-     * Like/unlike comment
+     * Like/unlike comment (toggle)
      */
     @Transactional
     public ForumCommentDto likeComment(Long commentId, Long userId) {
         ForumComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
-        comment.setLikes(comment.getLikes() + 1);
-        ForumComment savedComment = commentRepository.save(comment);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Check if user has already liked the comment
+        Optional<ForumCommentLike> existingLike = commentLikeRepository.findByCommentIdAndUserId(commentId, userId);
+
+        if (existingLike.isPresent()) {
+            // Unlike: remove the like
+            commentLikeRepository.delete(existingLike.get());
+            comment.setLikes(Math.max(0, comment.getLikes() - 1)); // Prevent negative likes
+        } else {
+            // Like: add a new like
+            ForumCommentLike like = new ForumCommentLike();
+            like.setComment(comment);
+            like.setUser(user);
+            commentLikeRepository.save(like);
+            comment.setLikes(comment.getLikes() + 1);
+        }
+
+        ForumComment savedComment = commentRepository.save(comment);
         return toCommentDto(savedComment, userId);
     }
 
@@ -254,6 +274,8 @@ public class ForumService {
      * Convert ForumComment entity to DTO
      */
     private ForumCommentDto toCommentDto(ForumComment comment, Long currentUserId) {
+        boolean isLiked = commentLikeRepository.existsByCommentIdAndUserId(comment.getId(), currentUserId);
+
         return ForumCommentDto.builder()
                 .id(comment.getId())
                 .postId(comment.getPost().getId())
@@ -262,7 +284,7 @@ public class ForumService {
                 .authorAvatar(comment.getAuthor().getAvatarUrl())
                 .content(comment.getContent())
                 .likes(comment.getLikes())
-                .isLikedByCurrentUser(false) // TODO: Implement like tracking
+                .isLikedByCurrentUser(isLiked)
                 .createdAt(comment.getCreatedAt())
                 .build();
     }

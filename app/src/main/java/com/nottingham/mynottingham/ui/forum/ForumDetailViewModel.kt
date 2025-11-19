@@ -72,6 +72,12 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun likeComment(token: String, commentId: Long) {
+        viewModelScope.launch {
+            repository.likeComment(token, commentId)
+        }
+    }
+
     fun clearCommentSuccess() {
         _commentSuccess.value = false
     }

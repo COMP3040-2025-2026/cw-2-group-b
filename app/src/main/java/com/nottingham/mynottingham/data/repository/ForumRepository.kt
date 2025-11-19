@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -329,12 +330,24 @@ class ForumRepository(private val context: Context) {
 
     /**
      * Parse ISO 8601 timestamp string to millis
+     * Handles both ZonedDateTime and LocalDateTime formats
      */
     private fun parseTimestamp(timestamp: String): Long {
         return try {
+            // Try parsing with timezone first (e.g., "2023-11-19T10:00:00Z")
             ZonedDateTime.parse(timestamp).toInstant().toEpochMilli()
         } catch (e: Exception) {
-            System.currentTimeMillis()
+            try {
+                // If that fails, try parsing as LocalDateTime and assume UTC
+                // (e.g., "2023-11-19T10:00:00")
+                LocalDateTime.parse(timestamp)
+                    .atZone(ZoneId.of("UTC"))
+                    .toInstant()
+                    .toEpochMilli()
+            } catch (e2: Exception) {
+                Log.e("ForumRepository", "Failed to parse timestamp: $timestamp", e2)
+                System.currentTimeMillis()
+            }
         }
     }
 }

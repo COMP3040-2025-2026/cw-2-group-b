@@ -71,7 +71,16 @@ class ForumDetailFragment : Fragment() {
         }
 
         // Comments RecyclerView
-        commentAdapter = ForumCommentAdapter()
+        commentAdapter = ForumCommentAdapter { comment ->
+            lifecycleScope.launch {
+                val token = tokenManager.getToken().first() ?: ""
+                if (token.isNotEmpty()) {
+                    viewModel.likeComment(token, comment.id)
+                } else {
+                    Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         binding.recyclerComments.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = commentAdapter

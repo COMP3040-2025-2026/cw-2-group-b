@@ -12,7 +12,9 @@ import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEnti
 import com.nottingham.mynottingham.databinding.ItemForumCommentBinding
 import com.nottingham.mynottingham.util.Constants
 
-class ForumCommentAdapter : ListAdapter<ForumCommentEntity, ForumCommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
+class ForumCommentAdapter(
+    private val onLikeClick: (ForumCommentEntity) -> Unit
+) : ListAdapter<ForumCommentEntity, ForumCommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
         val binding = ItemForumCommentBinding.inflate(
@@ -63,6 +65,11 @@ class ForumCommentAdapter : ListAdapter<ForumCommentEntity, ForumCommentAdapter.
                 } else {
                     ivLike.setImageResource(R.drawable.ic_favorite_border)
                     ivLike.clearColorFilter()
+                }
+
+                // Like click listener
+                ivLike.setOnClickListener {
+                    onLikeClick(comment)
                 }
             }
         }
