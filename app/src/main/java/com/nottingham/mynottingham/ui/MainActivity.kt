@@ -67,32 +67,21 @@ class MainActivity : AppCompatActivity() {
      * This method also manages the visibility of the bottom navigation bar, showing it only on top-level destinations.
      */
     private fun setupNavigation() {
-        // Retrieve the NavController instance from the NavHostFragment in the layout.
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
-        // Connect the BottomNavigationView with the NavController.
         binding.bottomNavigation.setupWithNavController(navController)
+        binding.bottomNavigation.itemIconTintList = null
 
-        // Add a listener to dynamically change UI components (like the bottom nav bar) based on the navigation destination.
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                // The bottom navigation should be hidden on the login screen.
-                R.id.loginFragment -> {
-                    binding.bottomNavigation.visibility = View.GONE
-                }
-                // For top-level screens, the bottom navigation should be visible.
+                R.id.loginFragment -> binding.bottomNavigation.visibility = View.GONE
                 R.id.homeFragment,
                 R.id.messageFragment,
                 R.id.forumFragment,
-                R.id.profileFragment -> {
-                    binding.bottomNavigation.visibility = View.VISIBLE
-                }
-                // For all other screens (e.g., detail pages), hide the bottom navigation by default.
-                else -> {
-                    binding.bottomNavigation.visibility = View.GONE
-                }
+                R.id.profileFragment -> binding.bottomNavigation.visibility = View.VISIBLE
+                else -> binding.bottomNavigation.visibility = View.GONE
             }
         }
     }
