@@ -83,11 +83,6 @@ class InstattFragment : Fragment() {
             requireActivity().onBackPressed()
         }
 
-        // Menu button
-        binding.btnMenu.setOnClickListener {
-            // TODO: Show menu options (could add teacher mode here if needed)
-        }
-
         // Bottom navigation
         binding.navHome.setOnClickListener {
             selectTab(InstattTab.HOME)
