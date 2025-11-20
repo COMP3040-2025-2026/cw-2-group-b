@@ -500,6 +500,7 @@ class MessageRepository(private val context: Context) {
             conversationId = entity.conversationId,
             senderId = entity.senderId,
             senderName = entity.senderName,
+            senderAvatar = entity.senderAvatar,
             message = entity.content,
             timestamp = entity.timestamp,
             isRead = entity.isRead,

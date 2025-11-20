@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.data.model.Conversation
 import com.nottingham.mynottingham.databinding.ItemConversationBinding
+import com.nottingham.mynottingham.util.AvatarUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -57,12 +58,8 @@ class ConversationAdapter(
 
         fun bind(conversation: Conversation) {
             binding.apply {
-                // Set avatar initials
-                val initials = conversation.participantName.split(" ")
-                    .take(2)
-                    .map { it.firstOrNull()?.uppercase() ?: "" }
-                    .joinToString("")
-                tvAvatar.text = initials
+                // Set avatar
+                ivAvatar.setImageResource(AvatarUtils.getDrawableId(conversation.participantAvatar))
 
                 // Show/hide online indicator
                 viewOnline.visibility = if (conversation.isOnline) View.VISIBLE else View.GONE

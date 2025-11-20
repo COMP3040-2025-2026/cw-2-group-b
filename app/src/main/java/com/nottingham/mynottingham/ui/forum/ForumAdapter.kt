@@ -12,6 +12,7 @@ import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
 import com.nottingham.mynottingham.databinding.ItemForumPostBinding
+import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
 
 /**
@@ -45,16 +46,7 @@ class ForumAdapter(
                 tvAuthorName.text = post.authorName
 
                 // Load author avatar
-                if (!post.authorAvatar.isNullOrEmpty()) {
-                    Glide.with(itemView.context)
-                        .load(Constants.BASE_URL + post.authorAvatar)
-                        .placeholder(R.drawable.ic_profile)
-                        .error(R.drawable.ic_profile)
-                        .circleCrop()
-                        .into(ivAuthorAvatar)
-                } else {
-                    ivAuthorAvatar.setImageResource(R.drawable.ic_profile)
-                }
+                ivAuthorAvatar.setImageResource(AvatarUtils.getDrawableId(post.authorAvatar))
 
                 // Timestamp
                 tvTimestamp.text = getRelativeTime(post.createdAt)

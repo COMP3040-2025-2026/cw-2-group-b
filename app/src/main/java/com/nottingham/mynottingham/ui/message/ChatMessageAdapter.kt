@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.data.model.ChatMessage
 import com.nottingham.mynottingham.databinding.ItemChatMessageReceivedBinding
 import com.nottingham.mynottingham.databinding.ItemChatMessageSentBinding
+import com.nottingham.mynottingham.util.AvatarUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -72,6 +73,7 @@ class ChatMessageAdapter(
             binding.apply {
                 tvMessage.text = message.message
                 tvTimestamp.text = formatTimestamp(message.timestamp)
+                ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
             }
         }
     }
@@ -85,6 +87,7 @@ class ChatMessageAdapter(
             binding.apply {
                 tvMessage.text = message.message
                 tvTimestamp.text = formatTimestamp(message.timestamp)
+                ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
                 // Optionally show sender name for group chats
                 // textSenderName.text = message.senderName
             }

@@ -14,47 +14,41 @@
             android:layout_height="wrap_content"
             android:padding="16dp">
 
-            <!-- Avatar -->
-            <TextView
-                android:id="@+id/tv_avatar"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_avatar"
-                android:gravity="center"
-                android:text="JD"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Online Indicator -->
-            <View
-                android:id="@+id/view_online"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:background="@drawable/bg_online_indicator"
-                android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="@id/tv_avatar"
-                app:layout_constraintEnd_toEndOf="@id/tv_avatar" />
-
-            <!-- Name -->
-            <TextView
-                android:id="@+id/tv_name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="John Doe"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@id/tv_time"
-                app:layout_constraintStart_toEndOf="@id/tv_avatar"
-                app:layout_constraintTop_toTopOf="@id/tv_avatar" />
-
+                    <!-- Avatar -->
+                    <de.hdodenhof.circleimageview.CircleImageView
+                        android:id="@+id/iv_avatar"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_profile"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+            
+                    <!-- Online Indicator -->
+                    <View
+                        android:id="@+id/view_online"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_online_indicator"
+                        android:visibility="gone"
+                        app:layout_constraintBottom_toBottomOf="@id/iv_avatar"
+                        app:layout_constraintEnd_toEndOf="@id/iv_avatar" />
+            
+                    <!-- Name -->
+                    <TextView
+                        android:id="@+id/tv_name"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="8dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text="John Doe"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:layout_constraintEnd_toStartOf="@id/tv_time"
+                        app:layout_constraintStart_toEndOf="@id/iv_avatar"
+                        app:layout_constraintTop_toTopOf="@id/iv_avatar" />
             <!-- Last Message -->
             <TextView
                 android:id="@+id/tv_last_message"
@@ -69,7 +63,7 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
-                app:layout_constraintStart_toEndOf="@id/tv_avatar"
+                app:layout_constraintStart_toEndOf="@id/iv_avatar"
                 app:layout_constraintTop_toBottomOf="@id/tv_name" />
 
             <!-- Time -->

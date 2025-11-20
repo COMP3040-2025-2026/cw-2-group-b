@@ -10,10 +10,11 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="64dp"
+        android:layout_marginEnd="8dp"
         app:cardBackgroundColor="@color/primary"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/iv_avatar"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintWidth_max="280dp">
 
@@ -27,6 +28,14 @@
             android:textSize="14sp" />
 
     </com.google.android.material.card.MaterialCardView>
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/iv_avatar"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_profile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_timestamp"

@@ -896,3 +896,7 @@ Caused by: org.h2.mvstore.MVStoreException: The file is locked: C:/Users/Adminis
 	at org.h2.mvstore.SingleFileStore.open(SingleFileStore.java:81)
 	at org.h2.mvstore.MVStore.<init>(MVStore.java:286)
 	... 64 more
+2025-11-20 13:28:47.782045+08:00 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]
+2025-11-20 13:29:41.980927+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]
