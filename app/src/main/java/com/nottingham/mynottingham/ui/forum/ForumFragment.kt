@@ -12,7 +12,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentForumBinding
@@ -27,8 +26,9 @@ class ForumFragment : Fragment() {
     private val viewModel: ForumViewModel by viewModels()
     private lateinit var tokenManager: TokenManager
     private lateinit var adapter: ForumAdapter
+    private lateinit var categoryTabsAdapter: CategoryTabsAdapter
 
-    private var currentCategory: String? = null
+    private var currentCategory: String? = "All"
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -44,8 +44,7 @@ class ForumFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
-        setupCategoryFilter()
-        setupFab()
+        setupHeader()
         observeViewModel()
         loadPosts()
     }
@@ -76,28 +75,32 @@ class ForumFragment : Fragment() {
         }
     }
 
-    private fun setupCategoryFilter() {
-        binding.chipGroupCategories.setOnCheckedStateChangeListener { group, checkedIds ->
-            if (checkedIds.isEmpty()) return@setOnCheckedStateChangeListener
+    private fun setupHeader() {
+        binding.newPostButton.setOnClickListener {
+            findNavController().navigate(R.id.action_forum_to_create_post)
+        }
 
-            val checkedChip = group.findViewById<Chip>(checkedIds.first())
-            currentCategory = when (checkedChip.id) {
-                R.id.chip_all -> null
-                R.id.chip_academic -> "ACADEMIC"
-                R.id.chip_events -> "EVENTS"
-                R.id.chip_sports -> "SPORTS"
-                R.id.chip_social -> "SOCIAL"
+        val categories = listOf("All", "🔥 Trending", "❓ Questions", "📚 Study", "🎉 Events", "💼 Career", "🍴 Food & Dining", "🏀 Sports", "💬 General")
+        categoryTabsAdapter = CategoryTabsAdapter(categories) { category ->
+            currentCategory = when (category) {
+                "All" -> null
+                "🔥 Trending" -> "TRENDING"
+                "❓ Questions" -> "QUESTIONS"
+                "📚 Study" -> "CAREER"
+                "🎉 Events" -> "EVENTS"
+                "💼 Career" -> "CAREER"
+                "🍴 Food & Dining" -> "FOOD"
+                "🏀 Sports" -> "SPORTS"
+                "💬 General" -> "GENERAL"
                 else -> null
             }
-
-            Log.d("ForumFragment", "Category filter changed to: $currentCategory")
             viewModel.filterByCategory(currentCategory)
+            categoryTabsAdapter.setSelectedCategory(category)
         }
-    }
 
-    private fun setupFab() {
-        binding.fabCreatePost.setOnClickListener {
-            findNavController().navigate(R.id.action_forum_to_create_post)
+        binding.categoryTabsRecycler.apply {
+            layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            adapter = categoryTabsAdapter
         }
     }
 
@@ -138,7 +141,7 @@ class ForumFragment : Fragment() {
             }
 
             Log.d("ForumFragment", "Loading posts with token: ${token.take(20)}...")
-            viewModel.loadPosts(token, currentCategory, refresh)
+            viewModel.loadPosts(token, if (currentCategory == "All") null else currentCategory, refresh)
         }
     }
 

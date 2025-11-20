@@ -53,7 +53,10 @@ class ForumAdapter(
 
                 // Category badge
                 chipCategory.text = post.category
-                chipCategory.setChipBackgroundColorResource(getCategoryColor(post.category))
+                (chipCategory.background.mutate() as? android.graphics.drawable.GradientDrawable)?.setColor(
+                    itemView.context.getColor(getCategoryColor(post.category))
+                )
+                chipCategory.setTextColor(itemView.context.getColor(android.R.color.white))
 
                 // Title and content
                 tvTitle.text = post.title
@@ -99,9 +102,9 @@ class ForumAdapter(
 
                 // Like icon state
                 if (post.isLikedByCurrentUser) {
-                    ivLike.setImageResource(R.drawable.ic_favorite)
+                    tvLikes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_favorite, 0, 0, 0)
                 } else {
-                    ivLike.setImageResource(R.drawable.ic_favorite_border)
+                    tvLikes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_favorite_border, 0, 0, 0)
                 }
 
                 // Pinned and locked indicators
@@ -110,7 +113,7 @@ class ForumAdapter(
 
                 // Click listeners
                 root.setOnClickListener { onPostClick(post) }
-                ivLike.setOnClickListener {
+                tvLikes.setOnClickListener {
                     onLikeClick(post)
                     // Prevent double-click
                     it.isEnabled = false
@@ -135,6 +138,9 @@ class ForumAdapter(
                 "SPORTS" -> R.color.category_sports
                 "SOCIAL" -> R.color.category_social
                 "ANNOUNCEMENTS" -> R.color.category_announcements
+                "CAREER" -> R.color.category_career
+                "FOOD" -> R.color.category_food
+                "QUESTIONS" -> R.color.category_questions
                 else -> R.color.category_general
             }
         }

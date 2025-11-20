@@ -44,5 +44,8 @@ enum class ForumCategory(val displayName: String) {
     SPORTS("Sports"),
     SOCIAL("Social"),
     GENERAL("General"),
-    ANNOUNCEMENTS("Announcements")
+    ANNOUNCEMENTS("Announcements"),
+    QUESTIONS("Questions"),
+    CAREER("Career"),
+    FOOD("Food & Dining")
 }

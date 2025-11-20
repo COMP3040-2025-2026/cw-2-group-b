@@ -58,13 +58,16 @@
             tools:text="2 hours ago" />
 
         <!-- Category Badge -->
-        <com.google.android.material.chip.Chip
+        <TextView
             android:id="@+id/chipCategory"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:background="@drawable/bg_category_tag"
+            android:textColor="#1976d2"
             android:textSize="11sp"
-            app:chipMinHeight="28dp"
-            app:chipCornerRadius="14dp"
+            android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="ACADEMIC" />
@@ -146,78 +149,55 @@
             app:constraint_referenced_ids="chipGroupTags,ivPostImage,tvContent" />
 
         <!-- Like Icon -->
-        <ImageView
-            android:id="@+id/ivLike"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginTop="12dp"
-            android:src="@drawable/ic_favorite_border"
-            app:tint="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/barrierContent" />
-
-        <!-- Like Count -->
         <TextView
             android:id="@+id/tvLikes"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:textSize="13sp"
+            android:layout_marginTop="12dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_thumb_up_outline"
+            android:gravity="center"
             android:textColor="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toEndOf="@id/ivLike"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike"
-            tools:text="42" />
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/barrierContent"
+            tools:text="245" />
 
         <!-- Comment Icon -->
-        <ImageView
-            android:id="@+id/ivComment"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginStart="16dp"
-            android:src="@drawable/ic_comment"
-            app:tint="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toEndOf="@id/tvLikes"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike" />
-
-        <!-- Comment Count -->
         <TextView
             android:id="@+id/tvComments"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:textSize="13sp"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_comment_outline"
+            android:gravity="center"
             android:textColor="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toEndOf="@id/ivComment"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike"
-            tools:text="15" />
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toEndOf="@id/tvLikes"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:text="38" />
 
         <!-- Views Icon -->
-        <ImageView
-            android:id="@+id/ivViews"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginStart="16dp"
-            android:src="@drawable/ic_visibility"
-            app:tint="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toEndOf="@id/tvComments"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike" />
-
-        <!-- Views Count -->
         <TextView
             android:id="@+id/tvViews"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:textSize="13sp"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_eye_outline"
+            android:gravity="center"
             android:textColor="?attr/colorOnSurfaceVariant"
-            app:layout_constraintStart_toEndOf="@id/ivViews"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike"
-            tools:text="128" />
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toEndOf="@id/tvComments"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:text="1.2k" />
+
 
         <!-- Locked indicator -->
         <ImageView
@@ -228,8 +208,8 @@
             android:visibility="gone"
             app:tint="?attr/colorOnSurfaceVariant"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
             tools:visibility="visible" />
 
         <!-- Pinned indicator -->
@@ -242,8 +222,8 @@
             android:visibility="gone"
             app:tint="?attr/colorPrimary"
             app:layout_constraintEnd_toStartOf="@id/ivLocked"
-            app:layout_constraintTop_toTopOf="@id/ivLike"
-            app:layout_constraintBottom_toBottomOf="@id/ivLike"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
             tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
