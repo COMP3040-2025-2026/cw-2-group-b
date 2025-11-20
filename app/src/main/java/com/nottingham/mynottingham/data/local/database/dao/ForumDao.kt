@@ -29,6 +29,9 @@ interface ForumDao {
     @Query("SELECT * FROM forum_posts WHERE category = :category ORDER BY isPinned DESC, createdAt DESC")
     fun getPostsByCategory(category: String): Flow<List<ForumPostEntity>>
 
+    @Query("SELECT * FROM forum_posts ORDER BY views DESC")
+    fun getTrendingPosts(): Flow<List<ForumPostEntity>>
+
     @Query("SELECT * FROM forum_posts WHERE id = :postId")
     suspend fun getPostById(postId: Long): ForumPostEntity?
 

@@ -80,18 +80,32 @@ class ForumFragment : Fragment() {
             findNavController().navigate(R.id.action_forum_to_create_post)
         }
 
-        val categories = listOf("All", "🔥 Trending", "❓ Questions", "📚 Study", "🎉 Events", "💼 Career", "🍴 Food & Dining", "🏀 Sports", "💬 General")
+        val categories = listOf(
+            "All",
+            "🔥 Trending",
+            "❓ " + com.nottingham.mynottingham.data.model.ForumCategory.QUESTIONS.displayName,
+            "📚 " + com.nottingham.mynottingham.data.model.ForumCategory.ACADEMIC.displayName,
+            "🎉 " + com.nottingham.mynottingham.data.model.ForumCategory.EVENTS.displayName,
+            "💼 " + com.nottingham.mynottingham.data.model.ForumCategory.CAREER.displayName,
+            "🍴 " + com.nottingham.mynottingham.data.model.ForumCategory.FOOD.displayName,
+            "🏀 " + com.nottingham.mynottingham.data.model.ForumCategory.SPORTS.displayName,
+            "💬 " + com.nottingham.mynottingham.data.model.ForumCategory.GENERAL.displayName,
+            "📣 " + com.nottingham.mynottingham.data.model.ForumCategory.ANNOUNCEMENTS.displayName,
+            "❤️ " + com.nottingham.mynottingham.data.model.ForumCategory.SOCIAL.displayName
+        )
         categoryTabsAdapter = CategoryTabsAdapter(categories) { category ->
             currentCategory = when (category) {
                 "All" -> null
                 "🔥 Trending" -> "TRENDING"
-                "❓ Questions" -> "QUESTIONS"
-                "📚 Study" -> "CAREER"
-                "🎉 Events" -> "EVENTS"
-                "💼 Career" -> "CAREER"
-                "🍴 Food & Dining" -> "FOOD"
-                "🏀 Sports" -> "SPORTS"
-                "💬 General" -> "GENERAL"
+                "❓ " + com.nottingham.mynottingham.data.model.ForumCategory.QUESTIONS.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.QUESTIONS.name
+                "📚 " + com.nottingham.mynottingham.data.model.ForumCategory.ACADEMIC.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.ACADEMIC.name
+                "🎉 " + com.nottingham.mynottingham.data.model.ForumCategory.EVENTS.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.EVENTS.name
+                "💼 " + com.nottingham.mynottingham.data.model.ForumCategory.CAREER.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.CAREER.name
+                "🍴 " + com.nottingham.mynottingham.data.model.ForumCategory.FOOD.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.FOOD.name
+                "🏀 " + com.nottingham.mynottingham.data.model.ForumCategory.SPORTS.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.SPORTS.name
+                "💬 " + com.nottingham.mynottingham.data.model.ForumCategory.GENERAL.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.GENERAL.name
+                "📣 " + com.nottingham.mynottingham.data.model.ForumCategory.ANNOUNCEMENTS.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.ANNOUNCEMENTS.name
+                "❤️ " + com.nottingham.mynottingham.data.model.ForumCategory.SOCIAL.displayName -> com.nottingham.mynottingham.data.model.ForumCategory.SOCIAL.name
                 else -> null
             }
             viewModel.filterByCategory(currentCategory)

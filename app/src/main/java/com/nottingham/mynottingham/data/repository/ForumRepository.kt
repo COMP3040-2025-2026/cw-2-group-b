@@ -43,6 +43,10 @@ class ForumRepository(private val context: Context) {
         }
     }
 
+    fun getTrendingPostsFlow(): Flow<List<ForumPostEntity>> {
+        return forumDao.getTrendingPosts()
+    }
+
     /**
      * Fetch posts from API and cache in local database
      */

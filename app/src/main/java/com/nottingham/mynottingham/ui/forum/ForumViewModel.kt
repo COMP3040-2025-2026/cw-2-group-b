@@ -11,6 +11,7 @@ import com.nottingham.mynottingham.data.repository.ForumRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -28,8 +29,13 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _currentCategory = MutableStateFlow<String?>(null)
 
-    // Expose posts as Flow from repository
-    val posts: Flow<List<ForumPostEntity>> = repository.getPostsFlow(null)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val posts: Flow<List<ForumPostEntity>> = _currentCategory.flatMapLatest { category ->
+        when (category) {
+            "TRENDING" -> repository.getTrendingPostsFlow()
+            else -> repository.getPostsFlow(category)
+        }
+    }
 
     private var currentPage = 0
     private var hasMore = true
@@ -78,13 +84,6 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
     fun filterByCategory(category: String?) {
         Log.d("ForumViewModel", "filterByCategory called with: $category")
         _currentCategory.value = category
-
-        // Update posts flow to observe from filtered category
-        viewModelScope.launch {
-            repository.getPostsFlow(category).collect { postList ->
-                Log.d("ForumViewModel", "Received ${postList.size} posts for category: $category")
-            }
-        }
     }
 
     /**
