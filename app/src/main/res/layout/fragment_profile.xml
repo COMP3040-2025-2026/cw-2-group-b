@@ -32,19 +32,33 @@
                 android:paddingBottom="24dp">
 
                 <!-- Profile Avatar -->
-                <TextView
-                    android:id="@+id/tv_avatar"
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:background="@drawable/bg_avatar_large"
-                    android:gravity="center"
-                    android:text="WJ"
-                    android:textColor="@color/primary"
-                    android:textSize="32sp"
-                    android:textStyle="bold"
+                <FrameLayout
+                    android:id="@+id/layout_avatar_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <de.hdodenhof.circleimageview.CircleImageView
+                        android:id="@+id/iv_profile_avatar"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:src="@drawable/bg_avatar_large"
+                        app:civ_border_width="2dp"
+                        app:civ_border_color="#FFFFFF" />
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="bottom|end"
+                        android:background="@drawable/bg_edit_avatar_button"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_edit_white"
+                        app:tint="@color/primary"
+                        android:elevation="4dp"
+                        android:contentDescription="Edit Avatar"/>
+                </FrameLayout>
 
                 <!-- Username -->
                 <TextView
@@ -58,7 +72,7 @@
                     android:textStyle="bold"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/tv_avatar" />
+                    app:layout_constraintTop_toBottomOf="@id/layout_avatar_container" />
 
                 <!-- Email -->
                 <TextView

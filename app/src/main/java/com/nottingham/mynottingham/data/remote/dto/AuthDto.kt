@@ -23,25 +23,25 @@ data class LoginData(
 )
 
 data class UserDto(
-    val id: Long,
-    val username: String,
-    val email: String,
-    val fullName: String,
+    val id: Long = 0,
+    val username: String = "",
+    val email: String = "",
+    val fullName: String = "",
     @SerializedName("role")  // Map backend's "role" field to "userType"
-    val userType: String,
-    val studentId: Long?,
-    val employeeId: String?,
-    val phone: String?,
+    val userType: String = "",
+    val studentId: Long? = null,
+    val employeeId: String? = null,
+    val phone: String? = null,
     val avatarUrl: String?,
     // Student specific fields
-    val faculty: String?,
-    val major: String?,
-    val yearOfStudy: Int?,
+    val faculty: String? = null,
+    val major: String? = null,
+    val yearOfStudy: Int? = null,
     // Teacher specific fields
-    val department: String?,
-    val title: String?,
-    val officeRoom: String?,
-    val officeHours: String?
+    val department: String? = null,
+    val title: String? = null,
+    val officeRoom: String? = null,
+    val officeHours: String? = null
 )
 
 data class ApiResponse<T>(

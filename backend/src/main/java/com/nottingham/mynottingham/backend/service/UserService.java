@@ -42,6 +42,7 @@ public class UserService {
         student.setPassword(passwordEncoder.encode(student.getPassword()));
         student.setRole(User.UserRole.STUDENT);
         student.setStatus(User.UserStatus.ACTIVE);
+        student.setAvatarUrl("tx1");
         return studentRepository.save(student);
     }
 
@@ -49,6 +50,7 @@ public class UserService {
         teacher.setPassword(passwordEncoder.encode(teacher.getPassword()));
         teacher.setRole(User.UserRole.TEACHER);
         teacher.setStatus(User.UserStatus.ACTIVE);
+        teacher.setAvatarUrl("tx1");
         return teacherRepository.save(teacher);
     }
 

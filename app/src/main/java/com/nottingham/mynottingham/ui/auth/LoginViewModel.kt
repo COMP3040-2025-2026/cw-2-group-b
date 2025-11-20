@@ -57,6 +57,16 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         // Save email
                         tokenManager.saveEmail(loginData.user.email)
 
+                        // Save phone if available
+                        loginData.user.phone?.let { phone ->
+                            tokenManager.savePhone(phone)
+                        }
+
+                        // Save avatar if available
+                        loginData.user.avatarUrl?.let { avatarUrl ->
+                            tokenManager.saveAvatar(avatarUrl)
+                        }
+
                         // Save student-specific fields if available
                         loginData.user.studentId?.let { studentId ->
                             tokenManager.saveStudentId(studentId.toString())

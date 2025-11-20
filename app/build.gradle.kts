@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.glide)
     // Glide's annotation processor for performance optimization.
     ksp(libs.glide.compiler)
+    // CircleImageView for circular image views.
+    implementation(libs.circleimageview)
 
     // DATA PERSISTENCE (DATASTORE) //
     // A data storage solution that allows you to store key-value pairs or typed objects with protocol buffers.

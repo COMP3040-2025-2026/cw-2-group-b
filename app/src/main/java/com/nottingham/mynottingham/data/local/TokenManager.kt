@@ -20,6 +20,8 @@ class TokenManager(private val context: Context) {
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
         private val FULL_NAME_KEY = stringPreferencesKey("full_name")
         private val EMAIL_KEY = stringPreferencesKey("email")
+        private val AVATAR_KEY = stringPreferencesKey("avatar_url")
+        private val PHONE_KEY = stringPreferencesKey("phone")
 
         // Student fields
         private val STUDENT_ID_KEY = stringPreferencesKey("student_id")
@@ -65,6 +67,14 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[EMAIL_KEY] = email
         }
+    }
+
+    suspend fun saveAvatar(avatar: String) {
+        context.dataStore.edit { it[AVATAR_KEY] = avatar }
+    }
+
+    suspend fun savePhone(phone: String) {
+        context.dataStore.edit { it[PHONE_KEY] = phone }
     }
 
     suspend fun saveFaculty(faculty: String) {
@@ -156,6 +166,14 @@ class TokenManager(private val context: Context) {
         return context.dataStore.data.map { preferences ->
             preferences[EMAIL_KEY]
         }
+    }
+
+    fun getAvatar(): Flow<String?> {
+        return context.dataStore.data.map { it[AVATAR_KEY] }
+    }
+
+    fun getPhone(): Flow<String?> {
+        return context.dataStore.data.map { it[PHONE_KEY] }
     }
 
     fun getFaculty(): Flow<String?> {

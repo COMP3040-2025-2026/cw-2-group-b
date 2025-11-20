@@ -22,6 +22,13 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<ApiResponse<UserDto>>
 
+    @PUT("users/{id}")
+    suspend fun updateUser(
+        @Header("Authorization") token: String,
+        @Path("id") userId: Long,
+        @Body user: com.nottingham.mynottingham.data.remote.dto.UserUpdateRequest
+    ): retrofit2.Response<com.nottingham.mynottingham.data.remote.dto.ApiResponse<com.nottingham.mynottingham.data.remote.dto.UserDto>>
+
     // ========== Shuttle ==========
 
     @GET("shuttle/routes")
