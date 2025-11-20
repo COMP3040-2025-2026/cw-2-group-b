@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.remote.dto.ContactSuggestionDto
 import com.nottingham.mynottingham.databinding.ItemContactSuggestionBinding
+import com.nottingham.mynottingham.util.AvatarUtils
 
 /**
  * Adapter for contact suggestions in new message screen
@@ -47,11 +48,7 @@ class ContactSuggestionAdapter(
         fun bind(contact: ContactSuggestionDto) {
             binding.apply {
                 // Load avatar
-                Glide.with(root.context)
-                    .load(contact.userAvatar)
-                    .placeholder(R.drawable.ic_profile)
-                    .circleCrop()
-                    .into(imageAvatar)
+                imageAvatar.setImageResource(AvatarUtils.getDrawableId(contact.userAvatar))
 
                 // Show/hide online indicator
                 viewOnlineIndicator.visibility = if (contact.isOnline) View.VISIBLE else View.GONE
