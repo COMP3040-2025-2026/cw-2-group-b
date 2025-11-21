@@ -12,7 +12,7 @@ object Constants {
 
     // Database Configuration
     const val DATABASE_NAME = "my_nottingham_db"
-    const val DATABASE_VERSION = 4  // v4: Added ForumPostEntity and ForumCommentEntity
+    const val DATABASE_VERSION = 5  // v5: Updated BookingEntity and BookingDao for new booking features
 
     // SharedPreferences / DataStore
     const val PREFS_NAME = "my_nottingham_prefs"

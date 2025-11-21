@@ -4,30 +4,21 @@ import androidx.room.*
 import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import kotlinx.coroutines.flow.Flow
 
-/**
- * DAO for Booking operations
- */
 @Dao
 interface BookingDao {
-
-    @Query("SELECT * FROM bookings WHERE userId = :userId ORDER BY bookingTime DESC")
+    // 获取当前用户的所有预定（用于"My Bookings"页面）
+    @Query("SELECT * FROM bookings WHERE userId = :userId ORDER BY bookingDate DESC, timeSlot ASC")
     fun getUserBookings(userId: String): Flow<List<BookingEntity>>
 
-    @Query("SELECT * FROM bookings WHERE bookingId = :bookingId")
-    suspend fun getBookingById(bookingId: Long): BookingEntity?
-
-    @Query("SELECT * FROM bookings WHERE userId = :userId AND status = 'confirmed' ORDER BY bookingDate ASC")
-    fun getUpcomingBookings(userId: String): Flow<List<BookingEntity>>
+    // 【修复核心】：获取指定设施、指定日期的所有预定（用于把已定时间置灰）
+    @Query("SELECT * FROM bookings WHERE facilityName = :facilityName AND bookingDate = :date AND status = 'confirmed'")
+    suspend fun getBookingsByFacilityAndDate(facilityName: String, date: String): List<BookingEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBooking(booking: BookingEntity)
 
-    @Update
-    suspend fun updateBooking(booking: BookingEntity)
-
     @Delete
     suspend fun deleteBooking(booking: BookingEntity)
-
-    @Query("DELETE FROM bookings WHERE userId = :userId")
-    suspend fun deleteUserBookings(userId: String)
+    
+    // 如果需要其他方法保留即可
 }
