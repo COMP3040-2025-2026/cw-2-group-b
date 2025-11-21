@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController // Moved this import to the top
 import com.nottingham.mynottingham.data.model.Course
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.CourseType
@@ -74,6 +75,7 @@ class TeacherInstattFragment : Fragment() {
     }
 
     private fun setupUI() {
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() } // Correctly placed
         // Set current date
         val dateFormat = SimpleDateFormat("EEEE, MMMM dd", Locale.getDefault())
         binding.tvDate.text = dateFormat.format(Calendar.getInstance().time)
