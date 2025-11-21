@@ -8,15 +8,14 @@ import androidx.room.PrimaryKey
  */
 @Entity(tableName = "bookings")
 data class BookingEntity(
-    @PrimaryKey
-    val id: String,
-    val userId: String,
-    val facilityType: String,
+    @PrimaryKey(autoGenerate = true) val bookingId: Long = 0,
+    val facilityId: String,
     val facilityName: String,
-    val bookingDate: String,
-    val startTime: String,
-    val endTime: String,
+    val bookingDate: String, // 格式: "yyyy-MM-dd"
+    val timeSlot: Int,       // 例如: 10 代表 10:00 - 11:00
+    val userId: String,
+    val userName: String,    // 预定人名字 (直接存储方便显示)
+    val bookingTime: Long = System.currentTimeMillis(), // 下单时间
     val status: String, // "confirmed", "cancelled", "completed"
-    val notes: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val notes: String? = null
 )

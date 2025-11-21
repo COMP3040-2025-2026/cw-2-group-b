@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookingDao {
 
-    @Query("SELECT * FROM bookings WHERE userId = :userId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM bookings WHERE userId = :userId ORDER BY bookingTime DESC")
     fun getUserBookings(userId: String): Flow<List<BookingEntity>>
 
-    @Query("SELECT * FROM bookings WHERE id = :bookingId")
-    suspend fun getBookingById(bookingId: String): BookingEntity?
+    @Query("SELECT * FROM bookings WHERE bookingId = :bookingId")
+    suspend fun getBookingById(bookingId: Long): BookingEntity?
 
     @Query("SELECT * FROM bookings WHERE userId = :userId AND status = 'confirmed' ORDER BY bookingDate ASC")
     fun getUpcomingBookings(userId: String): Flow<List<BookingEntity>>

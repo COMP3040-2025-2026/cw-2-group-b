@@ -63,12 +63,13 @@ class CheckAvailabilityFragment : Fragment() {
 
         binding.dropdownFacility.setOnItemClickListener { _, _, position, _ ->
             val selectedFacility = facilities[position]
+            // Pass facilityId instead of facilityName. For now, assuming facilityName can be used as facilityId.
             navigateToBookingDetails(selectedFacility)
         }
     }
 
-    private fun navigateToBookingDetails(facilityName: String) {
-        val fragment = BookingDetailsFragment.newInstance(facilityName)
+    private fun navigateToBookingDetails(facilityId: String) {
+        val fragment = BookingDetailsFragment.newInstance(facilityId)
         parentFragmentManager.beginTransaction()
             .setCustomAnimations(
                 R.anim.slide_in_right,
