@@ -5,10 +5,16 @@ import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentBookingDetailsBinding
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
@@ -19,13 +25,15 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
     // 获取 ViewModel
     private val viewModel: BookingViewModel by viewModels()
 
+    private lateinit var tokenManager: TokenManager
+
     private var currentFacilityName: String = ""
     private var selectedDate: LocalDate = LocalDate.now()
     private var selectedTimeSlot: Int? = null
     
-    // 假设当前登录用户 (实际开发中应从 TokenManager 或 UserSession 获取)
-    private val currentUserId = "user_001" 
-    private val currentUserName = "Student A"
+    // Dynamically obtained current logged-in user
+    private var currentUserId: String = "unknown"
+    private var currentUserName: String = "Unknown User"
 
     companion object {
         private const val ARG_FACILITY_NAME = "facility_name"
@@ -41,9 +49,18 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        tokenManager = TokenManager(requireContext()) // Initialize TokenManager
+
         arguments?.let {
-            // 获取传递过来的设施名称，如果没有则为空
             currentFacilityName = it.getString(ARG_FACILITY_NAME) ?: ""
+        }
+
+        // Collect user ID and name
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                currentUserId = tokenManager.getUserId().first() ?: "unknown"
+                currentUserName = tokenManager.getFullName().first() ?: "Unknown User"
+            }
         }
     }
 
@@ -56,7 +73,7 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
         setupTimeGrid()
         observeData()
         
-        // 初始加载今天的预定数据
+        // Initial load of booking data for today
         viewModel.loadOccupiedSlots(currentFacilityName, selectedDate.toString())
     }
 
@@ -74,21 +91,21 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
                 Toast.makeText(context, "Please select a time slot", Toast.LENGTH_SHORT).show()
             }
         }
-        // 初始状态禁用按钮
+        // Disable button initially
         binding.btnConfirmBooking.isEnabled = false
     }
 
     private fun setupDateList() {
-        // 生成今天及未来6天，共7天
+        // Generate today and next 6 days, total 7 days
         val dateList = (0..6).map { LocalDate.now().plusDays(it.toLong()) }
         
         val dateAdapter = DateAdapter(dateList) { date ->
             selectedDate = date
-            // 切换日期时，重置选中的时间段
+            // Reset selected time slot when date changes
             selectedTimeSlot = null
             binding.btnConfirmBooking.isEnabled = false
             
-            // 重新从数据库加载这一天的预定情况
+            // Reload occupied slots for the selected date
             viewModel.loadOccupiedSlots(currentFacilityName, date.toString())
         }
 
@@ -99,41 +116,38 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
     }
 
     private fun setupTimeGrid() {
-        // 初始化时间网格 Adapter
+        // Initialize time grid Adapter
         val timeAdapter = TimeSlotAdapter { slot ->
             selectedTimeSlot = slot
-            // 只有选中有效时间段时才允许点击预定
+            // Only enable booking button if a valid time slot is selected
             binding.btnConfirmBooking.isEnabled = (slot != null)
         }
 
         binding.rvTimeSlots.apply {
-            layoutManager = GridLayoutManager(context, 3) // 3列显示
+            layoutManager = GridLayoutManager(context, 3) // 3 columns
             adapter = timeAdapter
         }
     }
 
     private fun observeData() {
-        // 监听数据库查询结果
+        // Observe database query results
         viewModel.occupiedSlots.observe(viewLifecycleOwner) { bookings ->
-            // 拿到最新的预定列表，传给 Adapter 去处理显示(置灰)
+            // Pass the latest booking list to the Adapter to handle display (grey out)
             (binding.rvTimeSlots.adapter as? TimeSlotAdapter)?.updateBookings(bookings)
         }
     }
 
     private fun confirmBooking() {
-        // 调用 ViewModel 保存数据到数据库
+        // Call ViewModel to save data to database
         viewModel.saveBooking(
             facilityName = currentFacilityName,
             date = selectedDate.toString(),
             timeSlot = selectedTimeSlot!!,
-            userId = currentUserId,    // 这里应替换为真实的当前用户ID
-            userName = currentUserName, // 这里应替换为真实的当前用户名
+            userId = currentUserId,
+            userName = currentUserName,
             onSuccess = {
                 Toast.makeText(context, "Booking Successful!", Toast.LENGTH_SHORT).show()
-                // 成功后可以选择返回上一页，或者只是刷新当前页面状态
-                // parentFragmentManager.popBackStack() 
-                
-                // 这里为了体验，我们重置选择状态
+                // For better UX, reset selection state
                 selectedTimeSlot = null
                 binding.btnConfirmBooking.isEnabled = false
             }
