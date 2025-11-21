@@ -44,7 +44,7 @@ class CheckAvailabilityFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupToolbar()
-        setupDropdown()
+        setupDropdown() // setupDropdown now handles clearing the text and adapter reset
     }
 
     private fun setupToolbar() {
@@ -54,16 +54,31 @@ class CheckAvailabilityFragment : Fragment() {
     }
 
     private fun setupDropdown() {
-        val adapter = ArrayAdapter(
+        val adapter = object : ArrayAdapter<String>(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
             facilities
-        )
+        ) {
+            override fun getFilter(): android.widget.Filter {
+                return object : android.widget.Filter() {
+                    override fun performFiltering(constraint: CharSequence?): FilterResults {
+                        val results = FilterResults()
+                        results.values = facilities
+                        results.count = facilities.size
+                        return results
+                    }
+
+                    override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                        notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+
         binding.dropdownFacility.setAdapter(adapter)
 
         binding.dropdownFacility.setOnItemClickListener { _, _, position, _ ->
             val selectedFacility = facilities[position]
-            // Pass facilityId instead of facilityName. For now, assuming facilityName can be used as facilityId.
             navigateToBookingDetails(selectedFacility)
         }
     }
