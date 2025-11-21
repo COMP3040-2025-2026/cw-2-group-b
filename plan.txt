@@ -1,0 +1,291 @@
+这是一个非常棒的功能补充，能让用户管理自己的预定。
+
+为了实现“**显示预定状态**”和“**提前1小时不可取消**”的功能，我们需要做以下工作：
+
+1.  **UI 布局 (`item_sports_booking.xml`)**: 设计一个列表项，显示设施名、时间、状态和取消按钮。
+2.  **适配器 (`SportsBookingAdapter.kt`)**: 处理显示逻辑，特别是**判断当前时间是否在预定时间的1小时之前**，从而决定是否禁用“取消”按钮。
+3.  **ViewModel (`BookingViewModel.kt`)**: 添加删除/取消预定的逻辑。
+4.  **Fragment (`SportsMyBookingsFragment.kt`)**: 连接数据和界面。
+
+-----
+
+### 第一步：创建列表项布局 `item_sports_booking.xml`
+
+在 `app/src/main/res/layout/` 下创建或修改此文件。
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tv_facility_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Badminton Court A"
+            android:textColor="@color/black"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_date_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="2023-11-21 at 14:00"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_facility_name" />
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_status_confirmed" 
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp"
+            android:text="Confirmed"
+            android:textColor="#4CAF50"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_date_time" />
+        <Button
+            android:id="@+id/btn_cancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:textColor="@android:color/holo_red_dark"
+            app:layout_constraintBottom_toBottomOf="@+id/tv_status"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/tv_status" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>
+```
+
+-----
+
+### 第二步：创建适配器 `SportsBookingAdapter.kt`
+
+这是实现“1小时限制”的核心逻辑所在。
+
+**文件路径:** `app/src/main/java/com/nottingham/mynottingham/ui/booking/SportsBookingAdapter.kt`
+
+```kotlin
+package com.nottingham.mynottingham.ui.booking
+
+import android.graphics.Color
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+
+class SportsBookingAdapter(
+    private var bookings: List<BookingEntity>,
+    private val onCancelClick: (BookingEntity) -> Unit
+) : RecyclerView.Adapter<SportsBookingAdapter.BookingViewHolder>() {
+
+    fun updateData(newBookings: List<BookingEntity>) {
+        bookings = newBookings
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookingViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_sports_booking, parent, false)
+        return BookingViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: BookingViewHolder, position: Int) {
+        holder.bind(bookings[position])
+    }
+
+    override fun getItemCount() = bookings.size
+
+    inner class BookingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvFacilityName: TextView = itemView.findViewById(R.id.tv_facility_name)
+        private val tvDateTime: TextView = itemView.findViewById(R.id.tv_date_time)
+        private val tvStatus: TextView = itemView.findViewById(R.id.tv_status)
+        private val btnCancel: Button = itemView.findViewById(R.id.btn_cancel)
+
+        fun bind(booking: BookingEntity) {
+            tvFacilityName.text = booking.facilityName
+            
+            // 格式化时间显示: 10 -> "10:00"
+            val timeString = String.format("%02d:00", booking.timeSlot)
+            tvDateTime.text = "${booking.bookingDate} at $timeString"
+            
+            tvStatus.text = booking.status.uppercase()
+
+            // --- 核心逻辑：检查是否可以取消 ---
+            try {
+                val bookingDate = LocalDate.parse(booking.bookingDate) // 假设格式 yyyy-MM-dd
+                val bookingTime = LocalTime.of(booking.timeSlot, 0)    // 10:00
+                val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
+                
+                val now = LocalDateTime.now()
+                
+                // 截止时间 = 预定开始时间 - 1小时
+                val cancelDeadline = bookingDateTime.minusHours(1)
+
+                // 如果当前时间已经过了截止时间 (即在预定前1小时内，或已经开始)
+                if (now.isAfter(cancelDeadline)) {
+                    btnCancel.isEnabled = false
+                    btnCancel.text = "Non-cancellable"
+                    btnCancel.setTextColor(Color.GRAY)
+                } else {
+                    btnCancel.isEnabled = true
+                    btnCancel.text = "Cancel"
+                    btnCancel.setTextColor(Color.RED)
+                    btnCancel.setOnClickListener {
+                        onCancelClick(booking)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // 如果解析日期出错，默认允许或禁止，这里保守处理允许
+                btnCancel.isEnabled = true
+            }
+        }
+    }
+}
+```
+
+-----
+
+### 第三步：更新 ViewModel `BookingViewModel.kt`
+
+添加删除逻辑。
+
+```kotlin
+// 在 BookingViewModel 中添加
+
+fun getUserBookings(userId: String): androidx.lifecycle.LiveData<List<BookingEntity>> {
+    return bookingDao.getUserBookings(userId).asLiveData()
+}
+
+fun cancelBooking(booking: BookingEntity) {
+    viewModelScope.launch {
+        bookingDao.deleteBooking(booking)
+        // 此时 LiveData 会自动更新，界面会自动刷新
+        // 如果需要更新占位状态，记得重新调用 loadOccupiedSlots，但那是在 Details 页面的逻辑
+    }
+}
+```
+
+*(注：如果你的 `getUserBookings` 返回的是 Flow，记得用 `asLiveData()` 转换，或者在 Fragment 中用 `lifecycleScope.launch` 收集 Flow)*
+
+-----
+
+### 第四步：实现 `SportsMyBookingsFragment.kt`
+
+将所有东西整合。
+
+**文件路径:** `app/src/main/java/com/nottingham/mynottingham/ui/booking/SportsMyBookingsFragment.kt`
+
+```kotlin
+package com.nottingham.mynottingham.ui.booking
+
+import android.app.AlertDialog
+import android.os.Bundle
+import android.view.View
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.databinding.FragmentSportsMyBookingsBinding // 确保使用正确的 Binding 类名
+
+class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) {
+
+    // 假设使用 ViewBinding，如果没有，请使用 findViewById
+    // private var binding: FragmentSportsMyBookingsBinding? = null 
+    private lateinit var rvBookings: RecyclerView
+    private lateinit var adapter: SportsBookingAdapter
+    
+    private val viewModel: BookingViewModel by viewModels()
+    
+    // 当前用户ID，实际应从 Session/Token 获取
+    private val currentUserId = "user_001" 
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        rvBookings = view.findViewById(R.id.rv_my_bookings) // 确保xml里有这个ID
+        
+        setupRecyclerView()
+        observeBookings()
+        
+        // 处理返回按钮 (假设xml里有 btn_back)
+        view.findViewById<View>(R.id.btn_back)?.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+    }
+
+    private fun setupRecyclerView() {
+        adapter = SportsBookingAdapter(emptyList()) { booking ->
+            showCancelConfirmationDialog(booking)
+        }
+        
+        rvBookings.layoutManager = LinearLayoutManager(context)
+        rvBookings.adapter = adapter
+    }
+
+    private fun observeBookings() {
+        // 这里观察 LiveData
+        viewModel.getUserBookings(currentUserId).observe(viewLifecycleOwner) { bookings ->
+            if (bookings.isEmpty()) {
+                // 可以显示一个 "No bookings yet" 的空状态视图
+            } else {
+                adapter.updateData(bookings)
+            }
+        }
+    }
+
+    private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Cancel Booking")
+            .setMessage("Are you sure you want to cancel your booking for ${booking.facilityName}?")
+            .setPositiveButton("Yes") { _, _ ->
+                viewModel.cancelBooking(booking)
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+}
+```
+
+### 总结
+
+完成以上代码后：
+
+1.  打开 **My Bookings** 页面，你会看到你预定的所有场馆。
+2.  程序会自动判断当前时间：
+      * 如果距离开场还有 **\>1小时**，显示红色的 **Cancel** 按钮，点击后弹出确认框，确认后从数据库删除。
+      * 如果距离开场 **\<1小时**（或者已经开场），按钮变灰显示 **Non-cancellable**，无法点击。

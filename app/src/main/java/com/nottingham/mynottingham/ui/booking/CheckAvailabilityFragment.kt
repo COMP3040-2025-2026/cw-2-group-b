@@ -44,7 +44,7 @@ class CheckAvailabilityFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupToolbar()
-        setupDropdown() // setupDropdown now handles clearing the text and adapter reset
+        setupDropdown() 
     }
 
     private fun setupToolbar() {

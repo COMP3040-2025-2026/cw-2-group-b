@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.local.database.AppDatabase
 import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import kotlinx.coroutines.launch
+import androidx.lifecycle.asLiveData
 
 class BookingViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -46,6 +47,19 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
             // 保存成功后，重新刷新当前日期的占用列表，以便界面立即变灰
             loadOccupiedSlots(facilityName, date)
             onSuccess()
+        }
+    }
+
+    // 获取当前用户的所有预定
+    fun getUserBookings(userId: String): LiveData<List<BookingEntity>> {
+        return bookingDao.getUserBookings(userId).asLiveData()
+    }
+
+    // 取消预定
+    fun cancelBooking(booking: BookingEntity) {
+        viewModelScope.launch {
+            bookingDao.deleteBooking(booking)
+            // 此时 LiveData 会自动更新，界面会自动刷新
         }
     }
 }
