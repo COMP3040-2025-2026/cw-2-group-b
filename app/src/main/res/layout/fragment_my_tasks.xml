@@ -51,23 +51,13 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerMyTasks"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="@dimen/spacing_md">
-
-            <!-- Sample My Task Cards will go here -->
-            <include layout="@layout/item_my_task" />
-
-        </LinearLayout>
-
-    </androidx.core.widget.NestedScrollView>
+        android:clipToPadding="false"
+        android:padding="@dimen/spacing_md"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <ProgressBar
         android:id="@+id/progress_bar"
@@ -92,6 +82,7 @@
             android:textSize="64sp" />
 
         <TextView
+            android:id="@+id/tvEmptyState"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"

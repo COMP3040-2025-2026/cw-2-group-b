@@ -76,9 +76,7 @@ class ForumFragment : Fragment() {
     }
 
     private fun setupHeader() {
-        binding.newPostButton.setOnClickListener {
-            findNavController().navigate(R.id.action_forum_to_create_post)
-        }
+
 
         val categories = listOf(
             "All",

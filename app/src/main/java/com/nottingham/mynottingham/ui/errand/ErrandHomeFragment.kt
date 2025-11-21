@@ -7,10 +7,13 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.nottingham.mynottingham.databinding.FragmentErrandHomeBinding
 
+import androidx.fragment.app.activityViewModels
+
 class ErrandHomeFragment : Fragment() {
 
     private var _binding: FragmentErrandHomeBinding? = null
     private val binding get() = _binding!!
+    private val errandViewModel: ErrandViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -24,30 +27,48 @@ class ErrandHomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupClickListeners()
+        setupRecyclerView()
+    }
+
+    private fun setupRecyclerView() {
+        val adapter = ErrandAdapter(mutableListOf()) { task ->
+            val bundle = Bundle().apply {
+                putString("taskId", task.taskId)
+                putString("title", task.title)
+                putString("description", task.description)
+                putString("price", task.price)
+                putString("location", task.location)
+                putString("requesterId", task.requesterId)
+                putString("requesterName", task.requesterName)
+                putString("requesterAvatar", task.requesterAvatar)
+                putString("timeLimit", task.deadline) // Use "timeLimit" as the key
+                putLong("timestamp", task.timestamp)
+            }
+            val taskDetailFragment = TaskDetailFragment().apply {
+                arguments = bundle
+            }
+            parentFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    com.nottingham.mynottingham.R.anim.slide_in_right,
+                    com.nottingham.mynottingham.R.anim.slide_out_left,
+                    com.nottingham.mynottingham.R.anim.slide_in_left,
+                    com.nottingham.mynottingham.R.anim.slide_out_right
+                )
+                .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, taskDetailFragment)
+                .addToBackStack(null)
+                .commit()
+        }
+        binding.recyclerTasks.adapter = adapter
+        
+        errandViewModel.tasks.observe(viewLifecycleOwner) { tasks ->
+            (binding.recyclerTasks.adapter as ErrandAdapter).updateTasks(tasks)
+        }
     }
 
     private fun setupClickListeners() {
         // Back button
         binding.btnBack.setOnClickListener {
             requireActivity().onBackPressed()
-        }
-
-        // FAB button to create new task
-        binding.fabCreateTask.setOnClickListener {
-            // Navigate to parent fragment's container to show PostTaskFragment
-            val parentFragment = parentFragment
-            if (parentFragment is ErrandFragment) {
-                parentFragment.childFragmentManager.beginTransaction()
-                    .setCustomAnimations(
-                        com.nottingham.mynottingham.R.anim.slide_in_right,
-                        com.nottingham.mynottingham.R.anim.slide_out_left,
-                        com.nottingham.mynottingham.R.anim.slide_in_left,
-                        com.nottingham.mynottingham.R.anim.slide_out_right
-                    )
-                    .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, PostTaskFragment())
-                    .addToBackStack(null)
-                    .commit()
-            }
         }
 
         // See All button
@@ -70,32 +91,41 @@ class ErrandHomeFragment : Fragment() {
 
         // Category click listeners
         binding.categoryShopping.setOnClickListener {
-            // TODO: Filter by Shopping category
+            MapsToPostTask("Shopping")
         }
 
         binding.categoryPickup.setOnClickListener {
-            // TODO: Filter by Pickup category
+            MapsToPostTask("Pickup")
         }
 
         binding.categoryFood.setOnClickListener {
-            // Navigate to Food Delivery screen
-            val parentFragment = parentFragment
-            if (parentFragment is ErrandFragment) {
-                parentFragment.childFragmentManager.beginTransaction()
-                    .setCustomAnimations(
-                        com.nottingham.mynottingham.R.anim.slide_in_right,
-                        com.nottingham.mynottingham.R.anim.slide_out_left,
-                        com.nottingham.mynottingham.R.anim.slide_in_left,
-                        com.nottingham.mynottingham.R.anim.slide_out_right
-                    )
-                    .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, FoodDeliveryFragment())
-                    .addToBackStack(null)
-                    .commit()
-            }
+            MapsToPostTask("Food Delivery")
         }
 
         binding.categoryOthers.setOnClickListener {
-            // TODO: Filter by Others category
+            MapsToPostTask("Others")
+        }
+    }
+
+    private fun MapsToPostTask(category: String) {
+        val parentFragment = parentFragment
+        if (parentFragment is ErrandFragment) {
+            val postTaskFragment = PostTaskFragment().apply {
+                arguments = Bundle().apply {
+                    putString("task_category", category)
+                }
+            }
+
+            parentFragment.childFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    com.nottingham.mynottingham.R.anim.slide_in_right,
+                    com.nottingham.mynottingham.R.anim.slide_out_left,
+                    com.nottingham.mynottingham.R.anim.slide_in_left,
+                    com.nottingham.mynottingham.R.anim.slide_out_right
+                )
+                .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, postTaskFragment)
+                .addToBackStack(null)
+                .commit()
         }
     }
 

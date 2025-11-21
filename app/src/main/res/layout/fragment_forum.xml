@@ -26,15 +26,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <ImageButton
-            android:id="@+id/new_post_button"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="@drawable/bg_header_action"
-            android:src="@drawable/ic_edit_white"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@android:color/white" />
+
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/category_tabs_recycler"
