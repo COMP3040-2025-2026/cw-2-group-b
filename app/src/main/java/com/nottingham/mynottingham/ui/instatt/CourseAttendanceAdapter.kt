@@ -17,17 +17,6 @@ class CourseAttendanceAdapter(
             binding.tvCourseName.text = course.courseName
             binding.tvCourseCode.text = "${course.courseCode} ${course.semester}"
 
-            // Time
-            val timeText = if (course.startTime != null && course.endTime != null) {
-                "${course.startTime} - ${course.endTime}"
-            } else {
-                "Time not set"
-            }
-            binding.tvTime.text = timeText
-
-            // Location
-            binding.tvLocation.text = course.location ?: "Location not set"
-
             // Calculate attendance percentage
             val percentage = if (course.totalClasses > 0) {
                 (course.attendedClasses.toFloat() / course.totalClasses * 100).toInt()
