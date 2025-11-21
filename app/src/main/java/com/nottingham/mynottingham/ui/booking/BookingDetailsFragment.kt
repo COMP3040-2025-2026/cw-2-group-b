@@ -81,7 +81,16 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
         binding.tvFacilityName.text = currentFacilityName
         binding.toolbar.title = currentFacilityName
         binding.toolbar.setNavigationOnClickListener {
-            parentFragmentManager.popBackStack()
+            // No longer needed as back button is a menu item
+        }
+        binding.toolbar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_back -> {
+                    parentFragmentManager.popBackStack()
+                    true
+                }
+                else -> false
+            }
         }
         
         binding.btnConfirmBooking.setOnClickListener {
