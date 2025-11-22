@@ -10,6 +10,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.data.model.MenuItem
 import com.nottingham.mynottingham.databinding.FragmentRestaurantMenuBinding
 
 class RestaurantMenuFragment : Fragment() {
@@ -17,7 +19,12 @@ class RestaurantMenuFragment : Fragment() {
     private var _binding: FragmentRestaurantMenuBinding? = null
     private val binding get() = _binding!!
     private val viewModel: RestaurantMenuViewModel by viewModels()
-    private lateinit var adapter: FoodMenuAdapter
+    private lateinit var menuAdapter: FoodMenuAdapter
+    private lateinit var categoryAdapter: CategoryAdapter
+    private lateinit var menuLayoutManager: LinearLayoutManager
+
+    // Flag to prevent scroll listener from triggering during programmatic scroll
+    private var isUserScrolling = true
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRestaurantMenuBinding.inflate(inflater, container, false)
@@ -27,47 +34,60 @@ class RestaurantMenuFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupRecyclerView()
+        setupRecyclerViews()
         setupObservers()
+        setupScrollListeners()
         
-        // 顶部返回按钮
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
-        
-        // 底部 View Cart 按钮
         binding.btnViewCart.setOnClickListener { showCartSummary() }
     }
 
-    private fun setupRecyclerView() {
-        // 初始化 Adapter, 传入空 map, 之后通过 observer 更新
-        adapter = FoodMenuAdapter(
-            items = viewModel.menuItems,
+    private fun setupRecyclerViews() {
+        // Category RecyclerView (Left)
+        categoryAdapter = CategoryAdapter(listOf<String>()) { position ->
+            // When user clicks a category, scroll the menu
+            scrollToCategory(position)
+        }
+        binding.rvCategories.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = categoryAdapter
+        }
+        
+        // Menu RecyclerView (Right)
+        menuLayoutManager = LinearLayoutManager(context)
+        menuAdapter = FoodMenuAdapter(
+            items = listOf<Any>(),
             cartQuantities = emptyMap(),
             onAddClick = { viewModel.addItem(it) },
             onPlusClick = { viewModel.increaseItem(it) },
             onMinusClick = { viewModel.decreaseItem(it) }
         )
-        
         binding.rvMenuItems.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = this@RestaurantMenuFragment.adapter
+            layoutManager = menuLayoutManager
+            adapter = menuAdapter
         }
     }
 
     private fun setupObservers() {
-        // 监听购物车数量变化，刷新列表 UI (显示/隐藏加减号)
-        viewModel.cartQuantities.observe(viewLifecycleOwner) { quantities ->
-            // 重新创建 Adapter 以更新所有行状态 (或者可以在 Adapter 中写 updateData 方法以提高性能)
-            adapter = FoodMenuAdapter(
-                items = viewModel.menuItems,
-                cartQuantities = quantities,
-                onAddClick = { viewModel.addItem(it) },
-                onPlusClick = { viewModel.increaseItem(it) },
-                onMinusClick = { viewModel.decreaseItem(it) }
-            )
-            binding.rvMenuItems.adapter = adapter
+        // Observe categories for the left RecyclerView
+        viewModel.categories.observe(viewLifecycleOwner) { categories ->
+            categoryAdapter = CategoryAdapter(categories) { position ->
+                scrollToCategory(position)
+            }
+            binding.rvCategories.adapter = categoryAdapter
         }
 
-        // 监听总价和总数，控制底部栏显示
+        // Observe the combined list for the right RecyclerView
+        viewModel.menuListWithHeaders.observe(viewLifecycleOwner) { menuList ->
+            menuAdapter.updateItems(menuList)
+        }
+
+        // Observe cart quantity changes
+        viewModel.cartQuantities.observe(viewLifecycleOwner) { quantities ->
+           menuAdapter.updateQuantities(quantities)
+        }
+
+        // Observe cart summary
         viewModel.totalCount.observe(viewLifecycleOwner) { count ->
             if (count > 0) {
                 binding.layoutCartSummary.visibility = View.VISIBLE
@@ -76,9 +96,51 @@ class RestaurantMenuFragment : Fragment() {
                 binding.layoutCartSummary.visibility = View.GONE
             }
         }
-
         viewModel.totalPrice.observe(viewLifecycleOwner) { price ->
             binding.tvTotalPrice.text = String.format("RM %.2f", price)
+        }
+    }
+
+    private fun setupScrollListeners() {
+        binding.rvMenuItems.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (isUserScrolling) {
+                    val firstVisibleItemPosition = menuLayoutManager.findFirstVisibleItemPosition()
+                    if (firstVisibleItemPosition != RecyclerView.NO_POSITION) {
+                        val item = viewModel.menuListWithHeaders.value?.get(firstVisibleItemPosition)
+                        val categoryName = when(item) {
+                            is String -> item
+                            is MenuItem -> item.category
+                            else -> null
+                        }
+                        
+                        if (categoryName != null) {
+                            val categoryIndex = viewModel.categories.value?.indexOf(categoryName)
+                            if (categoryIndex != null && categoryIndex != -1) {
+                                categoryAdapter.setSelectedPosition(categoryIndex)
+                                binding.rvCategories.smoothScrollToPosition(categoryIndex)
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    private fun scrollToCategory(categoryIndex: Int) {
+        val categoryName = viewModel.categories.value?.get(categoryIndex) ?: return
+        val menuList = viewModel.menuListWithHeaders.value ?: return
+
+        val positionInMenuList = menuList.indexOf(categoryName)
+        
+        if (positionInMenuList != -1) {
+            isUserScrolling = false // Disable listener to prevent loop
+            menuLayoutManager.scrollToPositionWithOffset(positionInMenuList, 0)
+            // A small delay to re-enable the listener after programmatic scroll finishes
+            binding.rvMenuItems.postDelayed({ isUserScrolling = true }, 100)
+            // Also update the selection immediately
+            categoryAdapter.setSelectedPosition(categoryIndex)
         }
     }
 
@@ -89,9 +151,8 @@ class RestaurantMenuFragment : Fragment() {
             .setTitle("Checkout")
             .setMessage("Confirm order for RM ${String.format("%.2f", total)}?\n(Includes Delivery Fee)")
             .setPositiveButton("Place Order") { _, _ ->
-                // 实际开发中应替换为真实 User ID
                 viewModel.placeOrder("user_123", "Dorm Room 305")
-                Toast.makeText(context, "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
                 findNavController().navigateUp()
             }
             .setNegativeButton("Cancel", null)
@@ -103,3 +164,4 @@ class RestaurantMenuFragment : Fragment() {
         _binding = null
     }
 }
+

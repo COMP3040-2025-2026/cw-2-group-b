@@ -27,6 +27,24 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         MenuItem("6", "drinks", "Iced Lemon Tea", "Refreshing lemon tea", 4.50)
     )
 
+    private val _categories = MutableLiveData<List<String>>()
+    val categories: LiveData<List<String>> = _categories
+
+    private val _menuListWithHeaders = MutableLiveData<List<Any>>()
+    val menuListWithHeaders: LiveData<List<Any>> = _menuListWithHeaders
+    
+    init {
+        val categoryList = menuItems.map { it.category }.distinct()
+        _categories.value = categoryList
+        
+        val combinedList = mutableListOf<Any>()
+        categoryList.forEach { category ->
+            combinedList.add(category) // Add header
+            combinedList.addAll(menuItems.filter { it.category == category }) // Add items
+        }
+        _menuListWithHeaders.value = combinedList
+    }
+
     // 购物车状态: Map<ItemId, Count>，用于 UI 快速响应
     private val _cartQuantities = MutableLiveData<Map<String, Int>>(emptyMap())
     val cartQuantities: LiveData<Map<String, Int>> = _cartQuantities
