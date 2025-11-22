@@ -13,7 +13,9 @@ class ErrandHomeFragment : Fragment() {
 
     private var _binding: FragmentErrandHomeBinding? = null
     private val binding get() = _binding!!
-    private val errandViewModel: ErrandViewModel by activityViewModels()
+    private val errandViewModel: ErrandViewModel by activityViewModels {
+        ErrandViewModelFactory(requireActivity().application)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -28,6 +30,12 @@ class ErrandHomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupClickListeners()
         setupRecyclerView()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload tasks when fragment becomes visible
+        errandViewModel.loadTasks()
     }
 
     private fun setupRecyclerView() {
@@ -61,6 +69,7 @@ class ErrandHomeFragment : Fragment() {
         binding.recyclerTasks.adapter = adapter
         
         errandViewModel.tasks.observe(viewLifecycleOwner) { tasks ->
+            android.util.Log.d("ErrandHomeFragment", "Received ${tasks.size} tasks from ViewModel")
             (binding.recyclerTasks.adapter as ErrandAdapter).updateTasks(tasks)
         }
     }

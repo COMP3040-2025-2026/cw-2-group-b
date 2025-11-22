@@ -18,7 +18,9 @@ class PostTaskFragment : Fragment() {
 
     private var _binding: FragmentPostTaskBinding? = null
     private val binding get() = _binding!!
-    private val errandViewModel: ErrandViewModel by activityViewModels()
+    private val errandViewModel: ErrandViewModel by activityViewModels {
+        ErrandViewModelFactory(requireActivity().application)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,

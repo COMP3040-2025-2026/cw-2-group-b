@@ -12,7 +12,9 @@ class AllTasksFragment : Fragment() {
 
     private var _binding: FragmentAllTasksBinding? = null
     private val binding get() = _binding!!
-    private val errandViewModel: ErrandViewModel by activityViewModels()
+    private val errandViewModel: ErrandViewModel by activityViewModels {
+        ErrandViewModelFactory(requireActivity().application)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -66,6 +68,7 @@ class AllTasksFragment : Fragment() {
         binding.recyclerViewTasks.adapter = adapter
 
         errandViewModel.tasks.observe(viewLifecycleOwner) { tasks ->
+            android.util.Log.d("AllTasksFragment", "Received ${tasks.size} tasks from ViewModel")
             (binding.recyclerViewTasks.adapter as ErrandAdapter).updateTasks(tasks)
         }
     }
