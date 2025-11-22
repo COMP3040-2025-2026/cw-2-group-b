@@ -3,29 +3,20 @@ package com.nottingham.mynottingham.ui.forum
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
 import com.nottingham.mynottingham.data.repository.ForumRepository
+import com.nottingham.mynottingham.ui.base.BaseViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Forum (post list) screen
+ * Extends BaseViewModel for common utilities
  */
-class ForumViewModel(application: Application) : AndroidViewModel(application) {
+class ForumViewModel(application: Application) : BaseViewModel() {
 
     private val repository = ForumRepository(application)
-
-    private val _loading = MutableLiveData<Boolean>(false)
-    val loading: LiveData<Boolean> = _loading
-
-    private val _error = MutableLiveData<String?>()
-    val error: LiveData<String?> = _error
 
     private val _currentCategory = MutableStateFlow<String?>(null)
 
@@ -51,31 +42,19 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        _loading.value = true
-        _error.value = null
-
         val page = if (refresh) 0 else currentPage
 
-        viewModelScope.launch {
-            Log.d("ForumViewModel", "Fetching posts from API: page=$page, category=$category")
-            val result = repository.fetchPosts(
-                token = token,
-                page = page,
-                size = 20,
-                category = category
-            )
-
-            result.onSuccess { pagedResponse ->
+        launchDataLoad(
+            block = {
+                Log.d("ForumViewModel", "Fetching posts from API: page=$page, category=$category")
+                repository.fetchPosts(token, page, 20, category)
+            },
+            onSuccess = { pagedResponse ->
                 Log.d("ForumViewModel", "Successfully fetched ${pagedResponse.posts.size} posts")
                 hasMore = pagedResponse.hasNext
                 currentPage = if (refresh) 0 else page
-            }.onFailure { exception ->
-                Log.e("ForumViewModel", "Failed to fetch posts", exception)
-                _error.postValue(exception.message ?: "Failed to load posts")
             }
-
-            _loading.postValue(false)
-        }
+        )
     }
 
     /**
@@ -90,31 +69,27 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
      * Like/unlike post
      */
     fun likePost(token: String, postId: Long) {
-        viewModelScope.launch {
-            Log.d("ForumViewModel", "Liking post: $postId")
-            val result = repository.likePost(token, postId)
-            result.onSuccess {
+        launchDataLoad(
+            block = {
+                Log.d("ForumViewModel", "Liking post: $postId")
+                repository.likePost(token, postId)
+            },
+            onSuccess = {
                 Log.d("ForumViewModel", "Post liked successfully")
-            }.onFailure { exception ->
-                Log.e("ForumViewModel", "Failed to like post", exception)
-                _error.postValue(exception.message ?: "Failed to like post")
             }
-        }
+        )
     }
 
     /**
      * Delete post
      */
     fun deletePost(token: String, postId: Long) {
-        viewModelScope.launch {
-            val result = repository.deletePost(token, postId)
-            result.onSuccess {
+        launchOperation(
+            block = { repository.deletePost(token, postId) },
+            onSuccess = {
                 Log.d("ForumViewModel", "Post deleted successfully")
-            }.onFailure { exception ->
-                Log.e("ForumViewModel", "Failed to delete post", exception)
-                _error.postValue(exception.message ?: "Failed to delete post")
             }
-        }
+        )
     }
 
     /**
@@ -126,10 +101,4 @@ class ForumViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Clear error message
-     */
-    fun clearError() {
-        _error.value = null
-    }
 }

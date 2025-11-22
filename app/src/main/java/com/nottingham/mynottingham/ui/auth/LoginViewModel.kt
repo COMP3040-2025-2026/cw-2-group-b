@@ -41,69 +41,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     if (apiResponse.success && apiResponse.data != null) {
                         val loginData = apiResponse.data
 
-                        // Save token and user info
-                        // Remove "Bearer " prefix before saving
+                        // Save all user info in one transaction using new helper function
                         val pureToken = loginData.token.removePrefix("Bearer ").trim()
-                        tokenManager.saveToken(pureToken)
-                        tokenManager.saveUserInfo(
-                            userId = loginData.user.id.toString(),
-                            username = loginData.user.username,
-                            userType = loginData.user.userType
-                        )
-
-                        // Save full name
-                        tokenManager.saveFullName(loginData.user.fullName)
-
-                        // Save email
-                        tokenManager.saveEmail(loginData.user.email)
-
-                        // Save phone if available
-                        loginData.user.phone?.let { phone ->
-                            tokenManager.savePhone(phone)
-                        }
-
-                        // Save avatar if available
-                        loginData.user.avatarUrl?.let { avatarUrl ->
-                            tokenManager.saveAvatar(avatarUrl)
-                        }
-
-                        // Save student-specific fields if available
-                        loginData.user.studentId?.let { studentId ->
-                            tokenManager.saveStudentId(studentId.toString())
-                        }
-
-                        loginData.user.faculty?.let { faculty ->
-                            tokenManager.saveFaculty(faculty)
-                        }
-
-                        loginData.user.major?.let { major ->
-                            tokenManager.saveMajor(major)
-                        }
-
-                        loginData.user.yearOfStudy?.let { year ->
-                            tokenManager.saveYearOfStudy(year.toString())
-                        }
-
-                        // Save teacher-specific fields if available
-                        loginData.user.employeeId?.let { employeeId ->
-                            tokenManager.saveEmployeeId(employeeId)
-                        }
-
-                        loginData.user.department?.let { department ->
-                            tokenManager.saveDepartment(department)
-                        }
-
-                        loginData.user.title?.let { title ->
-                            tokenManager.saveTitle(title)
-                        }
-
-                        loginData.user.officeRoom?.let { officeRoom ->
-                            tokenManager.saveOfficeRoom(officeRoom)
-                        }
-
-                        loginData.user.officeHours?.let { officeHours ->
-                            tokenManager.saveOfficeHours(officeHours)
-                        }
+                        tokenManager.saveFullUser(loginData.user, pureToken)
 
                         // Create default conversations (teachers/students)
                         createDefaultConversations(loginData.token, loginData.user.id.toString())

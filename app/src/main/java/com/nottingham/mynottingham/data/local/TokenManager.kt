@@ -225,6 +225,41 @@ class TokenManager(private val context: Context) {
         }
     }
 
+    /**
+     * Save full user info in a single DataStore transaction
+     * Eliminates the need to call multiple save methods individually
+     */
+    suspend fun saveFullUser(user: com.nottingham.mynottingham.data.remote.dto.UserDto, token: String) {
+        context.dataStore.edit { preferences ->
+            // Save token
+            preferences[TOKEN_KEY] = token
+
+            // Save basic info
+            preferences[USER_ID_KEY] = user.id.toString()
+            preferences[USERNAME_KEY] = user.username
+            preferences[USER_TYPE_KEY] = user.userType
+            preferences[FULL_NAME_KEY] = user.fullName
+            preferences[EMAIL_KEY] = user.email
+
+            // Save optional fields
+            user.phone?.let { preferences[PHONE_KEY] = it }
+            user.avatarUrl?.let { preferences[AVATAR_KEY] = it }
+
+            // Save student-specific fields
+            user.studentId?.let { preferences[STUDENT_ID_KEY] = it.toString() }
+            user.faculty?.let { preferences[FACULTY_KEY] = it }
+            user.major?.let { preferences[MAJOR_KEY] = it }
+            user.yearOfStudy?.let { preferences[YEAR_OF_STUDY_KEY] = it.toString() }
+
+            // Save teacher-specific fields
+            user.employeeId?.let { preferences[EMPLOYEE_ID_KEY] = it }
+            user.department?.let { preferences[DEPARTMENT_KEY] = it }
+            user.title?.let { preferences[TITLE_KEY] = it }
+            user.officeRoom?.let { preferences[OFFICE_ROOM_KEY] = it }
+            user.officeHours?.let { preferences[OFFICE_HOURS_KEY] = it }
+        }
+    }
+
     suspend fun clearToken() {
         context.dataStore.edit { preferences ->
             preferences.clear()

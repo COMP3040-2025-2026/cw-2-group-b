@@ -14,10 +14,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 
 /**
  * Repository for Forum operations
@@ -56,49 +52,27 @@ class ForumRepository(private val context: Context) {
         size: Int = 20,
         category: String? = null
     ): Result<PagedForumResponse> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getForumPosts("Bearer $token", page, size, category)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val data = response.body()?.data!!
-
-                    // Cache posts to local database
-                    val entities = data.posts.map { dtoToPostEntity(it) }
-                    forumDao.insertPosts(entities)
-
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to fetch posts"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.getForumPosts("Bearer $token", page, size, category) },
+            saveFetchResult = { data ->
+                val entities = data.posts.map { it.toEntity() }
+                forumDao.insertPosts(entities)
             }
-        }
+        )
     }
 
     /**
      * Get post by ID with comments
      */
     suspend fun getPostDetail(token: String, postId: Long): Result<ForumPostDetailDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getForumPostById("Bearer $token", postId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val data = response.body()?.data!!
-
-                    // Cache post and comments
-                    forumDao.insertPost(dtoToPostEntity(data.post))
-                    val commentEntities = data.comments.map { dtoToCommentEntity(it) }
-                    forumDao.insertComments(commentEntities)
-
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to fetch post"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.getForumPostById("Bearer $token", postId) },
+            saveFetchResult = { data ->
+                forumDao.insertPost(data.post.toEntity())
+                val commentEntities = data.comments.map { it.toEntity() }
+                forumDao.insertComments(commentEntities)
             }
-        }
+        )
     }
 
     /**
@@ -117,6 +91,7 @@ class ForumRepository(private val context: Context) {
 
     /**
      * Create new post
+     * (Special handling due to multipart request with logging)
      */
     suspend fun createPost(
         token: String,
@@ -135,14 +110,11 @@ class ForumRepository(private val context: Context) {
 
                 Log.d("ForumRepository", "Response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
                 Log.d("ForumRepository", "Response body: ${response.body()}")
-                Log.d("ForumRepository", "Error body: ${response.errorBody()?.string()}")
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     val post = response.body()?.data!!
-
-                    // Cache new post
-                    forumDao.insertPost(dtoToPostEntity(post))
-
+                    // Cache new post using extension function
+                    forumDao.insertPost(post.toEntity())
                     Result.success(post)
                 } else {
                     val errorMsg = response.body()?.message ?: response.errorBody()?.string() ?: "Failed to create post"
@@ -164,68 +136,37 @@ class ForumRepository(private val context: Context) {
         postId: Long,
         request: UpdateForumPostRequest
     ): Result<ForumPostDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.updateForumPost("Bearer $token", postId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val post = response.body()?.data!!
-
-                    // Update cache
-                    forumDao.insertPost(dtoToPostEntity(post))
-
-                    Result.success(post)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to update post"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.updateForumPost("Bearer $token", postId, request) },
+            saveFetchResult = { post ->
+                forumDao.insertPost(post.toEntity())
             }
-        }
+        )
     }
 
     /**
      * Delete post
      */
     suspend fun deletePost(token: String, postId: Long): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.deleteForumPost("Bearer $token", postId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    // Remove from cache
-                    forumDao.deletePostById(postId)
-                    forumDao.deleteCommentsByPostId(postId)
-
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to delete post"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResourceNoData(
+            apiCall = { apiService.deleteForumPost("Bearer $token", postId) },
+            onSuccess = {
+                forumDao.deletePostById(postId)
+                forumDao.deleteCommentsByPostId(postId)
             }
-        }
+        )
     }
 
     /**
      * Like/unlike post
      */
     suspend fun likePost(token: String, postId: Long): Result<ForumPostDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.likeForumPost("Bearer $token", postId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val post = response.body()?.data!!
-
-                    // Update cache
-                    forumDao.updatePostLikeStatus(postId, post.likes, post.isLikedByCurrentUser)
-
-                    Result.success(post)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to like post"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.likeForumPost("Bearer $token", postId) },
+            saveFetchResult = { post ->
+                forumDao.updatePostLikeStatus(postId, post.likes, post.isLikedByCurrentUser)
             }
-        }
+        )
     }
 
     // ========== Comment Operations ==========
@@ -238,46 +179,24 @@ class ForumRepository(private val context: Context) {
         postId: Long,
         request: CreateCommentRequest
     ): Result<ForumCommentDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.createForumComment("Bearer $token", postId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val comment = response.body()?.data!!
-
-                    // Cache new comment
-                    forumDao.insertComment(dtoToCommentEntity(comment))
-
-                    Result.success(comment)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to create comment"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.createForumComment("Bearer $token", postId, request) },
+            saveFetchResult = { comment ->
+                forumDao.insertComment(comment.toEntity())
             }
-        }
+        )
     }
 
     /**
      * Like/unlike comment
      */
     suspend fun likeComment(token: String, commentId: Long): Result<ForumCommentDto> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.likeForumComment("Bearer $token", commentId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val comment = response.body()?.data!!
-
-                    // Update cache
-                    forumDao.updateCommentLikeStatus(commentId, comment.likes, comment.isLikedByCurrentUser)
-
-                    Result.success(comment)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to like comment"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return networkBoundResource(
+            apiCall = { apiService.likeForumComment("Bearer $token", commentId) },
+            saveFetchResult = { comment ->
+                forumDao.updateCommentLikeStatus(commentId, comment.likes, comment.isLikedByCurrentUser)
             }
-        }
+        )
     }
 
     /**
@@ -291,67 +210,4 @@ class ForumRepository(private val context: Context) {
         }
     }
 
-    // ========== Helper Functions ==========
-
-    /**
-     * Convert DTO to Entity
-     */
-    private fun dtoToPostEntity(dto: ForumPostDto): ForumPostEntity {
-        return ForumPostEntity(
-            id = dto.id,
-            authorId = dto.authorId,
-            authorName = dto.authorName,
-            authorAvatar = dto.authorAvatar,
-            title = dto.title,
-            content = dto.content,
-            category = dto.category,
-            imageUrl = dto.imageUrl,
-            likes = dto.likes,
-            comments = dto.comments,
-            views = dto.views,
-            isPinned = dto.isPinned,
-            isLocked = dto.isLocked,
-            isLikedByCurrentUser = dto.isLikedByCurrentUser,
-            tags = dto.tags?.joinToString(","),
-            createdAt = parseTimestamp(dto.createdAt),
-            updatedAt = parseTimestamp(dto.updatedAt)
-        )
-    }
-
-    private fun dtoToCommentEntity(dto: ForumCommentDto): ForumCommentEntity {
-        return ForumCommentEntity(
-            id = dto.id,
-            postId = dto.postId,
-            authorId = dto.authorId,
-            authorName = dto.authorName,
-            authorAvatar = dto.authorAvatar,
-            content = dto.content,
-            likes = dto.likes,
-            isLikedByCurrentUser = dto.isLikedByCurrentUser,
-            createdAt = parseTimestamp(dto.createdAt)
-        )
-    }
-
-    /**
-     * Parse ISO 8601 timestamp string to millis
-     * Handles both ZonedDateTime and LocalDateTime formats
-     */
-    private fun parseTimestamp(timestamp: String): Long {
-        return try {
-            // Try parsing with timezone first (e.g., "2023-11-19T10:00:00Z")
-            ZonedDateTime.parse(timestamp).toInstant().toEpochMilli()
-        } catch (e: Exception) {
-            try {
-                // If that fails, try parsing as LocalDateTime and assume UTC
-                // (e.g., "2023-11-19T10:00:00")
-                LocalDateTime.parse(timestamp)
-                    .atZone(ZoneId.of("UTC"))
-                    .toInstant()
-                    .toEpochMilli()
-            } catch (e2: Exception) {
-                Log.e("ForumRepository", "Failed to parse timestamp: $timestamp", e2)
-                System.currentTimeMillis()
-            }
-        }
-    }
 }
