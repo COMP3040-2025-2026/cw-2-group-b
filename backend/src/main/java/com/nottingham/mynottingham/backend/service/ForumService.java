@@ -5,11 +5,13 @@ import com.nottingham.mynottingham.backend.entity.ForumComment;
 import com.nottingham.mynottingham.backend.entity.ForumCommentLike;
 import com.nottingham.mynottingham.backend.entity.ForumPost;
 import com.nottingham.mynottingham.backend.entity.ForumPostLike;
+import com.nottingham.mynottingham.backend.entity.ForumPostView;
 import com.nottingham.mynottingham.backend.entity.User;
 import com.nottingham.mynottingham.backend.repository.ForumCommentLikeRepository;
 import com.nottingham.mynottingham.backend.repository.ForumCommentRepository;
 import com.nottingham.mynottingham.backend.repository.ForumPostLikeRepository;
 import com.nottingham.mynottingham.backend.repository.ForumPostRepository;
+import com.nottingham.mynottingham.backend.repository.ForumPostViewRepository;
 import com.nottingham.mynottingham.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,7 @@ public class ForumService {
     private final ForumCommentRepository commentRepository;
     private final ForumPostLikeRepository postLikeRepository;
     private final ForumCommentLikeRepository commentLikeRepository;
+    private final ForumPostViewRepository postViewRepository;
     private final UserRepository userRepository;
 
     private static final String UPLOAD_DIR = "uploads/forum/";
@@ -78,9 +81,21 @@ public class ForumService {
         ForumPost post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        // Increment views
-        post.setViews(post.getViews() + 1);
-        postRepository.save(post);
+        // Increment views only if user hasn't viewed this post before
+        if (!postViewRepository.existsByPostIdAndUserId(postId, currentUserId)) {
+            User user = userRepository.findById(currentUserId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Create view record
+            ForumPostView view = new ForumPostView();
+            view.setPost(post);
+            view.setUser(user);
+            postViewRepository.save(view);
+
+            // Increment view count
+            post.setViews(post.getViews() + 1);
+            postRepository.save(post);
+        }
 
         List<ForumCommentDto> commentDtos = commentRepository.findByPostOrderByCreatedAtDesc(post).stream()
                 .map(comment -> toCommentDto(comment, currentUserId))
