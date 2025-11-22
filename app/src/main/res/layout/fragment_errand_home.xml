@@ -154,7 +154,8 @@
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        app:cardBackgroundColor="#FF6B9D"
+                        android:background="@drawable/bg_category_shopping"
+                        app:cardBackgroundColor="@android:color/transparent"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp">
 
@@ -195,7 +196,8 @@
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        app:cardBackgroundColor="#4ECDC4"
+                        android:background="@drawable/bg_category_pickup"
+                        app:cardBackgroundColor="@android:color/transparent"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp">
 
@@ -236,7 +238,8 @@
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        app:cardBackgroundColor="#FFD93D"
+                        android:background="@drawable/bg_category_food"
+                        app:cardBackgroundColor="@android:color/transparent"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp">
 
@@ -284,7 +287,8 @@
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="64dp"
                         android:layout_height="64dp"
-                        app:cardBackgroundColor="#A8E6CF"
+                        android:background="@drawable/bg_category_others"
+                        app:cardBackgroundColor="@android:color/transparent"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp">
 
@@ -346,6 +350,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/spacing_md"
                 android:clipToPadding="false"
+                android:layoutAnimation="@anim/layout_animation_fall_down"
                 android:nestedScrollingEnabled="false"
                 android:paddingHorizontal="@dimen/spacing_lg"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
