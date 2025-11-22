@@ -9,6 +9,10 @@ import com.nottingham.mynottingham.data.local.database.AppDatabase
 import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import kotlinx.coroutines.launch
 import androidx.lifecycle.asLiveData
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 
 class BookingViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -52,14 +56,37 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
 
     // 获取当前用户的所有预定
     fun getUserBookings(userId: String): LiveData<List<BookingEntity>> {
+        // Only show "confirmed" and "deleted" bookings, hide fully deleted ones
         return bookingDao.getUserBookings(userId).asLiveData()
     }
 
-    // 取消预定
+    // 取消预定或标记为删除
     fun cancelBooking(booking: BookingEntity) {
         viewModelScope.launch {
-            bookingDao.deleteBooking(booking)
-            // 此时 LiveData 会自动更新，界面会自动刷新
+            try {
+                val bookingDate = LocalDate.parse(booking.bookingDate)
+                val bookingTime = LocalTime.of(booking.timeSlot, 0)
+                val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
+
+                val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+                val currentDateTime = LocalDateTime.now(zoneId)
+                
+                // Assuming each booking slot is 1 hour
+                val endTime = bookingDateTime.plusHours(1)
+
+                if (currentDateTime.isAfter(endTime)) {
+                    // If the booking is in the past, update its status to "deleted"
+                    val updatedBooking = booking.copy(status = "deleted")
+                    bookingDao.updateBooking(updatedBooking)
+                } else {
+                    // If the booking is in the future, delete it
+                    bookingDao.deleteBooking(booking)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Fallback: if there's an error in date parsing, just delete the booking
+                bookingDao.deleteBooking(booking)
+            }
         }
     }
 }
