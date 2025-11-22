@@ -84,11 +84,34 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
     }
 
     private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+        // 重新计算一下时间，以决定弹窗显示 "Cancel" 还是 "Delete"
+        val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+        val now = LocalDateTime.now(zoneId)
+        
+        val bookingDate = LocalDate.parse(booking.bookingDate)
+        val bookingTime = LocalTime.of(booking.timeSlot, 0)
+        val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
+        val endTime = bookingDateTime.plusHours(1)
+
+        // 判断是否是“过期删除”操作
+        val isPast = now.isAfter(endTime)
+
+        // 根据状态设置弹窗文案
+        val title = if (isPast) "Delete History" else "Cancel Booking"
+        val message = if (isPast) 
+            "Do you want to delete this booking record?" 
+        else 
+            "Are you sure you want to cancel your booking for ${booking.facilityName}?"
+
         AlertDialog.Builder(requireContext())
-            .setTitle("Cancel Booking")
-            .setMessage("Are you sure you want to cancel your booking for ${booking.facilityName} at ${String.format("%02d:00", booking.timeSlot)} on ${booking.bookingDate}?")
+            .setTitle(title)
+            .setMessage(message)
             .setPositiveButton("Yes") { _, _ ->
-                checkAndCancelBooking(booking)
+                // 无论是取消还是删除，实际上都是从数据库移除该条目，所以调用同一个 ViewModel 方法即可
+                viewModel.cancelBooking(booking)
+                
+                val toastMsg = if (isPast) "Record deleted" else "Booking cancelled"
+                Toast.makeText(requireContext(), toastMsg, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("No", null)
             .show()

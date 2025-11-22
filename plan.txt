@@ -1,79 +1,165 @@
-为了实现 **“预订开始前1小时内不允许取消”** 的功能，你需要修改处理“取消按钮”点击事件的代码。
+这是一个非常合理的需求，可以将“过期”的订单管理和“即将来临”的订单管理区分开。
 
-通常这个逻辑位于 `SportsMyBookingsFragment.kt` 中（或者你绑定 Adapter 点击事件的地方）。
+我们需要修改 `SportsBookingAdapter.kt` 来改变按钮的状态（从“不可取消”变为“删除”），同时也建议微调 `SportsMyBookingsFragment.kt` 里的弹窗提示，让体验更自然。
 
-请按照以下步骤添加逻辑：
+### 1\. 修改 `SportsBookingAdapter.kt`
 
-### 1\. 修改 `SportsMyBookingsFragment.kt`
-
-找到你处理点击“取消/删除”按钮的地方，添加一个时间检查函数。
-
-你需要导入以下时间类：
+这里我们需要引入 `ZoneId` 来确保时区正确，并增加判断：如果当前时间超过了“预定结束时间”（即开始时间+1小时），则将按钮变为 **"Delete"** 状态。
 
 ```kotlin
+package com.nottingham.mynottingham.ui.booking
+
+import android.graphics.Color
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId
-import android.widget.Toast
+import java.time.ZoneId // [新增] 导入 ZoneId
+
+class SportsBookingAdapter(
+    private var bookings: List<BookingEntity>,
+    private val onCancelClick: (BookingEntity) -> Unit
+) : RecyclerView.Adapter<SportsBookingAdapter.BookingViewHolder>() {
+
+    fun updateData(newBookings: List<BookingEntity>) {
+        bookings = newBookings
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookingViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_sports_booking, parent, false)
+        return BookingViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: BookingViewHolder, position: Int) {
+        holder.bind(bookings[position])
+    }
+
+    override fun getItemCount() = bookings.size
+
+    inner class BookingViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvFacilityName: TextView = itemView.findViewById(R.id.tv_facility_name)
+        private val tvDateTime: TextView = itemView.findViewById(R.id.tv_date_time)
+        private val tvStatus: TextView = itemView.findViewById(R.id.tv_status)
+        private val btnCancel: Button = itemView.findViewById(R.id.btn_cancel)
+
+        fun bind(booking: BookingEntity) {
+            tvFacilityName.text = booking.facilityName
+            
+            val timeString = String.format("%02d:00", booking.timeSlot)
+            tvDateTime.text = "${booking.bookingDate} at $timeString"
+            
+            tvStatus.text = booking.status.uppercase()
+
+            try {
+                val bookingDate = LocalDate.parse(booking.bookingDate)
+                val bookingTime = LocalTime.of(booking.timeSlot, 0)
+                val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
+                
+                // [关键修复] 统一使用马来西亚时区，防止时间判断出错
+                val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+                val now = LocalDateTime.now(zoneId)
+                
+                // 定义关键时间点
+                // 1. 取消截止时间：开始前1小时
+                val cancelDeadline = bookingDateTime.minusHours(1)
+                // 2. 预定结束时间：开始后1小时（假设每场1小时）
+                val endTime = bookingDateTime.plusHours(1)
+
+                if (now.isAfter(endTime)) {
+                    // --- 情况A: 预定已结束 (过期) ---
+                    // 按钮变为 "Delete"，允许点击删除记录
+                    btnCancel.isEnabled = true
+                    btnCancel.text = "Delete"
+                    btnCancel.setTextColor(Color.RED) // 或者你可以设为黑色/灰色，视设计而定
+                    btnCancel.setOnClickListener {
+                        onCancelClick(booking)
+                    }
+                } else if (now.isAfter(cancelDeadline)) {
+                    // --- 情况B: 临近开始 或 正在进行中 (不可取消) ---
+                    // 按钮变灰，禁用，显示提示文字 (如 Locked 或 Started)
+                    btnCancel.isEnabled = false
+                    btnCancel.text = "Locked" // 根据你的描述，这里不再显示 Non-cancellable，改为 Locked 或其他状态
+                    btnCancel.setTextColor(Color.GRAY)
+                } else {
+                    // --- 情况C: 还在可取消范围内 ---
+                    btnCancel.isEnabled = true
+                    btnCancel.text = "Cancel"
+                    btnCancel.setTextColor(Color.RED)
+                    btnCancel.setOnClickListener {
+                        onCancelClick(booking)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                btnCancel.isEnabled = true
+            }
+        }
+    }
+}
 ```
 
-然后添加一个检查函数 `checkAndCancelBooking`，并替换掉原来的直接调用：
+### 2\. 修改 `SportsMyBookingsFragment.kt`
+
+为了更好的用户体验，当用户点击 "Delete"（删除历史记录）时，弹出的提示框内容应该和 "Cancel"（取消未来预定）有所区别。
 
 ```kotlin
-// 假设这是你 Adapter 的回调或者点击事件处理位置
-private fun setupAdapter() {
-    // ... 原有的代码
-    val adapter = SportsBookingAdapter { booking ->
-        // [修改前] 可能直接是 viewModel.cancelBooking(booking)
-        
-        // [修改后] 改为调用检查函数
-        checkAndCancelBooking(booking)
-    }
-    // ...
-}
+// 需要导入时间相关类
+import java.time.ZoneId
+import java.time.LocalDateTime
+import java.time.LocalDate
+import java.time.LocalTime
 
-// [新增] 检查时间并取消预定的函数
-private fun checkAndCancelBooking(booking: BookingEntity) {
-    try {
-        // 1. 解析预订的日期字符串 (假设数据库存的是 "2025-11-22" 格式)
-        val bookingDate = LocalDate.parse(booking.bookingDate)
-        
-        // 2. 构建完整的预订时间点 (日期 + timeSlot小时 + 0分钟)
-        val bookingDateTime = bookingDate.atTime(booking.timeSlot, 0)
+// ... 在 Fragment 类中 ...
 
-        // 3. 获取当前系统时间 (强制使用 UTC+8 马来西亚时间，保持和预订时一致)
+    private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+        // 重新计算一下时间，以决定弹窗显示 "Cancel" 还是 "Delete"
         val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
-        val currentDateTime = LocalDateTime.now(zoneId)
+        val now = LocalDateTime.now(zoneId)
+        
+        val bookingDate = LocalDate.parse(booking.bookingDate)
+        val bookingTime = LocalTime.of(booking.timeSlot, 0)
+        val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
+        val endTime = bookingDateTime.plusHours(1)
 
-        // 4. 计算“截止取消时间”：预订时间 减去 1小时
-        // 例如：预订是 10:00，那么截止时间是 09:00
-        val cutoffTime = bookingDateTime.minusHours(1)
+        // 判断是否是“过期删除”操作
+        val isPast = now.isAfter(endTime)
 
-        // 5. 比较：如果当前时间 晚于 截止时间，则禁止取消
-        if (currentDateTime.isAfter(cutoffTime)) {
-            Toast.makeText(context, "Cannot cancel within 1 hour of booking.", Toast.LENGTH_SHORT).show()
-            return
-        }
+        // 根据状态设置弹窗文案
+        val title = if (isPast) "Delete History" else "Cancel Booking"
+        val message = if (isPast) 
+            "Do you want to delete this booking record?" 
+        else 
+            "Are you sure you want to cancel your booking for ${booking.facilityName}?"
 
-        // 6. 如果时间符合要求，执行原有的取消逻辑
-        viewModel.cancelBooking(booking)
-        Toast.makeText(context, "Booking cancelled successfully.", Toast.LENGTH_SHORT).show()
-
-    } catch (e: Exception) {
-        // 防止日期解析出错导致 App 崩溃
-        e.printStackTrace()
-        Toast.makeText(context, "Error checking booking time.", Toast.LENGTH_SHORT).show()
+        AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Yes") { _, _ ->
+                // 无论是取消还是删除，实际上都是从数据库移除该条目，所以调用同一个 ViewModel 方法即可
+                viewModel.cancelBooking(booking)
+                
+                val toastMsg = if (isPast) "Record deleted" else "Booking cancelled"
+                Toast.makeText(requireContext(), toastMsg, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("No", null)
+            .show()
     }
-}
 ```
 
-### 逻辑说明
+### 改动总结：
 
-1.  **`bookingDateTime.minusHours(1)`**: 算出最后允许取消的时间点。
-      * *示例*: 预订是 **14:00**。截止时间就是 **13:00**。
-2.  **`currentDateTime.isAfter(...)`**:
-      * 如果现在是 **13:05**，晚于 13:00 -\> **拦截**，提示不可取消。
-      * 如果现在是 **12:55**，早于 13:00 -\> **放行**，允许取消。
-      * 如果现在是 **14:30** (已过期)，晚于 13:00 -\> **拦截**，提示不可取消。
-3.  **`ZoneId`**: 同样使用了 `Asia/Kuala_Lumpur`，确保和之前修复预订功能的时区保持一致，避免因时区差异导致无法取消。
+1.  **时间分段**：引入了 `endTime` (预定时间 + 1小时)。
+2.  **状态区分**：
+      * **过去 (Delete)**: 时间 \> 结束时间。按钮变为 "Delete"，**可点击**。
+      * **锁定 (Locked)**: 截止时间 \< 时间 \< 结束时间。按钮变灰，**不可点击**。
+      * **未来 (Cancel)**: 时间 \< 截止时间。按钮为 "Cancel"，**可点击**。
+3.  **时区一致性**：使用了 `Asia/Kuala_Lumpur`，确保和之前的修复保持一致。

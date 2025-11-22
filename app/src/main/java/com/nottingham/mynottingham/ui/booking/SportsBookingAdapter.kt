@@ -12,7 +12,7 @@ import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import java.time.ZoneId // [新增] 导入 ZoneId
 
 class SportsBookingAdapter(
     private var bookings: List<BookingEntity>,
@@ -45,29 +45,43 @@ class SportsBookingAdapter(
         fun bind(booking: BookingEntity) {
             tvFacilityName.text = booking.facilityName
             
-            // 格式化时间显示: 10 -> "10:00"
             val timeString = String.format("%02d:00", booking.timeSlot)
             tvDateTime.text = "${booking.bookingDate} at $timeString"
             
             tvStatus.text = booking.status.uppercase()
 
-            // --- 核心逻辑：检查是否可以取消 ---
             try {
-                val bookingDate = LocalDate.parse(booking.bookingDate) // 假设格式 yyyy-MM-dd
-                val bookingTime = LocalTime.of(booking.timeSlot, 0)    // 10:00
+                val bookingDate = LocalDate.parse(booking.bookingDate)
+                val bookingTime = LocalTime.of(booking.timeSlot, 0)
                 val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
                 
-                val now = LocalDateTime.now()
+                // [关键修复] 统一使用马来西亚时区，防止时间判断出错
+                val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+                val now = LocalDateTime.now(zoneId)
                 
-                // 截止时间 = 预定开始时间 - 1小时
+                // 定义关键时间点
+                // 1. 取消截止时间：开始前1小时
                 val cancelDeadline = bookingDateTime.minusHours(1)
+                // 2. 预定结束时间：开始后1小时（假设每场1小时）
+                val endTime = bookingDateTime.plusHours(1)
 
-                // 如果当前时间已经过了截止时间 (即在预定前1小时内，或已经开始)
-                if (now.isAfter(cancelDeadline)) {
+                if (now.isAfter(endTime)) {
+                    // --- 情况A: 预定已结束 (过期) ---
+                    // 按钮变为 "Delete"，允许点击删除记录
+                    btnCancel.isEnabled = true
+                    btnCancel.text = "Delete"
+                    btnCancel.setTextColor(Color.RED) // 或者你可以设为黑色/灰色，视设计而定
+                    btnCancel.setOnClickListener {
+                        onCancelClick(booking)
+                    }
+                } else if (now.isAfter(cancelDeadline)) {
+                    // --- 情况B: 临近开始 或 正在进行中 (不可取消) ---
+                    // 按钮变灰，禁用，显示提示文字 (如 Locked 或 Started)
                     btnCancel.isEnabled = false
-                    btnCancel.text = "Non-cancellable"
+                    btnCancel.text = "Locked" // 根据你的描述，这里不再显示 Non-cancellable，改为 Locked 或其他状态
                     btnCancel.setTextColor(Color.GRAY)
                 } else {
+                    // --- 情况C: 还在可取消范围内 ---
                     btnCancel.isEnabled = true
                     btnCancel.text = "Cancel"
                     btnCancel.setTextColor(Color.RED)
@@ -77,7 +91,6 @@ class SportsBookingAdapter(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // 如果解析日期出错，默认允许或禁止，这里保守处理允许
                 btnCancel.isEnabled = true
             }
         }
