@@ -10,7 +10,6 @@ import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.DayType
 import com.nottingham.mynottingham.databinding.FragmentShuttleBinding
-import com.nottingham.mynottingham.util.showToast
 
 /**
  * Shuttle Bus Fragment - Display shuttle routes and schedules
@@ -45,10 +44,7 @@ class ShuttleFragment : Fragment() {
         }
 
         // Setup RecyclerView adapter; adapter internally manages expand/collapse
-        adapter = ShuttleRouteAdapter(DayType.WEEKDAY) { route ->
-            // keep existing behaviour (toast) — this will be invoked when item is clicked
-            showToast("Route ${route.routeId}: ${route.description}")
-        }
+        adapter = ShuttleRouteAdapter(DayType.WEEKDAY)
         binding.recyclerRoutes.adapter = adapter
 
         // Setup chip selection listeners
@@ -83,9 +79,7 @@ class ShuttleFragment : Fragment() {
     }
 
     private fun updateAdapter(dayType: DayType) {
-        adapter = ShuttleRouteAdapter(dayType) { route ->
-            showToast("Route ${route.routeId}: ${route.description}")
-        }
+        adapter = ShuttleRouteAdapter(dayType)
         binding.recyclerRoutes.adapter = adapter
 
         // Resubmit current routes (filtered)
