@@ -16,6 +16,8 @@ import com.nottingham.mynottingham.databinding.FragmentBookingDetailsBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
 
@@ -145,18 +147,31 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
             (binding.rvTimeSlots.adapter as? TimeSlotAdapter)?.updateBookings(bookings)
         }
     }
-
     private fun confirmBooking() {
-        // Call ViewModel to save data to database
+        val timeSlot = selectedTimeSlot
+        if (timeSlot == null) {
+            Toast.makeText(context, "Please select a time slot", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+        val currentDateTime = LocalDateTime.now(zoneId)
+
+        val bookingDateTime = selectedDate.atTime(timeSlot, 0)
+
+        if (currentDateTime.isAfter(bookingDateTime)) {
+            Toast.makeText(context, "Cannot book a time in the past.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         viewModel.saveBooking(
             facilityName = currentFacilityName,
             date = selectedDate.toString(),
-            timeSlot = selectedTimeSlot!!,
+            timeSlot = timeSlot,
             userId = currentUserId,
             userName = currentUserName,
             onSuccess = {
                 Toast.makeText(context, "Booking Successful!", Toast.LENGTH_SHORT).show()
-                // For better UX, reset selection state
                 selectedTimeSlot = null
                 binding.btnConfirmBooking.isEnabled = false
             }
