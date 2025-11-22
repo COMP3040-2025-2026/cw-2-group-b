@@ -99,7 +99,20 @@ class ErrandHomeFragment : Fragment() {
         }
 
         binding.categoryFood.setOnClickListener {
-            MapsToPostTask("Food Delivery")
+            // Navigate to Food Delivery screen
+            val parentFragment = parentFragment
+            if (parentFragment is ErrandFragment) {
+                parentFragment.childFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        com.nottingham.mynottingham.R.anim.slide_in_right,
+                        com.nottingham.mynottingham.R.anim.slide_out_left,
+                        com.nottingham.mynottingham.R.anim.slide_in_left,
+                        com.nottingham.mynottingham.R.anim.slide_out_right
+                    )
+                    .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, FoodDeliveryFragment())
+                    .addToBackStack(null)
+                    .commit()
+            }
         }
 
         binding.categoryOthers.setOnClickListener {
