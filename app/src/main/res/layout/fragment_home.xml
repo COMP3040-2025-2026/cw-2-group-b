@@ -27,7 +27,7 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="200dp"
-                android:background="@drawable/bg_gradient_primary"
+                android:background="@drawable/homebg"
                 android:padding="24dp"
                 android:clipToOutline="true">
 
