@@ -11,7 +11,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/primary"
-        app:elevation="4dp">
+        android:stateListAnimator="@null"
+        app:elevation="0dp"
+        app:liftOnScroll="false">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -307,14 +309,14 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- Available Tasks Header -->
+            <!-- Recent Tasks Header -->
             <TextView
                 android:id="@+id/tv_available_tasks"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/spacing_lg"
                 android:layout_marginTop="@dimen/spacing_xl"
-                android:text="Available Tasks"
+                android:text="Recent Tasks"
                 android:textColor="@color/text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold"

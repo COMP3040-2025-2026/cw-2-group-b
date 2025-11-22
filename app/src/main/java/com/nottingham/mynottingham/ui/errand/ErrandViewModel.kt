@@ -89,11 +89,11 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
             title = this.title,
             description = this.description,
             price = this.fee.toString(),
-            location = this.deliveryLocation,
+            location = this.location,
             requesterId = this.requesterId,
             requesterName = this.requesterName,
             requesterAvatar = "", // ErrandResponse does not have avatar
-            deadline = "", // ErrandResponse does not have deadline
+            deadline = this.deadline ?: "",
             timestamp = this.createdAt
         )
     }

@@ -91,6 +91,19 @@ interface ApiService {
         @Body request: UpdateStatusRequest
     ): Response<ErrandResponse>
 
+    @DELETE("errand/{errandId}")
+    suspend fun deleteErrand(
+        @Header("Authorization") token: String,
+        @Path("errandId") errandId: String
+    ): Response<Unit>
+
+    @PUT("errand/{errandId}")
+    suspend fun updateErrand(
+        @Header("Authorization") token: String,
+        @Path("errandId") errandId: String,
+        @Body request: CreateErrandRequest
+    ): Response<ErrandResponse>
+
     // ========== Attendance (Instatt) ==========
 
     @GET("system/time")

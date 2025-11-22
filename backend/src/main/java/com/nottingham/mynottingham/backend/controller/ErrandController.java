@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -96,6 +97,77 @@ public class ErrandController {
         return errandRepository.findById(id)
                 .map(ErrandDto::fromEntity)
                 .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Update errand status (Mark as Complete)
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ErrandDto> updateErrandStatus(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statusMap) {
+
+        return errandRepository.findById(id)
+                .map(errand -> {
+                    String newStatus = statusMap.get("status");
+                    if (newStatus != null) {
+                        try {
+                            errand.setStatus(Errand.ErrandStatus.valueOf(newStatus));
+                        } catch (IllegalArgumentException e) {
+                            // Ignore invalid status
+                        }
+                    }
+                    Errand updated = errandRepository.save(errand);
+                    return ResponseEntity.ok(ErrandDto.fromEntity(updated));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Delete errand
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteErrand(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id) {
+
+        if (errandRepository.existsById(id)) {
+            errandRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Update errand (Edit)
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ErrandDto> updateErrand(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody CreateErrandRequest request) {
+
+        return errandRepository.findById(id)
+                .map(errand -> {
+                    errand.setTitle(request.getTitle());
+                    errand.setDescription(request.getDescription());
+
+                    // Map type string to enum
+                    try {
+                        errand.setType(Errand.ErrandType.valueOf(request.getType().toUpperCase()));
+                    } catch (IllegalArgumentException e) {
+                        errand.setType(Errand.ErrandType.OTHER);
+                    }
+
+                    errand.setLocation(request.getPickupLocation());
+                    errand.setReward(request.getFee());
+                    errand.setImageUrl(request.getImageUrl());
+
+                    Errand updated = errandRepository.save(errand);
+                    return ResponseEntity.ok(ErrandDto.fromEntity(updated));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 }

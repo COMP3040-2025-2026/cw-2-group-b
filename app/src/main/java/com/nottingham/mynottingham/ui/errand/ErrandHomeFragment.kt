@@ -70,7 +70,10 @@ class ErrandHomeFragment : Fragment() {
         
         errandViewModel.tasks.observe(viewLifecycleOwner) { tasks ->
             android.util.Log.d("ErrandHomeFragment", "Received ${tasks.size} tasks from ViewModel")
-            (binding.recyclerTasks.adapter as ErrandAdapter).updateTasks(tasks)
+            // Only show first 4 tasks as preview (Home page should be lightweight)
+            val previewTasks = tasks.take(4)
+            android.util.Log.d("ErrandHomeFragment", "Showing ${previewTasks.size} preview tasks")
+            (binding.recyclerTasks.adapter as ErrandAdapter).updateTasks(previewTasks)
         }
     }
 
