@@ -16,6 +16,10 @@ import com.nottingham.mynottingham.databinding.FragmentSportsMyBookingsBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.widget.Toast
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 
 class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) {
 
@@ -84,8 +88,7 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
             .setTitle("Cancel Booking")
             .setMessage("Are you sure you want to cancel your booking for ${booking.facilityName} at ${String.format("%02d:00", booking.timeSlot)} on ${booking.bookingDate}?")
             .setPositiveButton("Yes") { _, _ ->
-                viewModel.cancelBooking(booking)
-                Toast.makeText(requireContext(), "Booking cancelled!", Toast.LENGTH_SHORT).show()
+                checkAndCancelBooking(booking)
             }
             .setNegativeButton("No", null)
             .show()
@@ -94,5 +97,27 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun checkAndCancelBooking(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+        try {
+            val bookingDate = LocalDate.parse(booking.bookingDate)
+            val bookingDateTime = bookingDate.atTime(booking.timeSlot, 0)
+            val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+            val currentDateTime = LocalDateTime.now(zoneId)
+            val cutoffTime = bookingDateTime.minusHours(1)
+
+            if (currentDateTime.isAfter(cutoffTime)) {
+                Toast.makeText(requireContext(), "Cannot cancel within 1 hour of booking.", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            viewModel.cancelBooking(booking)
+            Toast.makeText(requireContext(), "Booking cancelled successfully.", Toast.LENGTH_SHORT).show()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(requireContext(), "Error checking booking time.", Toast.LENGTH_SHORT).show()
+        }
     }
 }

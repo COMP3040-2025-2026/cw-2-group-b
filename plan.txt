@@ -1,0 +1,79 @@
+为了实现 **“预订开始前1小时内不允许取消”** 的功能，你需要修改处理“取消按钮”点击事件的代码。
+
+通常这个逻辑位于 `SportsMyBookingsFragment.kt` 中（或者你绑定 Adapter 点击事件的地方）。
+
+请按照以下步骤添加逻辑：
+
+### 1\. 修改 `SportsMyBookingsFragment.kt`
+
+找到你处理点击“取消/删除”按钮的地方，添加一个时间检查函数。
+
+你需要导入以下时间类：
+
+```kotlin
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import android.widget.Toast
+```
+
+然后添加一个检查函数 `checkAndCancelBooking`，并替换掉原来的直接调用：
+
+```kotlin
+// 假设这是你 Adapter 的回调或者点击事件处理位置
+private fun setupAdapter() {
+    // ... 原有的代码
+    val adapter = SportsBookingAdapter { booking ->
+        // [修改前] 可能直接是 viewModel.cancelBooking(booking)
+        
+        // [修改后] 改为调用检查函数
+        checkAndCancelBooking(booking)
+    }
+    // ...
+}
+
+// [新增] 检查时间并取消预定的函数
+private fun checkAndCancelBooking(booking: BookingEntity) {
+    try {
+        // 1. 解析预订的日期字符串 (假设数据库存的是 "2025-11-22" 格式)
+        val bookingDate = LocalDate.parse(booking.bookingDate)
+        
+        // 2. 构建完整的预订时间点 (日期 + timeSlot小时 + 0分钟)
+        val bookingDateTime = bookingDate.atTime(booking.timeSlot, 0)
+
+        // 3. 获取当前系统时间 (强制使用 UTC+8 马来西亚时间，保持和预订时一致)
+        val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+        val currentDateTime = LocalDateTime.now(zoneId)
+
+        // 4. 计算“截止取消时间”：预订时间 减去 1小时
+        // 例如：预订是 10:00，那么截止时间是 09:00
+        val cutoffTime = bookingDateTime.minusHours(1)
+
+        // 5. 比较：如果当前时间 晚于 截止时间，则禁止取消
+        if (currentDateTime.isAfter(cutoffTime)) {
+            Toast.makeText(context, "Cannot cancel within 1 hour of booking.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 6. 如果时间符合要求，执行原有的取消逻辑
+        viewModel.cancelBooking(booking)
+        Toast.makeText(context, "Booking cancelled successfully.", Toast.LENGTH_SHORT).show()
+
+    } catch (e: Exception) {
+        // 防止日期解析出错导致 App 崩溃
+        e.printStackTrace()
+        Toast.makeText(context, "Error checking booking time.", Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+### 逻辑说明
+
+1.  **`bookingDateTime.minusHours(1)`**: 算出最后允许取消的时间点。
+      * *示例*: 预订是 **14:00**。截止时间就是 **13:00**。
+2.  **`currentDateTime.isAfter(...)`**:
+      * 如果现在是 **13:05**，晚于 13:00 -\> **拦截**，提示不可取消。
+      * 如果现在是 **12:55**，早于 13:00 -\> **放行**，允许取消。
+      * 如果现在是 **14:30** (已过期)，晚于 13:00 -\> **拦截**，提示不可取消。
+3.  **`ZoneId`**: 同样使用了 `Asia/Kuala_Lumpur`，确保和之前修复预订功能的时区保持一致，避免因时区差异导致无法取消。
