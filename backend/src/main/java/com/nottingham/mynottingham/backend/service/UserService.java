@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.backend.service;
 
 import com.nottingham.mynottingham.backend.entity.*;
+import com.nottingham.mynottingham.backend.exception.ResourceNotFoundException;
 import com.nottingham.mynottingham.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,19 +40,24 @@ public class UserService {
     }
 
     public Student createStudent(Student student) {
-        student.setPassword(passwordEncoder.encode(student.getPassword()));
-        student.setRole(User.UserRole.STUDENT);
-        student.setStatus(User.UserStatus.ACTIVE);
-        student.setAvatarUrl("tx1");
+        initNewUser(student, User.UserRole.STUDENT);
         return studentRepository.save(student);
     }
 
     public Teacher createTeacher(Teacher teacher) {
-        teacher.setPassword(passwordEncoder.encode(teacher.getPassword()));
-        teacher.setRole(User.UserRole.TEACHER);
-        teacher.setStatus(User.UserStatus.ACTIVE);
-        teacher.setAvatarUrl("tx1");
+        initNewUser(teacher, User.UserRole.TEACHER);
         return teacherRepository.save(teacher);
+    }
+
+    /**
+     * Initialize common properties for new users
+     * Follows DRY principle to centralize user initialization logic
+     */
+    private void initNewUser(User user, User.UserRole role) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole(role);
+        user.setStatus(User.UserStatus.ACTIVE);
+        user.setAvatarUrl("tx1"); // Default avatar
     }
 
     public Optional<Student> getStudentById(Long id) {
@@ -84,7 +90,7 @@ public class UserService {
                     user.setStatus(updatedUser.getStatus());
                     return userRepository.save(user);
                 })
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
     }
 
     public void deleteUser(Long id) {

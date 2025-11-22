@@ -10,6 +10,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -22,7 +23,15 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     // Map<conversationId, Set<WebSocketSession>>
     private final Map<String, CopyOnWriteArraySet<WebSocketSession>> conversationSessions = new ConcurrentHashMap<>();
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    /**
+     * Constructor injection for ObjectMapper
+     * Uses Spring-managed ObjectMapper to ensure consistent JSON configuration
+     */
+    public MessageWebSocketHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -155,13 +164,15 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * Broadcast message to all sessions in a conversation (except sender)
+     * Uses async sending to prevent network issues from blocking other users
      */
     private void broadcastToConversation(String conversationId, WebSocketMessage message, WebSocketSession senderSession) {
         CopyOnWriteArraySet<WebSocketSession> sessions = conversationSessions.get(conversationId);
         if (sessions != null) {
             for (WebSocketSession session : sessions) {
                 if (session.isOpen() && !session.equals(senderSession)) {
-                    sendMessage(session, message);
+                    // Send asynchronously to prevent one slow connection from blocking others
+                    CompletableFuture.runAsync(() -> sendMessage(session, message));
                 }
             }
         }
@@ -169,13 +180,14 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * Send message to specific user (all their sessions)
+     * Uses async sending for better performance
      */
     public void sendToUser(String userId, WebSocketMessage message) {
         CopyOnWriteArraySet<WebSocketSession> sessions = userSessions.get(userId);
         if (sessions != null) {
             for (WebSocketSession session : sessions) {
                 if (session.isOpen()) {
-                    sendMessage(session, message);
+                    CompletableFuture.runAsync(() -> sendMessage(session, message));
                 }
             }
         }
@@ -183,13 +195,14 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * Send message to all users in a conversation
+     * Uses async sending for better performance
      */
     public void sendToConversation(String conversationId, WebSocketMessage message) {
         CopyOnWriteArraySet<WebSocketSession> sessions = conversationSessions.get(conversationId);
         if (sessions != null) {
             for (WebSocketSession session : sessions) {
                 if (session.isOpen()) {
-                    sendMessage(session, message);
+                    CompletableFuture.runAsync(() -> sendMessage(session, message));
                 }
             }
         }
