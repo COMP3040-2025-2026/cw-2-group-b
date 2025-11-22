@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.flatMapLatest
  * ViewModel for Forum (post list) screen
  * Extends BaseViewModel for common utilities
  */
-class ForumViewModel(application: Application) : BaseViewModel() {
+class ForumViewModel(application: Application) : BaseViewModel(application) {
 
     private val repository = ForumRepository(application)
 
@@ -96,9 +96,13 @@ class ForumViewModel(application: Application) : BaseViewModel() {
      * Clean old cached data
      */
     fun cleanOldCache() {
-        viewModelScope.launch {
-            repository.cleanOldCache()
-        }
+        launchOperation(
+            block = {
+                repository.cleanOldCache()
+                Result.success(Unit)
+            },
+            onSuccess = { }
+        )
     }
 
 }

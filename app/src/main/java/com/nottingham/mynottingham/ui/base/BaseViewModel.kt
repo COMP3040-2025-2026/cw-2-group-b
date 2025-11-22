@@ -1,8 +1,9 @@
 package com.nottingham.mynottingham.ui.base
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
  * - Error handling
  * - Result processing
  */
-abstract class BaseViewModel : ViewModel() {
+abstract class BaseViewModel(application: Application) : AndroidViewModel(application) {
 
     // Loading state
     protected val _loading = MutableLiveData<Boolean>(false)

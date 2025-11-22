@@ -54,6 +54,9 @@ class ForumRepository(private val context: Context) {
     ): Result<PagedForumResponse> {
         return networkBoundResource(
             apiCall = { apiService.getForumPosts("Bearer $token", page, size, category) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { data ->
                 val entities = data.posts.map { it.toEntity() }
                 forumDao.insertPosts(entities)
@@ -67,6 +70,9 @@ class ForumRepository(private val context: Context) {
     suspend fun getPostDetail(token: String, postId: Long): Result<ForumPostDetailDto> {
         return networkBoundResource(
             apiCall = { apiService.getForumPostById("Bearer $token", postId) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { data ->
                 forumDao.insertPost(data.post.toEntity())
                 val commentEntities = data.comments.map { it.toEntity() }
@@ -138,6 +144,9 @@ class ForumRepository(private val context: Context) {
     ): Result<ForumPostDto> {
         return networkBoundResource(
             apiCall = { apiService.updateForumPost("Bearer $token", postId, request) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { post ->
                 forumDao.insertPost(post.toEntity())
             }
@@ -150,6 +159,8 @@ class ForumRepository(private val context: Context) {
     suspend fun deletePost(token: String, postId: Long): Result<Unit> {
         return networkBoundResourceNoData(
             apiCall = { apiService.deleteForumPost("Bearer $token", postId) },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             onSuccess = {
                 forumDao.deletePostById(postId)
                 forumDao.deleteCommentsByPostId(postId)
@@ -163,6 +174,9 @@ class ForumRepository(private val context: Context) {
     suspend fun likePost(token: String, postId: Long): Result<ForumPostDto> {
         return networkBoundResource(
             apiCall = { apiService.likeForumPost("Bearer $token", postId) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { post ->
                 forumDao.updatePostLikeStatus(postId, post.likes, post.isLikedByCurrentUser)
             }
@@ -181,6 +195,9 @@ class ForumRepository(private val context: Context) {
     ): Result<ForumCommentDto> {
         return networkBoundResource(
             apiCall = { apiService.createForumComment("Bearer $token", postId, request) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { comment ->
                 forumDao.insertComment(comment.toEntity())
             }
@@ -193,6 +210,9 @@ class ForumRepository(private val context: Context) {
     suspend fun likeComment(token: String, commentId: Long): Result<ForumCommentDto> {
         return networkBoundResource(
             apiCall = { apiService.likeForumComment("Bearer $token", commentId) },
+            extractData = { it.data },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
             saveFetchResult = { comment ->
                 forumDao.updateCommentLikeStatus(commentId, comment.likes, comment.isLikedByCurrentUser)
             }
