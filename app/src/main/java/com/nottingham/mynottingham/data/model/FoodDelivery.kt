@@ -25,30 +25,6 @@ data class MenuCategory(
 )
 
 /**
- * Menu item (food/dish)
- */
-data class MenuItem(
-    val id: String,
-    val categoryId: String,
-    val name: String,
-    val description: String,
-    val price: Double,
-    val imageUrl: String? = null,
-    val isAvailable: Boolean = true
-)
-
-/**
- * Cart item
- */
-data class CartItem(
-    val menuItem: MenuItem,
-    var quantity: Int = 1
-) {
-    val totalPrice: Double
-        get() = menuItem.price * quantity
-}
-
-/**
  * Shopping cart
  */
 data class ShoppingCart(

@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentFoodDeliveryBinding
+import com.nottingham.mynottingham.ui.errand.RestaurantMenuFragment
 
 class FoodDeliveryFragment : Fragment() {
 
@@ -40,8 +41,17 @@ class FoodDeliveryFragment : Fragment() {
     private fun setupRestaurantClicks() {
         // Chinese Restaurant
         binding.cardRestaurantChinese.setOnClickListener {
-            // TODO: Navigate to RestaurantMenuFragment with restaurant data
-            // For now, just navigate back to demonstrate navigation works
+            // Navigate to RestaurantMenuFragment
+            parentFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    com.nottingham.mynottingham.R.anim.slide_in_right,
+                    com.nottingham.mynottingham.R.anim.slide_out_left,
+                    com.nottingham.mynottingham.R.anim.slide_in_left,
+                    com.nottingham.mynottingham.R.anim.slide_out_right
+                )
+                .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, RestaurantMenuFragment())
+                .addToBackStack(null)
+                .commit()
         }
 
         // Western Restaurant
