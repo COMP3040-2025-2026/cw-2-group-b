@@ -70,6 +70,7 @@ class ForumAdapter(
                         .placeholder(R.drawable.ic_placeholder)
                         .error(R.drawable.ic_placeholder)
                         .centerCrop()
+                        .dontAnimate() // Prevent animation conflicts with RecyclerView animations
                         .into(ivPostImage)
                 } else {
                     ivPostImage.isVisible = false

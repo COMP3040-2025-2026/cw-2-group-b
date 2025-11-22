@@ -71,7 +71,8 @@ class ForumFragment : Fragment() {
         binding.recyclerPosts.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = this@ForumFragment.adapter
-            setHasFixedSize(true)
+            setHasFixedSize(true) // Items have fixed size, improves performance
+            itemAnimator = null // Disable default animations to prevent flickering
         }
     }
 
@@ -159,8 +160,9 @@ class ForumFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh posts when returning to fragment (e.g., after creating a new post)
-        loadPosts(refresh = true)
+        // Don't auto-refresh to prevent flickering
+        // Users can use pull-to-refresh if needed
+        // loadPosts(refresh = true)
     }
 
     override fun onDestroyView() {
