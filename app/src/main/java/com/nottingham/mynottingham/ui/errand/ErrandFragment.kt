@@ -82,6 +82,16 @@ class ErrandFragment : Fragment() {
     }
 
     private fun loadFragment(fragment: Fragment) {
+        // [修复开始] 关键修改：
+        // 在切换 Tab 加载新 Fragment 之前，清空所有的回退栈历史。
+        // 这防止了用户在 "Food Delivery" -> "Tasks" -> "Home" 之后，
+        // 点击返回按钮却又跳回 "Food Delivery" 或原地刷新的问题。
+        if (childFragmentManager.backStackEntryCount > 0) {
+            val firstEntry = childFragmentManager.getBackStackEntryAt(0)
+            childFragmentManager.popBackStack(firstEntry.id, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        }
+        // [修复结束]
+
         childFragmentManager.beginTransaction()
             .setCustomAnimations(
                 R.anim.fade_in,

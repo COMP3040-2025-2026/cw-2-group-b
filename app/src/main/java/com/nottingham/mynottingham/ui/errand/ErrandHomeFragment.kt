@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.nottingham.mynottingham.databinding.FragmentErrandHomeBinding
 
 import androidx.fragment.app.activityViewModels
@@ -78,9 +79,23 @@ class ErrandHomeFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
-        // Back button
+        // Back button - navigate back to Home using NavController
         binding.btnBack.setOnClickListener {
-            requireActivity().onBackPressed()
+            // Check if parent ErrandFragment has any child fragments in back stack
+            val parentFragment = parentFragment
+            if (parentFragment is ErrandFragment) {
+                val childBackStackCount = parentFragment.childFragmentManager.backStackEntryCount
+                if (childBackStackCount > 0) {
+                    // Pop child fragment stack
+                    parentFragment.childFragmentManager.popBackStack()
+                } else {
+                    // No child fragments, navigate back using main NavController
+                    findNavController().navigateUp()
+                }
+            } else {
+                // Fallback: use main NavController
+                findNavController().navigateUp()
+            }
         }
 
         // See All button
