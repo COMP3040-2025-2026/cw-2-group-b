@@ -31,10 +31,30 @@ class ErrandFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupBottomNavigation()
+        setupBackStackListener() // [新增] 设置回退栈监听
 
         // Load home fragment by default
         if (savedInstanceState == null) {
             loadFragment(ErrandHomeFragment())
+        }
+    }
+
+    private fun setupBackStackListener() {
+        childFragmentManager.addOnBackStackChangedListener {
+            val shouldHideBottomNav = childFragmentManager.backStackEntryCount > 0
+
+            // 1. 控制导航栏的显示/隐藏
+            binding.errandBottomNav.visibility = if (shouldHideBottomNav) View.GONE else View.VISIBLE
+
+            // 2. 动态调整容器的底部边距 (Margin)
+            // 如果隐藏导航栏，底部边距设为 0；否则设为 72dp (与 xml 中的高度一致)
+            val params = binding.errandFragmentContainer.layoutParams as androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams
+
+            val density = resources.displayMetrics.density
+            val marginInDp = if (shouldHideBottomNav) 0 else 72
+            params.bottomMargin = (marginInDp * density).toInt()
+
+            binding.errandFragmentContainer.layoutParams = params
         }
     }
 
@@ -82,15 +102,11 @@ class ErrandFragment : Fragment() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        // [修复开始] 关键修改：
-        // 在切换 Tab 加载新 Fragment 之前，清空所有的回退栈历史。
-        // 这防止了用户在 "Food Delivery" -> "Tasks" -> "Home" 之后，
-        // 点击返回按钮却又跳回 "Food Delivery" 或原地刷新的问题。
+        // [修复] 切换 Tab 时清空回退栈，防止从详情页直接切 Tab 导致的逻辑混乱
         if (childFragmentManager.backStackEntryCount > 0) {
             val firstEntry = childFragmentManager.getBackStackEntryAt(0)
             childFragmentManager.popBackStack(firstEntry.id, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         }
-        // [修复结束]
 
         childFragmentManager.beginTransaction()
             .setCustomAnimations(

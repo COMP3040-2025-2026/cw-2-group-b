@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.navigation.fragment.findNavController
+// import androidx.navigation.fragment.findNavController // [移除] 不需要 Navigation Component
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.data.model.MenuItem
@@ -37,8 +37,9 @@ class RestaurantMenuFragment : Fragment() {
         setupRecyclerViews()
         setupObservers()
         setupScrollListeners()
-        
-        binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
+
+        // [修复] 使用 parentFragmentManager 处理手动事务的返回
+        binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
         binding.btnViewCart.setOnClickListener { showCartSummary() }
     }
 
@@ -52,7 +53,7 @@ class RestaurantMenuFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = categoryAdapter
         }
-        
+
         // Menu RecyclerView (Right)
         menuLayoutManager = LinearLayoutManager(context)
         menuAdapter = FoodMenuAdapter(
@@ -84,7 +85,7 @@ class RestaurantMenuFragment : Fragment() {
 
         // Observe cart quantity changes
         viewModel.cartQuantities.observe(viewLifecycleOwner) { quantities ->
-           menuAdapter.updateQuantities(quantities)
+            menuAdapter.updateQuantities(quantities)
         }
 
         // Observe cart summary
@@ -114,7 +115,7 @@ class RestaurantMenuFragment : Fragment() {
                             is MenuItem -> item.category
                             else -> null
                         }
-                        
+
                         if (categoryName != null) {
                             val categoryIndex = viewModel.categories.value?.indexOf(categoryName)
                             if (categoryIndex != null && categoryIndex != -1) {
@@ -133,7 +134,7 @@ class RestaurantMenuFragment : Fragment() {
         val menuList = viewModel.menuListWithHeaders.value ?: return
 
         val positionInMenuList = menuList.indexOf(categoryName)
-        
+
         if (positionInMenuList != -1) {
             isUserScrolling = false // Disable listener to prevent loop
             menuLayoutManager.scrollToPositionWithOffset(positionInMenuList, 0)
@@ -146,14 +147,15 @@ class RestaurantMenuFragment : Fragment() {
 
     private fun showCartSummary() {
         val total = viewModel.totalPrice.value ?: 0.0
-        
+
         AlertDialog.Builder(requireContext())
             .setTitle("Checkout")
             .setMessage("Confirm order for RM ${String.format("%.2f", total)}?\n(Includes Delivery Fee)")
             .setPositiveButton("Place Order") { _, _ ->
                 viewModel.placeOrder("user_123", "Dorm Room 305")
                 Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
-                findNavController().navigateUp()
+                // [修复] 使用 parentFragmentManager 处理返回
+                parentFragmentManager.popBackStack()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -164,4 +166,3 @@ class RestaurantMenuFragment : Fragment() {
         _binding = null
     }
 }
-
