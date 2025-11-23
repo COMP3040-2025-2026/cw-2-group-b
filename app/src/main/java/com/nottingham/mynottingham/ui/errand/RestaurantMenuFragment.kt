@@ -8,11 +8,14 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-// import androidx.navigation.fragment.findNavController // [移除] 不需要 Navigation Component
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AppCompatActivity
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import com.nottingham.mynottingham.R
-import com.nottingham.mynottingham.data.model.MenuItem
+import com.nottingham.mynottingham.data.model.MenuItem as DataMenuItem
 import com.nottingham.mynottingham.databinding.FragmentRestaurantMenuBinding
 
 class RestaurantMenuFragment : Fragment() {
@@ -29,19 +32,42 @@ class RestaurantMenuFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRestaurantMenuBinding.inflate(inflater, container, false)
+        setHasOptionsMenu(true) // Enable options menu
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        (activity as? AppCompatActivity)?.setSupportActionBar(binding.toolbar)
+        (activity as? AppCompatActivity)?.supportActionBar?.setDisplayShowTitleEnabled(false)
+
         setupRecyclerViews()
         setupObservers()
         setupScrollListeners()
 
         // [修复] 使用 parentFragmentManager 处理手动事务的返回
-        binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
+        // The user wants a back button in the top right, which will be handled by the menu item.
+        // The existing navigation icon is usually on the left.
+        // If the user wants to keep the left navigation button, this line can remain.
+        // For now, I will comment it out as the request is specifically for a right-side button via menu.
+        // binding.toolbar.setNavigationOnClickListener { parentFragmentManager.popBackStack() }
         binding.btnViewCart.setOnClickListener { showCartSummary() }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.toolbar_back_menu, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_back -> {
+                parentFragmentManager.popBackStack()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupRecyclerViews() {
@@ -60,8 +86,8 @@ class RestaurantMenuFragment : Fragment() {
         menuAdapter = FoodMenuAdapter(
             items = listOf<Any>(),
             cartQuantities = emptyMap(),
-            onItemClick = { menuItem ->
-                val fragment = FoodMenuItemDetailFragment.newInstance(menuItem)
+            onItemClick = { dataMenuItem ->
+                val fragment = FoodMenuItemDetailFragment.newInstance(dataMenuItem)
                 parentFragmentManager.beginTransaction()
                     .replace(R.id.errand_fragment_container, fragment)
                     .addToBackStack(null)
@@ -120,7 +146,7 @@ class RestaurantMenuFragment : Fragment() {
                         val item = viewModel.menuListWithHeaders.value?.get(firstVisibleItemPosition)
                         val categoryName = when(item) {
                             is String -> item
-                            is MenuItem -> item.category
+                            is DataMenuItem -> item.category
                             else -> null
                         }
 
