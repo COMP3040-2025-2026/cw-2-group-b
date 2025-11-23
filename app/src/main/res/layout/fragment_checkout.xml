@@ -117,6 +117,44 @@
                         style="@style/TextAppearance.MaterialComponents.Subtitle1"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="Delivery Time"
+                        android:textColor="@color/text_primary"
+                        android:textStyle="bold"/>
+                    <RadioGroup
+                        android:id="@+id/rg_delivery_time"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
+                        <RadioButton
+                            android:id="@+id/rb_delivery_asap"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="ASAP (within 30 mins) - RM 2.00 extra"
+                            android:checked="true"/>
+                        <RadioButton
+                            android:id="@+id/rb_delivery_1_hour"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Within 1 hour - RM 0.00 extra"/>
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+                    <TextView
+                        style="@style/TextAppearance.MaterialComponents.Subtitle1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="Payment Method"
                         android:textColor="@color/text_primary"
                         android:textStyle="bold"/>

@@ -66,6 +66,18 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
     private val _totalCount = MutableLiveData(0)
     val totalCount: LiveData<Int> = _totalCount
 
+    private val _selectedDeliveryTime = MutableLiveData<String>()
+    val selectedDeliveryTime: LiveData<String> = _selectedDeliveryTime
+
+    private val _selectedDeliveryExtraFee = MutableLiveData(0.0)
+    val selectedDeliveryExtraFee: LiveData<Double> = _selectedDeliveryExtraFee
+
+    fun setDeliveryOption(deliveryTime: String, extraFee: Double) {
+        _selectedDeliveryTime.value = deliveryTime
+        _selectedDeliveryExtraFee.value = extraFee
+        calculateTotals(_cartQuantities.value ?: emptyMap()) // Recalculate totals with new delivery extra fee
+    }
+
     fun addItem(item: MenuItem) {
         updateCart(item, 1)
     }
@@ -107,26 +119,27 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
             }
         }
 
-        val deliveryFeeValue = if (count > 0) {
+        // Base delivery fee (e.g., standard flat fee or based on subtotal, excluding extra fee)
+        val baseDeliveryFee = if (count > 0) {
             when {
                 subtotalValue > 50.0 -> 0.0 // Free delivery for subtotals over RM 50
-                else -> {
-                    val calculatedFee = subtotalValue * 0.10 // 10% of subtotal
-                    calculatedFee.coerceIn(2.0, 5.0) // Clamp fee between RM 2.00 and RM 5.00
-                }
+                else -> 2.0 // Standard delivery fee
             }
         } else {
             0.0
         }
+        
+        // Add selected delivery option's extra fee
+        val totalDeliveryFee = baseDeliveryFee + (_selectedDeliveryExtraFee.value ?: 0.0)
 
         _subtotal.value = subtotalValue
-        _deliveryFee.value = deliveryFeeValue
-        _totalPrice.value = subtotalValue + deliveryFeeValue
+        _deliveryFee.value = totalDeliveryFee
+        _totalPrice.value = subtotalValue + totalDeliveryFee
         _totalCount.value = count
         _cartItems.value = itemsList
     }
 
-    fun placeOrder(userId: String, address: String, contact: String, paymentMethod: String) {
+    fun placeOrder(userId: String, address: String, contact: String, paymentMethod: String, deliveryTime: String) {
         val items = _cartItems.value ?: return
         if (items.isEmpty()) return
 
@@ -137,6 +150,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 sb.append("- ${it.menuItem.name} x${it.quantity}\n") 
             }
             sb.append(String.format("\nDelivery Fee: RM %.2f", _deliveryFee.value ?: 0.0))
+            sb.append("\nDelivery Time: $deliveryTime")
             sb.append("\nContact: $contact")
             sb.append("\nPayment: $paymentMethod")
 
