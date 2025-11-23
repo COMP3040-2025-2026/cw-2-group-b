@@ -31,6 +31,21 @@ class CheckoutFragment : Fragment() {
 
         setupToolbar()
         setupClickListeners()
+        setupObservers()
+    }
+
+    private fun setupObservers() {
+        viewModel.subtotal.observe(viewLifecycleOwner) { subtotal ->
+            binding.tvSubtotal.text = String.format("RM %.2f", subtotal)
+        }
+
+        viewModel.deliveryFee.observe(viewLifecycleOwner) { fee ->
+            binding.tvDeliveryFee.text = String.format("RM %.2f", fee)
+        }
+
+        viewModel.totalPrice.observe(viewLifecycleOwner) { total ->
+            binding.tvTotal.text = String.format("RM %.2f", total)
+        }
     }
 
     private fun setupToolbar() {
