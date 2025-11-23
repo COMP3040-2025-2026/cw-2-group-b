@@ -30,8 +30,25 @@ class CheckoutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupToolbar()
+        setupDeliveryTimeSelection() // New: Setup delivery time selection
         setupClickListeners()
         setupObservers()
+    }
+
+    private fun setupDeliveryTimeSelection() {
+        // Set initial delivery option (ASAP is default checked)
+        viewModel.setDeliveryOption("ASAP (within 30 mins)", 2.0)
+
+        binding.rgDeliveryTime.setOnCheckedChangeListener { group, checkedId ->
+            when (checkedId) {
+                R.id.rb_delivery_asap -> {
+                    viewModel.setDeliveryOption("ASAP (within 30 mins)", 2.0)
+                }
+                R.id.rb_delivery_1_hour -> {
+                    viewModel.setDeliveryOption("Within 1 hour", 0.0)
+                }
+            }
+        }
     }
 
     private fun setupObservers() {
@@ -66,8 +83,11 @@ class CheckoutFragment : Fragment() {
             val selectedPaymentId = binding.rgPaymentMethod.checkedRadioButtonId
             val paymentMethod = view?.findViewById<RadioButton>(selectedPaymentId)?.text.toString()
 
+            val selectedDeliveryTimeId = binding.rgDeliveryTime.checkedRadioButtonId
+            val deliveryTime = view?.findViewById<RadioButton>(selectedDeliveryTimeId)?.text.toString()
+
             // Call the updated placeOrder method
-            viewModel.placeOrder("user_123", address, phone, paymentMethod)
+            viewModel.placeOrder("user_123", address, phone, paymentMethod, deliveryTime)
 
             Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
             
