@@ -30,8 +30,12 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 val response = RetrofitInstance.apiService.getAvailableErrands()
                 if (response.isSuccessful) {
                     response.body()?.let { errands ->
-                        val taskList = errands.map { it.toErrandTask() }
-                        Log.d("ErrandViewModel", "Loaded ${taskList.size} tasks from backend")
+                        // ✅ 新增：只保留状态为 "PENDING" 的任务
+                        // 这样 "IN_PROGRESS" (已接单) 和 "COMPLETED" 的任务就会被自动过滤掉
+                        val filteredErrands = errands.filter { it.status == "PENDING" }
+
+                        val taskList = filteredErrands.map { it.toErrandTask() }
+                        Log.d("ErrandViewModel", "Loaded ${taskList.size} tasks (filtered) from backend")
                         _tasks.postValue(taskList)
                     }
                 } else {
