@@ -51,6 +51,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
 
     // 购物车详细信息 (用于计算总价和下单)
     private val _cartItems = MutableLiveData<List<CartItem>>(emptyList())
+    val cartItems: LiveData<List<CartItem>> = _cartItems
     
     // 总价和总数
     private val _totalPrice = MutableLiveData(0.0)

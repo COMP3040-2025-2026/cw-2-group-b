@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import androidx.fragment.app.activityViewModels
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.MenuItem as DataMenuItem
 import com.nottingham.mynottingham.databinding.FragmentRestaurantMenuBinding
@@ -22,7 +23,7 @@ class RestaurantMenuFragment : Fragment() {
 
     private var _binding: FragmentRestaurantMenuBinding? = null
     private val binding get() = _binding!!
-    private val viewModel: RestaurantMenuViewModel by viewModels()
+    private val viewModel: RestaurantMenuViewModel by activityViewModels()
     private lateinit var menuAdapter: FoodMenuAdapter
     private lateinit var categoryAdapter: CategoryAdapter
     private lateinit var menuLayoutManager: LinearLayoutManager
@@ -180,19 +181,10 @@ class RestaurantMenuFragment : Fragment() {
     }
 
     private fun showCartSummary() {
-        val total = viewModel.totalPrice.value ?: 0.0
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Checkout")
-            .setMessage("Confirm order for RM ${String.format("%.2f", total)}?\n(Includes Delivery Fee)")
-            .setPositiveButton("Place Order") { _, _ ->
-                viewModel.placeOrder("user_123", "Dorm Room 305")
-                Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
-                // [修复] 使用 parentFragmentManager 处理返回
-                parentFragmentManager.popBackStack()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.errand_fragment_container, CartFragment())
+            .addToBackStack(null)
+            .commit()
     }
 
     override fun onDestroyView() {
