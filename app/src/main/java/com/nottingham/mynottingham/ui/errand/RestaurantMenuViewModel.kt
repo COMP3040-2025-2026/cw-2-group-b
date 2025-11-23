@@ -53,7 +53,13 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
     private val _cartItems = MutableLiveData<List<CartItem>>(emptyList())
     val cartItems: LiveData<List<CartItem>> = _cartItems
     
-    // 总价和总数
+    // 价格详情
+    private val _subtotal = MutableLiveData(0.0)
+    val subtotal: LiveData<Double> = _subtotal
+
+    private val _deliveryFee = MutableLiveData(0.0)
+    val deliveryFee: LiveData<Double> = _deliveryFee
+
     private val _totalPrice = MutableLiveData(0.0)
     val totalPrice: LiveData<Double> = _totalPrice
     
@@ -88,23 +94,34 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
     }
 
     private fun calculateTotals(qtyMap: Map<String, Int>) {
-        var total = 0.0
+        var subtotalValue = 0.0
         var count = 0
         val itemsList = mutableListOf<CartItem>()
 
         qtyMap.forEach { (id, qty) ->
             val menuItem = menuItems.find { it.id == id }
             if (menuItem != null) {
-                total += menuItem.price * qty
+                subtotalValue += menuItem.price * qty
                 count += qty
                 itemsList.add(CartItem(menuItem, qty))
             }
         }
-        
-        // 加上 RM 2.00 运费 (如果有商品)
-        if (count > 0) total += 2.00
 
-        _totalPrice.value = total
+        val deliveryFeeValue = if (count > 0) {
+            when {
+                subtotalValue > 50.0 -> 0.0 // Free delivery for subtotals over RM 50
+                else -> {
+                    val calculatedFee = subtotalValue * 0.10 // 10% of subtotal
+                    calculatedFee.coerceIn(2.0, 5.0) // Clamp fee between RM 2.00 and RM 5.00
+                }
+            }
+        } else {
+            0.0
+        }
+
+        _subtotal.value = subtotalValue
+        _deliveryFee.value = deliveryFeeValue
+        _totalPrice.value = subtotalValue + deliveryFeeValue
         _totalCount.value = count
         _cartItems.value = itemsList
     }
@@ -119,7 +136,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
             items.forEach { 
                 sb.append("- ${it.menuItem.name} x${it.quantity}\n") 
             }
-            sb.append("\nDelivery Fee: RM 2.00")
+            sb.append(String.format("\nDelivery Fee: RM %.2f", _deliveryFee.value ?: 0.0))
 
             val errand = ErrandEntity(
                 id = UUID.randomUUID().toString(),

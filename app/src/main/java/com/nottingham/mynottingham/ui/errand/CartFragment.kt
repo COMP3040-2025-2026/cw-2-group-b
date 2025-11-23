@@ -58,19 +58,16 @@ class CartFragment : Fragment() {
             }
         }
 
+        viewModel.subtotal.observe(viewLifecycleOwner) { subtotal ->
+            binding.tvSubtotal.text = String.format("RM %.2f", subtotal)
+        }
+
+        viewModel.deliveryFee.observe(viewLifecycleOwner) { fee ->
+            binding.tvDeliveryFee.text = String.format("RM %.2f", fee)
+        }
+
         viewModel.totalPrice.observe(viewLifecycleOwner) { total ->
-            if (total > 0) {
-                // Assuming a fixed delivery fee of 2.00, as in the ViewModel
-                val deliveryFee = 2.00
-                val subtotal = total - deliveryFee
-                binding.tvSubtotal.text = String.format("RM %.2f", subtotal)
-                binding.tvDeliveryFee.text = String.format("RM %.2f", deliveryFee)
-                binding.tvTotal.text = String.format("RM %.2f", total)
-            } else {
-                binding.tvSubtotal.text = "RM 0.00"
-                binding.tvDeliveryFee.text = "RM 0.00"
-                binding.tvTotal.text = "RM 0.00"
-            }
+            binding.tvTotal.text = String.format("RM %.2f", total)
         }
     }
 
