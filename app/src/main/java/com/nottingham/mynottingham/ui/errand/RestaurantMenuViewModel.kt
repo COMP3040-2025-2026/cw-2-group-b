@@ -126,7 +126,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         _cartItems.value = itemsList
     }
 
-    fun placeOrder(userId: String, address: String) {
+    fun placeOrder(userId: String, address: String, contact: String, paymentMethod: String) {
         val items = _cartItems.value ?: return
         if (items.isEmpty()) return
 
@@ -137,6 +137,8 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 sb.append("- ${it.menuItem.name} x${it.quantity}\n") 
             }
             sb.append(String.format("\nDelivery Fee: RM %.2f", _deliveryFee.value ?: 0.0))
+            sb.append("\nContact: $contact")
+            sb.append("\nPayment: $paymentMethod")
 
             val errand = ErrandEntity(
                 id = UUID.randomUUID().toString(),

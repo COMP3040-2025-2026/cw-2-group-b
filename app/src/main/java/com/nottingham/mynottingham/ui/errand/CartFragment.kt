@@ -73,11 +73,10 @@ class CartFragment : Fragment() {
 
     private fun setupClickListeners() {
         binding.btnPlaceOrder.setOnClickListener {
-            viewModel.placeOrder("user_123", "Dorm Room 305")
-            Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
-            // Pop back to the restaurant list or main screen
-            parentFragmentManager.popBackStack() // Pops CartFragment
-            parentFragmentManager.popBackStack() // Pops RestaurantMenuFragment
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.errand_fragment_container, CheckoutFragment())
+                .addToBackStack(null)
+                .commit()
         }
     }
 

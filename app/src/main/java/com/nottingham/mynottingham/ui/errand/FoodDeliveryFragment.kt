@@ -49,8 +49,8 @@ class FoodDeliveryFragment : Fragment() {
                     com.nottingham.mynottingham.R.anim.slide_in_left,
                     com.nottingham.mynottingham.R.anim.slide_out_right
                 )
-                .replace(com.nottingham.mynottingham.R.id.errand_fragment_container, RestaurantMenuFragment())
-                .addToBackStack(null)
+                .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
+                .addToBackStack("restaurant_list")
                 .commit()
         }
 
