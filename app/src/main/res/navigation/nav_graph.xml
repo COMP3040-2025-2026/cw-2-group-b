@@ -240,4 +240,14 @@
         android:label="Instatt"
         tools:layout="@layout/fragment_instatt" />
 
+    <fragment
+        android:id="@+id/foodMenuItemDetailFragment"
+        android:name="com.nottingham.mynottingham.ui.errand.FoodMenuItemDetailFragment"
+        android:label="Food Details"
+        tools:layout="@layout/fragment_food_menu_item_detail">
+        <argument
+            android:name="menuItem"
+            app:argType="com.nottingham.mynottingham.data.model.MenuItem" />
+    </fragment>
+
 </navigation>

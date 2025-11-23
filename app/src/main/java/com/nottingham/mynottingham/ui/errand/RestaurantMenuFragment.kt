@@ -11,6 +11,7 @@ import androidx.fragment.app.viewModels
 // import androidx.navigation.fragment.findNavController // [移除] 不需要 Navigation Component
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.MenuItem
 import com.nottingham.mynottingham.databinding.FragmentRestaurantMenuBinding
 
@@ -59,6 +60,13 @@ class RestaurantMenuFragment : Fragment() {
         menuAdapter = FoodMenuAdapter(
             items = listOf<Any>(),
             cartQuantities = emptyMap(),
+            onItemClick = { menuItem ->
+                val fragment = FoodMenuItemDetailFragment.newInstance(menuItem)
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.errand_fragment_container, fragment)
+                    .addToBackStack(null)
+                    .commit()
+            },
             onAddClick = { viewModel.addItem(it) },
             onPlusClick = { viewModel.increaseItem(it) },
             onMinusClick = { viewModel.decreaseItem(it) }

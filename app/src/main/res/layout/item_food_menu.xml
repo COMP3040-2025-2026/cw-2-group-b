@@ -38,23 +38,8 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toStartOf="@+id/layout_action_area"
             app:layout_constraintStart_toEndOf="@id/iv_food_image"
-            app:layout_constraintTop_toTopOf="@id/iv_food_image" />
-
-        <TextView
-            android:id="@+id/tv_food_desc"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="8dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:text="Traditional beef noodle with rich broth"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toStartOf="@+id/layout_action_area"
-            app:layout_constraintStart_toEndOf="@id/iv_food_image"
-            app:layout_constraintTop_toBottomOf="@id/tv_food_name" />
+            app:layout_constraintTop_toTopOf="@id/iv_food_image"
+            app:layout_constraintBottom_toTopOf="@+id/tv_food_price"/>
 
         <TextView
             android:id="@+id/tv_food_price"
@@ -66,7 +51,8 @@
             android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="@id/iv_food_image"
-            app:layout_constraintStart_toEndOf="@id/iv_food_image" />
+            app:layout_constraintStart_toEndOf="@id/iv_food_image"
+            app:layout_constraintTop_toBottomOf="@id/tv_food_name"/>
 
         <FrameLayout
             android:id="@+id/layout_action_area"

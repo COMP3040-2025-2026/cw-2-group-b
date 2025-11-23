@@ -11,6 +11,7 @@ import com.nottingham.mynottingham.databinding.ItemFoodMenuBinding
 class FoodMenuAdapter(
     private var items: List<Any>,
     private var cartQuantities: Map<String, Int>,
+    private val onItemClick: (MenuItem) -> Unit, // Add this line
     private val onAddClick: (MenuItem) -> Unit,
     private val onMinusClick: (MenuItem) -> Unit,
     private val onPlusClick: (MenuItem) -> Unit
@@ -58,7 +59,6 @@ class FoodMenuAdapter(
 
                 with(holder.binding) {
                     tvFoodName.text = item.name
-                    tvFoodDesc.text = item.description
                     tvFoodPrice.text = String.format("RM %.2f", item.price)
                     ivFoodImage.setImageResource(getImageResId(item.name))
 
@@ -75,6 +75,8 @@ class FoodMenuAdapter(
                     btnPlus.setOnClickListener { onPlusClick(item) }
                     btnMinus.setOnClickListener { onMinusClick(item) }
                 }
+
+                holder.itemView.setOnClickListener { onItemClick(item) }
             }
         }
     }
