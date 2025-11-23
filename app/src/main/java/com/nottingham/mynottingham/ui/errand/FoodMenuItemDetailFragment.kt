@@ -5,10 +5,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
 import com.nottingham.mynottingham.data.model.MenuItem
 import com.nottingham.mynottingham.databinding.FragmentFoodMenuItemDetailBinding
 
@@ -17,7 +15,7 @@ class FoodMenuItemDetailFragment : Fragment() {
     private var _binding: FragmentFoodMenuItemDetailBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: RestaurantMenuViewModel by activityViewModels()
+
 
     private var menuItem: MenuItem? = null
 
@@ -47,13 +45,7 @@ class FoodMenuItemDetailFragment : Fragment() {
         setupToolbar()
         displayMenuItemDetails()
 
-        binding.fabAddToCart.setOnClickListener {
-            menuItem?.let {
-                viewModel.addItem(it)
-                Toast.makeText(requireContext(), "${it.name} added to cart", Toast.LENGTH_SHORT).show()
-                parentFragmentManager.popBackStack()
-            }
-        }
+
     }
 
     private fun setupToolbar() {
