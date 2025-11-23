@@ -3,6 +3,8 @@ package com.nottingham.mynottingham.data.remote.api
 import com.nottingham.mynottingham.data.remote.dto.*
 import retrofit2.Response
 import retrofit2.http.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 
 /**
  * Main API service interface for My Nottingham
@@ -26,8 +28,8 @@ interface ApiService {
     suspend fun updateUser(
         @Header("Authorization") token: String,
         @Path("id") userId: Long,
-        @Body user: com.nottingham.mynottingham.data.remote.dto.UserUpdateRequest
-    ): retrofit2.Response<com.nottingham.mynottingham.data.remote.dto.ApiResponse<com.nottingham.mynottingham.data.remote.dto.UserDto>>
+        @Body user: UserUpdateRequest
+    ): Response<ApiResponse<UserDto>>
 
     // ========== Shuttle ==========
 
@@ -72,6 +74,12 @@ interface ApiService {
     @GET("errand/available")
     suspend fun getAvailableErrands(): Response<List<ErrandResponse>>
 
+    @GET("errand/{id}")
+    suspend fun getErrandById(
+        @Header("Authorization") token: String,
+        @Path("id") errandId: String
+    ): Response<ErrandResponse>
+
     @POST("errand/create")
     suspend fun createErrand(
         @Header("Authorization") token: String,
@@ -82,6 +90,13 @@ interface ApiService {
     suspend fun acceptErrand(
         @Header("Authorization") token: String,
         @Path("errandId") errandId: String
+    ): Response<ErrandResponse>
+
+    @POST("errand/{errandId}/drop")
+    suspend fun dropErrand(
+        @Header("Authorization") token: String,
+        @Path("errandId") errandId: String,
+        @Body body: Map<String, String> = emptyMap()
     ): Response<ErrandResponse>
 
     @PUT("errand/{errandId}/status")
@@ -253,8 +268,8 @@ interface ApiService {
     @POST("forum/posts")
     suspend fun createForumPost(
         @Header("Authorization") token: String,
-        @Part("post") request: okhttp3.RequestBody,
-        @Part image: okhttp3.MultipartBody.Part? = null
+        @Part("post") request: RequestBody,
+        @Part image: MultipartBody.Part? = null
     ): Response<ForumPostResponse>
 
     @PUT("forum/posts/{id}")

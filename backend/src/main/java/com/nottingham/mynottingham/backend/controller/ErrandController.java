@@ -6,6 +6,7 @@ import com.nottingham.mynottingham.backend.entity.Errand;
 import com.nottingham.mynottingham.backend.entity.User;
 import com.nottingham.mynottingham.backend.repository.ErrandRepository;
 import com.nottingham.mynottingham.backend.repository.UserRepository;
+import com.nottingham.mynottingham.backend.util.JwtUtil; // 引入 JwtUtil
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +23,8 @@ public class ErrandController {
 
     private final ErrandRepository errandRepository;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil; // 注入 JwtUtil
 
-    /**
-     * Get all errands (for My Tasks page)
-     * Returns all errands - frontend filters by user
-     */
     @GetMapping("/available")
     public ResponseEntity<List<ErrandDto>> getAvailableErrands() {
         List<Errand> allErrands = errandRepository.findAll();
@@ -36,20 +34,17 @@ public class ErrandController {
         return ResponseEntity.ok(dtos);
     }
 
-    /**
-     * Create a new errand
-     */
     @PostMapping("/create")
     public ResponseEntity<ErrandDto> createErrand(
             @RequestHeader("Authorization") String authHeader,
             @RequestBody CreateErrandRequest request) {
 
-        // Extract user ID from token (simplified - assumes format "Bearer {userId}")
+        // [Fix] 使用 JwtUtil 解析 Token，解决 401 问题
         String token = authHeader.replace("Bearer ", "");
         Long userId;
         try {
-            userId = Long.parseLong(token);
-        } catch (NumberFormatException e) {
+            userId = jwtUtil.extractUserId(token);
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
@@ -61,14 +56,12 @@ public class ErrandController {
         errand.setTitle(request.getTitle());
         errand.setDescription(request.getDescription());
 
-        // Map type string to enum
         try {
             errand.setType(Errand.ErrandType.valueOf(request.getType().toUpperCase()));
         } catch (IllegalArgumentException e) {
             errand.setType(Errand.ErrandType.OTHER);
         }
 
-        // Use pickupLocation as location
         errand.setLocation(request.getPickupLocation());
         errand.setReward(request.getFee());
         errand.setImageUrl(request.getImageUrl());
@@ -78,9 +71,72 @@ public class ErrandController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ErrandDto.fromEntity(savedErrand));
     }
 
-    /**
-     * Get all errands
-     */
+    // [New] 接单接口
+    @PostMapping("/{id}/accept")
+    public ResponseEntity<ErrandDto> acceptErrand(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id) {
+
+        String token = authHeader.replace("Bearer ", "");
+        Long userId;
+        try {
+            userId = jwtUtil.extractUserId(token);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User provider = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return errandRepository.findById(id)
+                .map(errand -> {
+                    // 检查是否已被接单
+                    if (errand.getStatus() != Errand.ErrandStatus.PENDING) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).<ErrandDto>build();
+                    }
+                    // 不能接自己的单
+                    if (errand.getRequester().getId().equals(userId)) {
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST).<ErrandDto>build();
+                    }
+
+                    errand.setProvider(provider);
+                    errand.setStatus(Errand.ErrandStatus.IN_PROGRESS);
+
+                    Errand updated = errandRepository.save(errand);
+                    return ResponseEntity.ok(ErrandDto.fromEntity(updated));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // [New] 弃单接口 (接单者取消)
+    @PostMapping("/{id}/drop")
+    public ResponseEntity<ErrandDto> dropErrand(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) { // 允许空 Body
+
+        String token = authHeader.replace("Bearer ", "");
+        Long userId;
+        try {
+            userId = jwtUtil.extractUserId(token);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return errandRepository.findById(id)
+                .map(errand -> {
+                    // 只有接单人可以弃单
+                    if (errand.getProvider() != null && errand.getProvider().getId().equals(userId)) {
+                        errand.setProvider(null);
+                        errand.setStatus(Errand.ErrandStatus.PENDING);
+                        Errand updated = errandRepository.save(errand);
+                        return ResponseEntity.ok(ErrandDto.fromEntity(updated));
+                    }
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).<ErrandDto>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping
     public ResponseEntity<List<ErrandDto>> getAllErrands() {
         List<ErrandDto> dtos = errandRepository.findAll().stream()
@@ -89,9 +145,6 @@ public class ErrandController {
         return ResponseEntity.ok(dtos);
     }
 
-    /**
-     * Get errand by ID
-     */
     @GetMapping("/{id}")
     public ResponseEntity<ErrandDto> getErrandById(@PathVariable Long id) {
         return errandRepository.findById(id)
@@ -100,9 +153,6 @@ public class ErrandController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * Update errand status (Mark as Complete)
-     */
     @PutMapping("/{id}/status")
     public ResponseEntity<ErrandDto> updateErrandStatus(
             @RequestHeader("Authorization") String authHeader,
@@ -115,9 +165,7 @@ public class ErrandController {
                     if (newStatus != null) {
                         try {
                             errand.setStatus(Errand.ErrandStatus.valueOf(newStatus));
-                        } catch (IllegalArgumentException e) {
-                            // Ignore invalid status
-                        }
+                        } catch (IllegalArgumentException e) { }
                     }
                     Errand updated = errandRepository.save(errand);
                     return ResponseEntity.ok(ErrandDto.fromEntity(updated));
@@ -125,14 +173,10 @@ public class ErrandController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * Delete errand
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteErrand(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long id) {
-
         if (errandRepository.existsById(id)) {
             errandRepository.deleteById(id);
             return ResponseEntity.ok().build();
@@ -140,31 +184,23 @@ public class ErrandController {
         return ResponseEntity.notFound().build();
     }
 
-    /**
-     * Update errand (Edit)
-     */
     @PutMapping("/{id}")
     public ResponseEntity<ErrandDto> updateErrand(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable Long id,
             @RequestBody CreateErrandRequest request) {
-
         return errandRepository.findById(id)
                 .map(errand -> {
                     errand.setTitle(request.getTitle());
                     errand.setDescription(request.getDescription());
-
-                    // Map type string to enum
                     try {
                         errand.setType(Errand.ErrandType.valueOf(request.getType().toUpperCase()));
                     } catch (IllegalArgumentException e) {
                         errand.setType(Errand.ErrandType.OTHER);
                     }
-
                     errand.setLocation(request.getPickupLocation());
                     errand.setReward(request.getFee());
                     errand.setImageUrl(request.getImageUrl());
-
                     Errand updated = errandRepository.save(errand);
                     return ResponseEntity.ok(ErrandDto.fromEntity(updated));
                 })

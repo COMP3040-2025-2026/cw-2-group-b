@@ -1,14 +1,16 @@
 package com.nottingham.mynottingham.ui.errand
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
+import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.remote.dto.UpdateStatusRequest
@@ -20,6 +22,10 @@ class TaskDetailFragment : Fragment() {
 
     private var _binding: FragmentTaskDetailsBinding? = null
     private val binding get() = _binding!!
+
+    // 标记：任务是否被我接了
+    private var isAcceptedByMe = false
+    private var currentTaskId: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -36,7 +42,8 @@ class TaskDetailFragment : Fragment() {
             parentFragmentManager.popBackStack()
         }
 
-        val taskId = arguments?.getString("taskId") ?: ""
+        // 获取基础参数
+        currentTaskId = arguments?.getString("taskId") ?: ""
         val title = arguments?.getString("title")
         val description = arguments?.getString("description")
         val price = arguments?.getString("price")
@@ -47,6 +54,7 @@ class TaskDetailFragment : Fragment() {
         val timeLimit = arguments?.getString("timeLimit") ?: "No Deadline"
         val timestamp = arguments?.getLong("timestamp") ?: 0
 
+        // 绑定 UI
         binding.tvTaskTitle.text = title
         binding.tvTaskDescription.text = description
         binding.tvTaskPrice.text = "RM $price"
@@ -60,72 +68,156 @@ class TaskDetailFragment : Fragment() {
         val currentTime = System.currentTimeMillis()
         val diffMillis = currentTime - timestamp
         val minutesAgo = diffMillis / (1000 * 60)
-
-        val timeText = when {
-            minutesAgo < 1 -> "Posted just now"
-            minutesAgo < 60 -> "Posted $minutesAgo mins ago"
-            minutesAgo < 1440 -> "Posted ${minutesAgo / 60} hours ago"
+        binding.tvTaskPosted.text = when {
+            minutesAgo < 1L -> "Posted just now"
+            minutesAgo < 60L -> "Posted $minutesAgo mins ago"
+            minutesAgo < 1440L -> "Posted ${minutesAgo / 60} hours ago"
             else -> "Posted ${minutesAgo / 1440} days ago"
         }
-
-        binding.tvTaskPosted.text = timeText
         binding.tvTaskPosted.visibility = View.VISIBLE
 
+        // 启动逻辑
         val tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
+            // [Fix] 获取真正的 JWT Token
+            val storedToken = tokenManager.getToken().first()
             val currentUserId = tokenManager.getUserId().first()
-            val token = "Bearer $currentUserId"
 
-            // Check if current user is the task owner
+            if (storedToken.isNullOrEmpty() || currentUserId.isNullOrEmpty()) {
+                Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
+                binding.btnAcceptTask.isEnabled = false
+                return@launch
+            }
+
+            val token = "Bearer $storedToken"
+
+            // 立即检查任务最新状态
+            checkTaskStatus(token, currentTaskId, currentUserId)
+
+            // 判断身份（发布者 vs 接单者）
             if (currentUserId == requesterId) {
-                // Owner: Show owner actions, hide accept button
+                // 发布者视图
                 binding.btnAcceptTask.visibility = View.GONE
                 binding.layoutOwnerActions.visibility = View.VISIBLE
 
-                // Delete button
-                binding.btnDelete.setOnClickListener {
-                    deleteTask(token, taskId)
-                }
-
-                // Complete button
-                binding.btnComplete.setOnClickListener {
-                    markAsComplete(token, taskId)
-                }
-
-                // Edit button
+                // 发布者点击 Delete 是永久删除
+                binding.btnDelete.setOnClickListener { performDelete(token, currentTaskId) }
+                binding.btnComplete.setOnClickListener { markAsComplete(token, currentTaskId) }
                 binding.btnEdit.setOnClickListener {
                     Toast.makeText(requireContext(), "Edit feature coming soon", Toast.LENGTH_SHORT).show()
-                    // TODO: Navigate to PostTaskFragment with existing data
                 }
             } else {
-                // Not owner: Show accept button, hide owner actions
+                // 接单者视图
                 binding.btnAcceptTask.visibility = View.VISIBLE
                 binding.layoutOwnerActions.visibility = View.GONE
-            }
-        }
 
-        binding.btnAcceptTask.setOnClickListener {
-            Toast.makeText(requireContext(), "Task Accepted!", Toast.LENGTH_SHORT).show()
+                binding.btnAcceptTask.setOnClickListener {
+                    if (isAcceptedByMe) {
+                        // 已接单 -> 点击执行“放弃任务” (Drop)
+                        performDrop(token, currentTaskId)
+                    } else {
+                        // 未接单 -> 点击执行“接受”
+                        acceptErrand(token, currentTaskId)
+                    }
+                }
+            }
         }
     }
 
-    private fun deleteTask(token: String, taskId: String) {
+    // 从服务器检查任务状态
+    private suspend fun checkTaskStatus(token: String, taskId: String, currentUserId: String) {
+        try {
+            val response = RetrofitInstance.apiService.getErrandById(token, taskId)
+            if (response.isSuccessful && response.body() != null) {
+                val task = response.body()!!
+
+                val providerId = task.providerId
+                val status = task.status
+
+                if (status == "IN_PROGRESS" && providerId == currentUserId) {
+                    // 是我接的任务
+                    isAcceptedByMe = true
+                    updateButtonToDeleteState()
+                } else if (status != "PENDING" && providerId != currentUserId) {
+                    // 任务被别人接了
+                    binding.btnAcceptTask.isEnabled = false
+                    binding.btnAcceptTask.text = "Task Taken"
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TaskDetail", "Failed to check status", e)
+        }
+    }
+
+    private fun acceptErrand(token: String, taskId: String) {
+        binding.btnAcceptTask.isEnabled = false
         lifecycleScope.launch {
             try {
-                Log.d("TaskDetailFragment", "Deleting task: $taskId")
-                val response = RetrofitInstance.apiService.deleteErrand(token, taskId)
-
+                val response = RetrofitInstance.apiService.acceptErrand(token, taskId)
                 if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Task deleted successfully", Toast.LENGTH_SHORT).show()
-                    // Go back to previous screen
-                    parentFragmentManager.popBackStack()
+                    Toast.makeText(requireContext(), "Task Accepted!", Toast.LENGTH_SHORT).show()
+                    isAcceptedByMe = true
+                    updateButtonToDeleteState()
                 } else {
-                    Log.e("TaskDetailFragment", "Failed to delete task: ${response.code()}")
-                    Toast.makeText(requireContext(), "Failed to delete task", Toast.LENGTH_SHORT).show()
+                    val errorBody = response.errorBody()?.string()
+                    // 409 说明已被占用，再查一次状态
+                    if (response.code() == 409) {
+                        val tokenManager = TokenManager(requireContext())
+                        checkTaskStatus(token, taskId, tokenManager.getUserId().first() ?: "")
+                    } else {
+                        Toast.makeText(requireContext(), "Failed: ${response.code()} $errorBody", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("TaskDetailFragment", "Error deleting task", e)
                 Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.btnAcceptTask.isEnabled = true
+            }
+        }
+    }
+
+    private fun updateButtonToDeleteState() {
+        binding.btnAcceptTask.text = "Delete Task" // 实际上是 Cancel/Drop
+        binding.btnAcceptTask.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(requireContext(), R.color.error)
+        )
+        binding.btnAcceptTask.requestLayout()
+    }
+
+    // [Owner] 物理删除
+    private fun performDelete(token: String, taskId: String) {
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitInstance.apiService.deleteErrand(token, taskId)
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "Task Deleted Permanently", Toast.LENGTH_SHORT).show()
+                    parentFragmentManager.popBackStack()
+                } else {
+                    Toast.makeText(requireContext(), "Delete Failed: ${response.code()}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // [Runner] 放弃任务（逻辑删除，回收到池子）
+    private fun performDrop(token: String, taskId: String) {
+        binding.btnAcceptTask.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                // 调用 drop 接口，传入空 map
+                val response = RetrofitInstance.apiService.dropErrand(token, taskId, emptyMap())
+                if (response.isSuccessful) {
+                    Toast.makeText(requireContext(), "Task Dropped/Canceled", Toast.LENGTH_SHORT).show()
+                    parentFragmentManager.popBackStack() // 返回上一页
+                } else {
+                    Toast.makeText(requireContext(), "Drop Failed: ${response.code()}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.btnAcceptTask.isEnabled = true
             }
         }
     }
@@ -133,39 +225,16 @@ class TaskDetailFragment : Fragment() {
     private fun markAsComplete(token: String, taskId: String) {
         lifecycleScope.launch {
             try {
-                Log.d("TaskDetailFragment", "Marking task as complete: $taskId")
                 val request = UpdateStatusRequest("COMPLETED")
                 val response = RetrofitInstance.apiService.updateErrandStatus(token, taskId, request)
-
                 if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Task marked as completed!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Completed!", Toast.LENGTH_SHORT).show()
                     binding.tvTaskPosted.text = "Status: COMPLETED"
-                    // Hide owner actions after completing
                     binding.layoutOwnerActions.visibility = View.GONE
-                } else {
-                    Log.e("TaskDetailFragment", "Failed to update status: ${response.code()}")
-                    Toast.makeText(requireContext(), "Failed to update status", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Log.e("TaskDetailFragment", "Error updating status", e)
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                // ignore
             }
-        }
-    }
-
-    private fun getTimeAgo(timestamp: Long): String {
-        val now = System.currentTimeMillis()
-        val diff = now - timestamp
-        val seconds = diff / 1000
-        val minutes = seconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-
-        return when {
-            days > 0 -> "$days days ago"
-            hours > 0 -> "$hours hours ago"
-            minutes > 0 -> "$minutes mins ago"
-            else -> "Just now"
         }
     }
 
