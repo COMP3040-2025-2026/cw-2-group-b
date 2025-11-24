@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.Conversation
@@ -27,7 +26,6 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    private val _searchQuery = MutableLiveData<String>("")
     private var currentUserId: String = ""
 
     private val _conversations = MutableLiveData<List<Conversation>>()
@@ -121,6 +119,15 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                 _error.value = e.message ?: "Failed to mark as read"
             }
         }
+    }
+
+    /**
+     * Mark conversation as unread
+     * 🔥 占位方法 - 后续实现
+     */
+    fun markAsUnread(conversationId: String) {
+        // TODO: Implement mark as unread functionality in repository
+        // For now, this is a placeholder to satisfy the fragment call
     }
 
     /**

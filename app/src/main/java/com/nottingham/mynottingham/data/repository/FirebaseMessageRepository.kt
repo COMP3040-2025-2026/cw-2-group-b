@@ -491,4 +491,38 @@ class FirebaseMessageRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * 更新用户打字状态
+     * @param conversationId 对话ID
+     * @param userId 用户ID
+     * @param isTyping 是否正在输入
+     * @return Result<Unit> 成功或错误
+     */
+    suspend fun updateTypingStatus(
+        conversationId: String,
+        userId: String,
+        isTyping: Boolean
+    ): Result<Unit> {
+        return try {
+            // 在对话元数据中更新打字状态
+            // 使用临时节点存储，设置过期时间（例如3秒后自动清除）
+            val typingRef = conversationsRef.child(conversationId).child("typing").child(userId)
+
+            if (isTyping) {
+                val typingData = mapOf(
+                    "isTyping" to true,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                typingRef.setValue(typingData).await()
+            } else {
+                typingRef.removeValue().await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error updating typing status: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }
