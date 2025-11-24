@@ -182,26 +182,31 @@ class InstattDayCoursesFragment : Fragment() {
      * 实时监听 Firebase 签到状态变化
      * 当教师 unlock session 时，学生端按钮立即变亮
      *
-     * ⚠️ 注意：由于 Firebase scheduleId 是字符串格式（如 "comp2001_1"），
-     * 而 sessions 数据库仍使用数字 ID 作为 key，这里暂时禁用实时监听。
-     *
-     * TODO: 需要重构 sessions 数据结构以支持字符串 scheduleId
+     * ✅ Firebase sessions 已支持字符串 ID (如 "comp2001_1_2025-11-24")
+     * ✅ 实时监听已启用 - 教师 unlock 时学生端立即更新
      */
     private fun startFirebaseListeners(courses: List<Course>, date: String) {
-        android.util.Log.w(
+        android.util.Log.d(
             "InstattStudent",
-            "⚠️ Firebase real-time listeners disabled due to ID type mismatch. " +
-            "Firebase uses string IDs (e.g., 'comp2001_1') but sessions use numeric IDs."
+            "🔥 Starting Firebase real-time listeners for ${courses.size} courses"
         )
 
-        // TODO: 当 Firebase sessions 结构支持字符串 ID 后，恢复以下代码：
-        /*
         courses.forEach { course ->
             lifecycleScope.launch {
+                android.util.Log.d(
+                    "InstattStudent",
+                    "👂 Listening to session lock status for ${course.courseCode} (id: ${course.id})"
+                )
+
                 repository.listenToSessionLockStatus(
                     courseScheduleId = course.id,  // 直接使用字符串 ID
                     date = date
                 ).collect { isLocked ->
+                    android.util.Log.d(
+                        "InstattStudent",
+                        "🔄 ${course.courseCode} status changed: isLocked=$isLocked"
+                    )
+
                     course.signInStatus = if (isLocked) {
                         SignInStatus.LOCKED
                     } else {
@@ -211,7 +216,6 @@ class InstattDayCoursesFragment : Fragment() {
                 }
             }
         }
-        */
     }
 
     private fun handleSignIn(course: Course) {

@@ -259,6 +259,70 @@ class FirebaseCourseRepository {
     }
 
     /**
+     * 获取课程的所有注册学生列表（从 Firebase）
+     *
+     * Firebase 数据结构：
+     * - enrollments/{courseId}/{studentId}: true
+     * - users/{userId}/fullName: "Student Name"
+     *
+     * @param courseId 课程ID (如 "comp2001")
+     * @return Result<List<Pair<Long, String>>> 学生ID和姓名的配对列表
+     */
+    suspend fun getEnrolledStudents(courseId: String): Result<List<Pair<Long, String>>> {
+        return try {
+            android.util.Log.d("FirebaseCourseRepo", "🔍 Fetching enrolled students for course: $courseId")
+
+            // Step 1: 从 enrollments 获取所有选修该课程的学生 ID
+            val enrollmentSnapshot = enrollmentsRef.child(courseId).get().await()
+
+            if (!enrollmentSnapshot.exists()) {
+                android.util.Log.w("FirebaseCourseRepo", "⚠️ No enrollments found for course: $courseId")
+                return Result.success(emptyList())
+            }
+
+            val studentIds = enrollmentSnapshot.children.mapNotNull { it.key?.toLongOrNull() }
+            android.util.Log.d("FirebaseCourseRepo", "📋 Found ${studentIds.size} student IDs: $studentIds")
+
+            if (studentIds.isEmpty()) {
+                return Result.success(emptyList())
+            }
+
+            // Step 2: 从 users 节点获取每个学生的详细信息
+            val usersRef = database.getReference("users")
+            val students = mutableListOf<Pair<Long, String>>()
+
+            for (studentId in studentIds) {
+                try {
+                    val userSnapshot = usersRef.child(studentId.toString()).get().await()
+
+                    if (userSnapshot.exists()) {
+                        val fullName = userSnapshot.child("fullName").getValue(String::class.java)
+                            ?: userSnapshot.child("username").getValue(String::class.java)
+                            ?: "Student $studentId"
+
+                        students.add(Pair(studentId, fullName))
+                        android.util.Log.d("FirebaseCourseRepo", "✅ Student $studentId: $fullName")
+                    } else {
+                        // 如果 users 节点中没有该学生，使用默认名称
+                        students.add(Pair(studentId, "Student $studentId"))
+                        android.util.Log.w("FirebaseCourseRepo", "⚠️ User $studentId not found in users node")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("FirebaseCourseRepo", "Failed to fetch user $studentId: ${e.message}")
+                    // 发生错误时仍然添加学生，使用默认名称
+                    students.add(Pair(studentId, "Student $studentId"))
+                }
+            }
+
+            android.util.Log.d("FirebaseCourseRepo", "✅ Total enrolled students: ${students.size}")
+            Result.success(students)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseCourseRepo", "❌ Error fetching enrolled students: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 检查学生是否选修了某门课程
      * @param studentId 学生ID
      * @param courseId 课程ID

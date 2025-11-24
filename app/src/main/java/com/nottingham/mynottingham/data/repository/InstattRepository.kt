@@ -130,15 +130,15 @@ class InstattRepository {
      * 获取学生签到名单 - 返回 Flow 实现实时监听
      * 当学生签到时，教师端会自动收到更新
      *
-     * 数据合并策略：
-     * 1. 从 MySQL 获取所有已注册学生名单（基础数据）
+     * 数据合并策略（已优化为 Firebase 优先）：
+     * 1. 从 Firebase 获取所有已注册学生名单（基础数据）
      * 2. 实时监听 Firebase 签到数据（实时更新）
-     * 3. 将 Firebase 数据覆盖到 MySQL 名单上，未签到学生保持 ABSENT 状态
+     * 3. 将 Firebase 数据覆盖到学生名单上，未签到学生保持 ABSENT 状态
      *
      * 优点：
      * - 教师能看到完整班级名册（包括未签到学生）
      * - Firebase 实时更新签到状态（毫秒级响应）
-     * - 离线场景自动降级为 Firebase-only 模式
+     * - 完全不依赖后端 MySQL 服务器
      *
      * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
@@ -147,72 +147,80 @@ class InstattRepository {
         courseScheduleId: String,
         date: String
     ): Flow<List<StudentAttendance>> = flow {
-        // Step 1: 尝试从 MySQL 获取已注册学生名单（一次性查询）
-        val enrolledResult = getStudentAttendanceListOnce(teacherId, courseScheduleId, date)
+        // Step 1: 从 course ID 中提取纯课程代码（去掉 schedule number）
+        // 例如: "comp2001_1" -> "comp2001"
+        val courseId = courseScheduleId.substringBefore("_")
+
+        // Step 2: 尝试从 Firebase 获取已注册学生名单（一次性查询）
+        val enrolledResult = firebaseCourseRepo.getEnrolledStudents(courseId)
         val enrolledStudents = enrolledResult.getOrNull() ?: emptyList()
 
-        // Step 2: 监听 Firebase 实时签到数据
+        android.util.Log.d(
+            "InstattRepository",
+            "📋 Found ${enrolledStudents.size} enrolled students for course $courseId"
+        )
+
+        // Step 3: 监听 Firebase 实时签到数据
         firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
             .collect { firebaseStudents ->
-                // Step 3: 合并数据
+                // Step 4: 合并数据
                 if (enrolledStudents.isNotEmpty()) {
-                    // 有 MySQL 数据 - 使用合并模式（完整名册 + 实时状态）
-                    val mergedList = enrolledStudents.map { enrolled ->
+                    // 有注册学生数据 - 使用合并模式（完整名册 + 实时状态）
+                    val mergedList = enrolledStudents.map { (studentId, studentName) ->
                         // 查找该学生在 Firebase 中的实时签到记录
-                        val firebaseRecord = firebaseStudents.find { it.studentId == enrolled.studentId }
+                        val firebaseRecord = firebaseStudents.find {
+                            it.studentId == studentId.toString()
+                        }
 
                         if (firebaseRecord != null) {
                             // Firebase 有该学生的签到记录，使用 Firebase 的实时数据
                             firebaseRecord
                         } else {
-                            // Firebase 还没有该学生的签到记录，保留 MySQL 的默认状态
-                            enrolled
+                            // Firebase 还没有该学生的签到记录，显示为 ABSENT
+                            StudentAttendance(
+                                studentId = studentId.toString(),
+                                studentName = studentName,
+                                matricNumber = null,
+                                email = null,
+                                hasAttended = false,
+                                attendanceStatus = AttendanceStatus.ABSENT,
+                                checkInTime = null
+                            )
                         }
                     }
                     emit(mergedList)
                 } else {
-                    // MySQL 查询失败或返回空（可能后端离线）- 降级为 Firebase-only 模式
+                    // 没有注册学生数据 - 降级为 Firebase-only 模式
                     // 这种模式下只显示已签到学生，但至少保证实时性
+                    android.util.Log.w(
+                        "InstattRepository",
+                        "⚠️ No enrolled students found for $courseId, showing only signed-in students"
+                    )
                     emit(firebaseStudents)
                 }
             }
     }.flowOn(Dispatchers.IO)
 
     /**
-     * 一次性获取 MySQL 中的已注册学生名单
-     * 用于内部实现：提供基础名册数据，供 getStudentAttendanceList() 合并使用
+     * ❌ 已废弃：不再使用 MySQL 后端
      *
-     * 此方法返回从 MySQL 查询的完整班级花名册，包含所有已注册学生及其历史签到状态
-     * 通常在教师端用于显示"应到学生"基准线
+     * 此方法已被 Firebase 完全替代，所有学生名单数据现在从 Firebase 获取：
+     * - enrollments/{courseId}/{studentId} - 学生选课关系
+     * - sessions/{scheduleId}_{date}/students/ - 实时签到记录
      *
-     * ✅ 修复：courseScheduleId 改为 String，但需要转换为 Long 调用后端
+     * 如需获取学生名单，请使用：
+     * - firebaseCourseRepo.getEnrolledStudents(courseId)
+     * - firebaseManager.listenToStudentAttendanceList(scheduleId, date)
      */
+    @Deprecated("Use Firebase instead", ReplaceWith("firebaseCourseRepo.getEnrolledStudents(courseId)"))
     suspend fun getStudentAttendanceListOnce(
-        teacherId: String,  // Firebase UID
+        teacherId: String,
         courseScheduleId: String,
         date: String
     ): Result<List<StudentAttendance>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
-                val teacherIdLong = teacherId.toLongOrNull()
-                    ?: return@withContext Result.failure(Exception("Backend disabled: teacher ID is Firebase UID"))
-
-                // 尝试将 courseScheduleId 转换为 Long
-                val scheduleIdLong = courseScheduleId.toLongOrNull()
-                    ?: return@withContext Result.failure(Exception("Backend disabled: schedule ID is Firebase string ID"))
-
-                val response = apiService.getStudentAttendanceList(teacherIdLong, scheduleIdLong, date)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val students = response.body()?.data?.map { CourseMapper.toStudentAttendance(it) } ?: emptyList()
-                    Result.success(students)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to load student list"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        return Result.failure(
+            Exception("Backend disabled: This method is deprecated. Use Firebase directly.")
+        )
     }
 
     /**
