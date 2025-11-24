@@ -31,7 +31,8 @@ import kotlinx.coroutines.tasks.await
  */
 class FirebaseErrandRepository {
 
-    private val database = FirebaseDatabase.getInstance()
+    // ⚠️ 重要：必须指定数据库 URL，因为数据库在 asia-southeast1 区域
+    private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val errandsRef: DatabaseReference = database.getReference("errands")
 
     /**

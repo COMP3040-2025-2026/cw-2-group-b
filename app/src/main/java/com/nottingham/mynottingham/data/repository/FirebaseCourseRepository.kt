@@ -23,7 +23,8 @@ import java.time.format.DateTimeFormatter
  */
 class FirebaseCourseRepository {
 
-    private val database = FirebaseDatabase.getInstance()
+    // ⚠️ 重要：必须指定数据库 URL，因为数据库在 asia-southeast1 区域
+    private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val coursesRef: DatabaseReference = database.getReference("courses")
     private val schedulesRef: DatabaseReference = database.getReference("schedules")
     private val enrollmentsRef: DatabaseReference = database.getReference("enrollments")
