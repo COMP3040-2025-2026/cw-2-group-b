@@ -72,11 +72,10 @@ class ChatDetailFragment : Fragment() {
             setupRecyclerView()
 
             // Initialize chat if conversationId is available
-            if (conversationId.isNotEmpty() && token.isNotEmpty()) {
+            if (conversationId.isNotEmpty()) {
                 val currentUserName = tokenManager.getUsername().firstOrNull() ?: ""
                 viewModel.initializeChat(conversationId, currentUserId, currentUserName)
-                viewModel.loadMessages(token)
-                viewModel.markAsRead(token)
+                viewModel.markAsRead()
             }
         }
     }
@@ -116,7 +115,7 @@ class ChatDetailFragment : Fragment() {
         binding.buttonSend.setOnClickListener {
             val message = binding.editMessage.text?.toString()?.trim()
             if (!message.isNullOrEmpty()) {
-                viewModel.sendMessage(token, message)
+                viewModel.sendMessage(message)
             }
         }
 
@@ -129,10 +128,10 @@ class ChatDetailFragment : Fragment() {
 
                 if (hasText && !isTyping) {
                     isTyping = true
-                    viewModel.updateTyping(token, true)
+                    viewModel.updateTyping(true)
                 } else if (!hasText && isTyping) {
                     isTyping = false
-                    viewModel.updateTyping(token, false)
+                    viewModel.updateTyping(false)
                 }
             }
 
@@ -142,18 +141,16 @@ class ChatDetailFragment : Fragment() {
 
     private fun setupObservers(participantName: String, isOnline: Boolean) {
         // Observe messages
-        viewModel.messages.observe(viewLifecycleOwner) { messagesLiveData ->
-            messagesLiveData?.observe(viewLifecycleOwner) { messages ->
-                if (messages.isEmpty()) {
-                    binding.layoutEmpty.visibility = View.VISIBLE
-                    binding.recyclerMessages.visibility = View.GONE
-                    binding.textParticipantName.text = participantName
-                } else {
-                    binding.layoutEmpty.visibility = View.GONE
-                    binding.recyclerMessages.visibility = View.VISIBLE
-                    adapter.submitList(messages.reversed()) // Reverse to show newest at bottom
-                    binding.recyclerMessages.scrollToPosition(adapter.itemCount - 1)
-                }
+        viewModel.messages.observe(viewLifecycleOwner) { messages ->
+            if (messages.isEmpty()) {
+                binding.layoutEmpty.visibility = View.VISIBLE
+                binding.recyclerMessages.visibility = View.GONE
+                binding.textParticipantName.text = participantName
+            } else {
+                binding.layoutEmpty.visibility = View.GONE
+                binding.recyclerMessages.visibility = View.VISIBLE
+                adapter.submitList(messages)
+                binding.recyclerMessages.scrollToPosition(adapter.itemCount - 1)
             }
         }
 
@@ -197,7 +194,7 @@ class ChatDetailFragment : Fragment() {
         super.onPause()
         // Stop typing indicator when leaving screen
         if (isTyping) {
-            viewModel.updateTyping(token, false)
+            viewModel.updateTyping(false)
         }
     }
 

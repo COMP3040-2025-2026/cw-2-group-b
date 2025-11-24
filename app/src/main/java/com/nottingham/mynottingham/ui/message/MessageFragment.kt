@@ -55,22 +55,11 @@ class MessageFragment : Fragment() {
         setupFab()
         setupObservers()
 
-        // Get user credentials from DataStore (both userId and token)
+        // Get user credentials from DataStore
         lifecycleScope.launch {
             // Get userId from DataStore
             currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
             viewModel.setCurrentUserId(currentUserId)
-
-            // Get token from DataStore
-            token = tokenManager.getToken().firstOrNull() ?: ""
-            // Remove "Bearer " prefix if present (for backward compatibility)
-            token = token.removePrefix("Bearer ").trim()
-
-            if (token.isNotEmpty()) {
-                viewModel.syncConversations(token)
-            } else {
-                Toast.makeText(context, "No authentication token found", Toast.LENGTH_SHORT).show()
-            }
         }
     }
 
@@ -176,33 +165,23 @@ class MessageFragment : Fragment() {
 
         // Pin/Unpin action
         binding.layoutPin.setOnClickListener {
-            lifecycleScope.launch {
-                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
-                if (currentToken.isNotEmpty()) {
-                    viewModel.togglePinned(currentToken, conversation.id, conversation.isPinned)
-                    Toast.makeText(
-                        context,
-                        if (conversation.isPinned) "Unpinned" else "Pinned",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+            viewModel.togglePinned(conversation.id, conversation.isPinned)
+            Toast.makeText(
+                context,
+                if (conversation.isPinned) "Unpinned" else "Pinned",
+                Toast.LENGTH_SHORT
+            ).show()
             bottomSheet.dismiss()
         }
 
         // Mark as read/unread action
         binding.layoutMarkRead.setOnClickListener {
-            lifecycleScope.launch {
-                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
-                if (currentToken.isNotEmpty()) {
-                    if (conversation.unreadCount > 0) {
-                        viewModel.markAsRead(currentToken, conversation.id, currentUserId)
-                        Toast.makeText(context, "Marked as read", Toast.LENGTH_SHORT).show()
-                    } else {
-                        viewModel.markAsUnread(conversation.id)
-                        Toast.makeText(context, "Marked as unread", Toast.LENGTH_SHORT).show()
-                    }
-                }
+            if (conversation.unreadCount > 0) {
+                viewModel.markAsRead(conversation.id)
+                Toast.makeText(context, "Marked as read", Toast.LENGTH_SHORT).show()
+            } else {
+                viewModel.markAsUnread(conversation.id)
+                Toast.makeText(context, "Marked as unread", Toast.LENGTH_SHORT).show()
             }
             bottomSheet.dismiss()
         }
@@ -210,16 +189,11 @@ class MessageFragment : Fragment() {
         // Delete action
         binding.layoutDelete.setOnClickListener {
             lifecycleScope.launch {
-                val currentToken = tokenManager.getToken().firstOrNull()?.removePrefix("Bearer ")?.trim() ?: ""
-                if (currentToken.isNotEmpty()) {
-                    val result = viewModel.deleteConversation(currentToken, conversation.id)
-                    result.onSuccess {
-                        Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
-                    }.onFailure { error ->
-                        Toast.makeText(context, "Failed to delete: ${error.message}", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    Toast.makeText(context, "Authentication token not found", Toast.LENGTH_SHORT).show()
+                val result = viewModel.deleteConversation(conversation.id)
+                result.onSuccess {
+                    Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                }.onFailure { error ->
+                    Toast.makeText(context, "Failed to delete: ${error.message}", Toast.LENGTH_SHORT).show()
                 }
             }
             bottomSheet.dismiss()
@@ -257,11 +231,8 @@ class MessageFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh conversations when returning from chat detail
-        // Throttled to prevent data loss during frequent navigation switches
-        if (token.isNotEmpty()) {
-            viewModel.syncConversations(token)
-        }
+        // Firebase real-time listener automatically refreshes conversations
+        // No manual sync needed
     }
 
     override fun onDestroyView() {
