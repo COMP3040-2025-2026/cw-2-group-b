@@ -1,5 +1,7 @@
 package com.nottingham.mynottingham.backend.service;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.UserRecord;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import lombok.RequiredArgsConstructor;
@@ -12,12 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Firebase Data Migration Service - Complete Edition
+ * Firebase Data Migration Service - Firebase Auth Edition
  *
  * 在应用启动时将所有核心数据从 MySQL 迁移到 Firebase Realtime Database
+ * 同时在 Firebase Authentication 中创建用户账号，使用真实的 UID
  *
  * 迁移模块：
- * 1. Users (Students, Teachers, Admin)
+ * 1. Users (Students, Teachers, Admin) - 包括 Firebase Auth 账号创建
  * 2. Courses, Schedules, and Enrollments
  * 3. Bookings (Basketball Court, Badminton Court)
  * 4. Errands (Campus delivery tasks)
@@ -25,16 +28,17 @@ import java.util.Map;
  * 6. Special: 自动为今天创建一节 teacher1 的课，student1 和 student2 可以签到
  *
  * 数据结构设计 (NoSQL):
- * - users/{userId}: 用户信息 (学生/教师/管理员)
+ * - users/{firebaseUID}: 用户信息 (使用 Firebase Auth 生成的真实 UID)
  * - courses/{courseId}: 课程基本信息
  * - schedules/{scheduleId}: 课程排课信息
- * - enrollments/{courseId}/{studentId}: 课程注册关系
- * - student_courses/{studentId}/{courseId}: 学生选课关系
+ * - enrollments/{courseId}/{firebaseUID}: 课程注册关系
+ * - student_courses/{firebaseUID}/{courseId}: 学生选课关系
  * - bookings/{bookingId}: 场地预订记录
  * - errands/{errandId}: 跑腿任务
  * - forum_posts/{postId}: 论坛帖子
  * - forum_comments/{postId}/{commentId}: 论坛评论
  * - sessions/{sessionKey}: 签到会话 (自动生成今日课程)
+ * - username_to_uid/{username}: 用户名到 UID 的映射 (用于登录查询)
  */
 @Slf4j
 @Service
@@ -45,6 +49,9 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
 
     // 迁移开关 - 设置为 false 可跳过迁移
     private static final boolean RUN_MIGRATION = true;
+
+    // Store UIDs for later use in enrollments and bookings
+    private final Map<String, String> usernameToUid = new HashMap<>();
 
     @Override
     public void run(String... args) throws Exception {
@@ -87,31 +94,104 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
 
     /**
      * 迁移用户数据 (学生 + 教师 + 管理员)
+     * 同时在 Firebase Authentication 中创建账号
      */
     private void migrateUsers(DatabaseReference ref) {
-        log.info("📤 Migrating users...");
+        log.info("📤 Migrating users with Firebase Authentication...");
 
         Map<String, Object> users = new HashMap<>();
+        Map<String, Object> usernameMapping = new HashMap<>();
+        FirebaseAuth auth = FirebaseAuth.getInstance();
 
-        // --- Students ---
-        users.put("student1", createStudent("student1", "Alice Wong", "student1@student.nottingham.edu.my", 1L, "20123456", "Faculty of Science and Engineering"));
-        users.put("student2", createStudent("student2", "Bob Chen", "student2@student.nottingham.edu.my", 2L, "20123457", "Faculty of Science and Engineering"));
-        users.put("student3", createStudent("student3", "Charlie Tan", "student3@student.nottingham.edu.my", 3L, "20123458", "Faculty of Science and Engineering"));
+        try {
+            // --- Students ---
+            String student1Uid = createAuthUserAndGetUid(auth, "student1@nottingham.edu.my", "password123", "Alice Wong");
+            users.put(student1Uid, createStudent("student1", "Alice Wong", "student1@nottingham.edu.my", 1L, "20123456", "Faculty of Science and Engineering"));
+            usernameMapping.put("student1", student1Uid);
+            usernameToUid.put("student1", student1Uid);
+            log.info("✅ Created student1 with UID: {}", student1Uid);
 
-        // --- Teachers ---
-        users.put("teacher1", createTeacher("teacher1", "Dr. Sarah Johnson", "teacher1@nottingham.edu.my", "T001", "Computer Science Department"));
-        users.put("teacher2", createTeacher("teacher2", "Prof. John Smith", "teacher2@nottingham.edu.my", "T002", "Software Engineering Department"));
+            String student2Uid = createAuthUserAndGetUid(auth, "student2@nottingham.edu.my", "password123", "Bob Chen");
+            users.put(student2Uid, createStudent("student2", "Bob Chen", "student2@nottingham.edu.my", 2L, "20123457", "Faculty of Science and Engineering"));
+            usernameMapping.put("student2", student2Uid);
+            usernameToUid.put("student2", student2Uid);
+            log.info("✅ Created student2 with UID: {}", student2Uid);
 
-        // --- Admin ---
-        Map<String, Object> admin = new HashMap<>();
-        admin.put("username", "admin");
-        admin.put("fullName", "System Admin");
-        admin.put("email", "admin@nottingham.edu.my");
-        admin.put("role", "ADMIN");
-        users.put("admin", admin);
+            String student3Uid = createAuthUserAndGetUid(auth, "student3@nottingham.edu.my", "password123", "Charlie Tan");
+            users.put(student3Uid, createStudent("student3", "Charlie Tan", "student3@nottingham.edu.my", 3L, "20123458", "Faculty of Science and Engineering"));
+            usernameMapping.put("student3", student3Uid);
+            usernameToUid.put("student3", student3Uid);
+            log.info("✅ Created student3 with UID: {}", student3Uid);
 
-        ref.child("users").updateChildrenAsync(users);
-        log.info("✅ Migrated {} users", users.size());
+            // --- Teachers ---
+            String teacher1Uid = createAuthUserAndGetUid(auth, "teacher1@nottingham.edu.my", "password123", "Dr. Sarah Johnson");
+            users.put(teacher1Uid, createTeacher("teacher1", "Dr. Sarah Johnson", "teacher1@nottingham.edu.my", "T001", "Computer Science Department"));
+            usernameMapping.put("teacher1", teacher1Uid);
+            usernameToUid.put("teacher1", teacher1Uid);
+            log.info("✅ Created teacher1 with UID: {}", teacher1Uid);
+
+            String teacher2Uid = createAuthUserAndGetUid(auth, "teacher2@nottingham.edu.my", "password123", "Prof. John Smith");
+            users.put(teacher2Uid, createTeacher("teacher2", "Prof. John Smith", "teacher2@nottingham.edu.my", "T002", "Software Engineering Department"));
+            usernameMapping.put("teacher2", teacher2Uid);
+            usernameToUid.put("teacher2", teacher2Uid);
+            log.info("✅ Created teacher2 with UID: {}", teacher2Uid);
+
+            // --- Admin ---
+            String adminUid = createAuthUserAndGetUid(auth, "admin@nottingham.edu.my", "admin123", "System Admin");
+            Map<String, Object> admin = new HashMap<>();
+            admin.put("username", "admin");
+            admin.put("fullName", "System Admin");
+            admin.put("email", "admin@nottingham.edu.my");
+            admin.put("role", "ADMIN");
+            users.put(adminUid, admin);
+            usernameMapping.put("admin", adminUid);
+            usernameToUid.put("admin", adminUid);
+            log.info("✅ Created admin with UID: {}", adminUid);
+
+            // Write to Firebase
+            ref.child("users").updateChildrenAsync(users);
+            ref.child("username_to_uid").updateChildrenAsync(usernameMapping);
+
+            log.info("✅ Migrated {} users with Firebase Auth UIDs", users.size());
+            log.info("📋 All users can login with password: password123 (admin: admin123)");
+
+        } catch (Exception e) {
+            log.error("❌ Failed to migrate users: {}", e.getMessage(), e);
+            throw new RuntimeException("User migration failed", e);
+        }
+    }
+
+    /**
+     * 在 Firebase Authentication 中创建用户并返回 UID
+     * 如果用户已存在，则返回现有的 UID
+     */
+    private String createAuthUserAndGetUid(FirebaseAuth auth, String email, String password, String displayName) {
+        try {
+            // 尝试创建新用户
+            UserRecord.CreateRequest request = new UserRecord.CreateRequest()
+                    .setEmail(email)
+                    .setPassword(password)
+                    .setDisplayName(displayName)
+                    .setEmailVerified(true); // 自动验证邮箱
+
+            UserRecord userRecord = auth.createUser(request);
+            return userRecord.getUid();
+
+        } catch (Exception e) {
+            // 如果用户已存在，尝试通过邮箱获取 UID
+            if (e.getMessage().contains("already exists")) {
+                try {
+                    UserRecord existingUser = auth.getUserByEmail(email);
+                    log.info("⚠️ User {} already exists, using existing UID", email);
+                    return existingUser.getUid();
+                } catch (Exception ex) {
+                    log.error("❌ Failed to get existing user: {}", email, ex);
+                    throw new RuntimeException("Failed to handle existing user", ex);
+                }
+            }
+            log.error("❌ Failed to create user: {}", email, e);
+            throw new RuntimeException("Failed to create user", e);
+        }
     }
 
     private Map<String, Object> createStudent(String username, String name, String email, Long id, String matric, String faculty) {
@@ -150,34 +230,34 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
 
         // ==================== COMP3040 - Mobile Application Development ====================
         String comp3040Id = "comp3040";
-        courses.put(comp3040Id, createCourse("COMP3040", "Mobile Application Development", "teacher1", 3, "Lab A"));
+        courses.put(comp3040Id, createCourse("COMP3040", "Mobile Application Development", usernameToUid.get("teacher1"), 3, "Lab A"));
         // Schedule: Monday 09:00-11:00, Wednesday 15:00-17:00
         addSchedule(schedules, comp3040Id, "1", "MONDAY", "09:00", "11:00", "Lab A", "LAB");
         addSchedule(schedules, comp3040Id, "2", "WEDNESDAY", "15:00", "17:00", "Lab A", "LAB");
-        // Enrollments: student1, student2
-        linkEnrollment(enrollments, studentCourses, comp3040Id, "student1");
-        linkEnrollment(enrollments, studentCourses, comp3040Id, "student2");
+        // Enrollments: student1, student2 (使用 Firebase UID)
+        linkEnrollment(enrollments, studentCourses, comp3040Id, usernameToUid.get("student1"));
+        linkEnrollment(enrollments, studentCourses, comp3040Id, usernameToUid.get("student2"));
 
         // ==================== COMP2040 - Database Systems ====================
         String comp2040Id = "comp2040";
-        courses.put(comp2040Id, createCourse("COMP2040", "Database Systems", "teacher1", 3, "Room 201"));
+        courses.put(comp2040Id, createCourse("COMP2040", "Database Systems", usernameToUid.get("teacher1"), 3, "Room 201"));
         addSchedule(schedules, comp2040Id, "1", "TUESDAY", "14:00", "16:00", "Room 201", "LECTURE");
         addSchedule(schedules, comp2040Id, "2", "THURSDAY", "14:00", "16:00", "Room 201", "LECTURE");
-        linkEnrollment(enrollments, studentCourses, comp2040Id, "student1");
+        linkEnrollment(enrollments, studentCourses, comp2040Id, usernameToUid.get("student1"));
 
         // ==================== SOFT3010 - Software Architecture ====================
         String soft3010Id = "soft3010";
-        courses.put(soft3010Id, createCourse("SOFT3010", "Software Architecture", "teacher2", 3, "Room 305"));
+        courses.put(soft3010Id, createCourse("SOFT3010", "Software Architecture", usernameToUid.get("teacher2"), 3, "Room 305"));
         addSchedule(schedules, soft3010Id, "1", "FRIDAY", "10:00", "13:00", "Room 305", "LECTURE");
-        linkEnrollment(enrollments, studentCourses, soft3010Id, "student3");
+        linkEnrollment(enrollments, studentCourses, soft3010Id, usernameToUid.get("student3"));
 
         // ==================== COMP2001 - Data Structures ====================
         String comp2001Id = "comp2001";
-        courses.put(comp2001Id, createCourse("COMP2001", "Data Structures", "teacher1", 4, "LT1"));
+        courses.put(comp2001Id, createCourse("COMP2001", "Data Structures", usernameToUid.get("teacher1"), 4, "LT1"));
         addSchedule(schedules, comp2001Id, "1", "MONDAY", "08:00", "09:00", "LT1", "LECTURE");
         addSchedule(schedules, comp2001Id, "2", "THURSDAY", "10:00", "12:00", "LT1", "LECTURE");
-        linkEnrollment(enrollments, studentCourses, comp2001Id, "student1");
-        linkEnrollment(enrollments, studentCourses, comp2001Id, "student2");
+        linkEnrollment(enrollments, studentCourses, comp2001Id, usernameToUid.get("student1"));
+        linkEnrollment(enrollments, studentCourses, comp2001Id, usernameToUid.get("student2"));
 
         // ==================== 写入 Firebase ====================
         ref.child("courses").updateChildrenAsync(courses);
@@ -245,10 +325,11 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
 
         Map<String, Object> bookings = new HashMap<>();
 
-        // Booking 1: Basketball Court - Student 1
+        // Booking 1: Basketball Court - Student 1 (使用 Firebase UID)
         String b1Id = "booking_1";
         Map<String, Object> b1 = new HashMap<>();
-        b1.put("userId", "student1");
+        b1.put("id", b1Id);
+        b1.put("userId", usernameToUid.get("student1"));
         b1.put("userName", "Alice Wong");
         b1.put("facilityName", "Basketball Court 1");
         b1.put("facilityType", "Basketball Court");
@@ -259,10 +340,11 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         b1.put("createdAt", System.currentTimeMillis());
         bookings.put(b1Id, b1);
 
-        // Booking 2: Badminton Court - Student 2
+        // Booking 2: Badminton Court - Student 2 (使用 Firebase UID)
         String b2Id = "booking_2";
         Map<String, Object> b2 = new HashMap<>();
-        b2.put("userId", "student2");
+        b2.put("id", b2Id);
+        b2.put("userId", usernameToUid.get("student2"));
         b2.put("userName", "Bob Chen");
         b2.put("facilityName", "Badminton Court 2");
         b2.put("facilityType", "Badminton Court");
@@ -273,10 +355,11 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         b2.put("createdAt", System.currentTimeMillis());
         bookings.put(b2Id, b2);
 
-        // Booking 3: Basketball Court - Student 3
+        // Booking 3: Basketball Court - Student 3 (使用 Firebase UID)
         String b3Id = "booking_3";
         Map<String, Object> b3 = new HashMap<>();
-        b3.put("userId", "student3");
+        b3.put("id", b3Id);
+        b3.put("userId", usernameToUid.get("student3"));
         b3.put("userName", "Charlie Tan");
         b3.put("facilityName", "Basketball Court 2");
         b3.put("facilityType", "Basketball Court");
@@ -299,12 +382,13 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
 
         Map<String, Object> errands = new HashMap<>();
 
-        // Errand 1: Pickup Food - Pending
+        // Errand 1: Pickup Food - Pending (使用 Firebase UID)
         String e1Id = "errand_1";
         Map<String, Object> e1 = new HashMap<>();
+        e1.put("id", e1Id);
         e1.put("title", "Pickup Food from Cafeteria");
         e1.put("description", "Need lunch from main cafeteria. Nasi Lemak + Teh Tarik.");
-        e1.put("requesterId", "student1");
+        e1.put("requesterId", usernameToUid.get("student1"));
         e1.put("requesterName", "Alice Wong");
         e1.put("type", "FOOD_DELIVERY");
         e1.put("status", "PENDING");
@@ -314,14 +398,15 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         e1.put("timestamp", System.currentTimeMillis());
         errands.put(e1Id, e1);
 
-        // Errand 2: Library Return - In Progress
+        // Errand 2: Library Return - In Progress (使用 Firebase UID)
         String e2Id = "errand_2";
         Map<String, Object> e2 = new HashMap<>();
+        e2.put("id", e2Id);
         e2.put("title", "Library Book Return");
         e2.put("description", "Return 3 books to main library before 5pm today");
-        e2.put("requesterId", "student3");
+        e2.put("requesterId", usernameToUid.get("student3"));
         e2.put("requesterName", "Charlie Tan");
-        e2.put("providerId", "student1"); // Accepted by student1
+        e2.put("providerId", usernameToUid.get("student1")); // Accepted by student1
         e2.put("providerName", "Alice Wong");
         e2.put("type", "PICKUP");
         e2.put("status", "IN_PROGRESS");
@@ -331,14 +416,15 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         e2.put("timestamp", System.currentTimeMillis() - 3600000L); // 1 hour ago
         errands.put(e2Id, e2);
 
-        // Errand 3: Stationery Purchase - Completed
+        // Errand 3: Stationery Purchase - Completed (使用 Firebase UID)
         String e3Id = "errand_3";
         Map<String, Object> e3 = new HashMap<>();
+        e3.put("id", e3Id);
         e3.put("title", "Buy Stationery from Bookshop");
         e3.put("description", "Need 2 notebooks and 1 pen");
-        e3.put("requesterId", "student2");
+        e3.put("requesterId", usernameToUid.get("student2"));
         e3.put("requesterName", "Bob Chen");
-        e3.put("providerId", "student3");
+        e3.put("providerId", usernameToUid.get("student3"));
         e3.put("providerName", "Charlie Tan");
         e3.put("type", "SHOPPING");
         e3.put("status", "COMPLETED");
@@ -365,9 +451,10 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         // ==================== Post 1: Study Group ====================
         String p1Id = "post_1";
         Map<String, Object> p1 = new HashMap<>();
+        p1.put("id", p1Id);
         p1.put("title", "Study Group for COMP3040");
         p1.put("content", "Looking for study partners for Mobile App Development! We can meet on weekends at the library.");
-        p1.put("authorId", "student1");
+        p1.put("authorId", usernameToUid.get("student1"));
         p1.put("authorName", "Alice Wong");
         p1.put("category", "ACADEMIC");
         p1.put("likes", 5);
@@ -375,18 +462,20 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         p1.put("timestamp", System.currentTimeMillis() - 172800000L); // 2 days ago
         posts.put(p1Id, p1);
 
-        // Comments for Post 1
+        // Comments for Post 1 (使用 Firebase UID)
         Map<String, Object> p1Comments = new HashMap<>();
         Map<String, Object> c1 = new HashMap<>();
+        c1.put("id", "comment_1");
         c1.put("content", "I'm interested! What time works for you?");
-        c1.put("authorId", "student2");
+        c1.put("authorId", usernameToUid.get("student2"));
         c1.put("authorName", "Bob Chen");
         c1.put("timestamp", System.currentTimeMillis() - 169200000L);
         p1Comments.put("comment_1", c1);
 
         Map<String, Object> c2 = new HashMap<>();
+        c2.put("id", "comment_2");
         c2.put("content", "Count me in too! Saturday afternoon?");
-        c2.put("authorId", "student3");
+        c2.put("authorId", usernameToUid.get("student3"));
         c2.put("authorName", "Charlie Tan");
         c2.put("timestamp", System.currentTimeMillis() - 165600000L);
         p1Comments.put("comment_2", c2);
@@ -396,9 +485,10 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         // ==================== Post 2: Exam Announcement ====================
         String p2Id = "post_2";
         Map<String, Object> p2 = new HashMap<>();
+        p2.put("id", p2Id);
         p2.put("title", "Important: Midterm Exam Schedule");
         p2.put("content", "The midterm exams for all COMP courses will be held next week. Check the student portal for detailed schedule.");
-        p2.put("authorId", "teacher1");
+        p2.put("authorId", usernameToUid.get("teacher1"));
         p2.put("authorName", "Dr. Sarah Johnson");
         p2.put("category", "ANNOUNCEMENTS");
         p2.put("isPinned", true);
@@ -410,9 +500,10 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         // ==================== Post 3: Lost & Found ====================
         String p3Id = "post_3";
         Map<String, Object> p3 = new HashMap<>();
+        p3.put("id", p3Id);
         p3.put("title", "Lost: Black Laptop Bag");
         p3.put("content", "Lost my laptop bag near the library yesterday. Contains important notes. Please contact me if found.");
-        p3.put("authorId", "student2");
+        p3.put("authorId", usernameToUid.get("student2"));
         p3.put("authorName", "Bob Chen");
         p3.put("category", "GENERAL");
         p3.put("likes", 3);
@@ -420,11 +511,12 @@ public class FirebaseDataMigrationService implements CommandLineRunner {
         p3.put("timestamp", System.currentTimeMillis() - 86400000L); // 1 day ago
         posts.put(p3Id, p3);
 
-        // Comment for Post 3
+        // Comment for Post 3 (使用 Firebase UID)
         Map<String, Object> p3Comments = new HashMap<>();
         Map<String, Object> c3 = new HashMap<>();
+        c3.put("id", "comment_1");
         c3.put("content", "I think I saw it at the security office. Check there!");
-        c3.put("authorId", "student1");
+        c3.put("authorId", usernameToUid.get("student1"));
         c3.put("authorName", "Alice Wong");
         c3.put("timestamp", System.currentTimeMillis() - 82800000L);
         p3Comments.put("comment_1", c3);

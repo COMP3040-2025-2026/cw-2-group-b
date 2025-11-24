@@ -1,36 +1,51 @@
 package com.nottingham.mynottingham.ui.auth
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.data.repository.MessageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
- * LoginViewModel - Firebase Migration Edition
+ * LoginViewModel - Firebase Authentication Edition
  *
- * ⚠️ TEMPORARY AUTHENTICATION SOLUTION
- * This version uses Firebase for user lookup but bypasses password validation
- * since Firebase stores BCrypt hashed passwords that can't be verified client-side.
+ * ✅ PRODUCTION-READY AUTHENTICATION
+ * This version uses Firebase Authentication SDK for secure user authentication.
  *
- * PRODUCTION SOLUTION:
- * - Migrate to Firebase Authentication SDK
- * - Reset all user passwords during migration
- * - Use FirebaseAuth.signInWithEmailAndPassword()
+ * AUTHENTICATION FLOW:
+ * 1. User enters username (e.g., "student1") and password
+ * 2. Convert username to email format (student1 → student1@nottingham.edu.my)
+ * 3. Authenticate with FirebaseAuth.signInWithEmailAndPassword()
+ * 4. Retrieve Firebase UID from authenticated user
+ * 5. Fetch user profile from Realtime Database using UID
+ * 6. Save user info to TokenManager
  *
- * CURRENT BEHAVIOR:
- * - User enters username (e.g., "student1")
- * - System checks if user exists in Firebase
- * - Password is validated against hardcoded "password123" (INSECURE - for testing only)
- * - User info is saved to TokenManager
+ * EMAIL FORMAT MAPPING:
+ * - Students: {username}@nottingham.edu.my (e.g., student1@nottingham.edu.my)
+ * - Teachers: {username}@nottingham.edu.my (e.g., teacher1@nottingham.edu.my)
+ * - Admin: admin@nottingham.edu.my
+ *
+ * DEFAULT PASSWORD: password123 (admin: admin123)
+ *
+ * BENEFITS:
+ * - ✅ Secure password verification (handled by Firebase)
+ * - ✅ No backend dependency
+ * - ✅ Industry-standard authentication
+ * - ✅ Password reset functionality (can be added)
  */
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager(application)
+    private val firebaseAuth = FirebaseAuth.getInstance()
     private val firebaseUserRepo = FirebaseUserRepository()
     private val messageRepository = MessageRepository(application)
 
@@ -43,87 +58,115 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginSuccess = MutableStateFlow(false)
     val loginSuccess: StateFlow<Boolean> = _loginSuccess
 
-    // 临时的测试密码 - 所有用户都使用这个密码
-    private val TEST_PASSWORD = "password123"
-
+    /**
+     * Login with Firebase Authentication
+     *
+     * @param username Username (will be converted to email)
+     * @param password User's password
+     */
     fun login(username: String, password: String) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
                 _error.value = null
 
-                // ===== Firebase 登录逻辑 =====
+                Log.d(TAG, "🔐 Starting Firebase Auth login for user: $username")
 
-                // Step 1: 验证密码 (临时方案 - 所有用户统一密码)
-                if (password != TEST_PASSWORD) {
-                    _error.value = "Invalid password. Hint: Try 'password123'"
+                // Step 1: Convert username to email format
+                val email = convertUsernameToEmail(username)
+                Log.d(TAG, "📧 Converted username to email: $email")
+
+                // Step 2: Authenticate with Firebase Auth
+                val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+                val firebaseUser = authResult.user
+
+                if (firebaseUser == null) {
+                    _error.value = "Authentication failed: User is null"
+                    Log.e(TAG, "❌ Firebase user is null after authentication")
                     return@launch
                 }
 
-                // Step 2: 从 Firebase 查找用户
-                val userId = firebaseUserRepo.findUserIdByUsername(username)
-                if (userId == null) {
-                    _error.value = "User not found: $username"
-                    return@launch
-                }
+                val uid = firebaseUser.uid
+                Log.d(TAG, "✅ Firebase Auth successful! UID: $uid")
 
-                // Step 3: 获取完整用户信息
-                val userResult = firebaseUserRepo.getUserProfileOnce(userId)
+                // Step 3: Fetch user profile from Realtime Database
+                val userResult = firebaseUserRepo.getUserProfileOnce(uid)
                 if (userResult.isFailure) {
                     _error.value = "Failed to load user profile: ${userResult.exceptionOrNull()?.message}"
+                    Log.e(TAG, "❌ Failed to fetch user profile from database", userResult.exceptionOrNull())
                     return@launch
                 }
 
                 val user = userResult.getOrNull() ?: run {
                     _error.value = "User data is null"
+                    Log.e(TAG, "❌ User data is null")
                     return@launch
                 }
 
-                // Step 4: 保存用户信息到 TokenManager
-                // 生成一个临时 token (Firebase Auth 会提供真实 token)
-                val tempToken = "firebase_token_${System.currentTimeMillis()}"
+                // Step 4: Save user information to TokenManager
+                // Get Firebase ID token (can be used for backend authentication if needed)
+                val idToken = firebaseUser.getIdToken(false).await().token ?: ""
 
-                tokenManager.saveUserId(userId)
-                tokenManager.saveUsername(username)
+                tokenManager.saveUserId(uid)
+                tokenManager.saveUsername(user.username)
                 tokenManager.saveFullName(user.name)
-                tokenManager.saveToken(tempToken)
+                tokenManager.saveToken(idToken)
 
-                // 根据 studentId 判断角色
-                val userType = if (user.studentId.isNotEmpty() && user.studentId.toLongOrNull() != null) {
-                    "STUDENT"
-                } else {
-                    "TEACHER"
+                // Determine user type based on role
+                val userType = when {
+                    user.role == "STUDENT" -> "STUDENT"
+                    user.role == "TEACHER" -> "TEACHER"
+                    user.role == "ADMIN" -> "ADMIN"
+                    else -> "STUDENT" // Default fallback
                 }
                 tokenManager.saveUserType(userType)
 
-                // 保存额外信息
+                // Save additional information
                 if (userType == "STUDENT") {
                     tokenManager.saveFaculty(user.faculty)
-                    // 暂时设置为固定值，因为 Firebase 中没有这些字段
                     tokenManager.saveYearOfStudy(user.year.toString())
-                } else {
-                    tokenManager.saveDepartment(user.faculty) // Teacher 的 faculty 字段存的是 department
+                } else if (userType == "TEACHER") {
+                    tokenManager.saveDepartment(user.faculty) // Teacher's faculty field stores department
                 }
 
-                android.util.Log.d("LoginViewModel", "✅ Login successful: $username ($userType)")
+                Log.d(TAG, "✅ Login successful: ${user.username} ($userType) | UID: $uid")
+                Log.d(TAG, "👤 User info: ${user.name} | Email: ${user.email}")
 
-                // Step 5: 创建默认对话 (可选)
+                // Step 5: Create default conversations (optional)
                 try {
-                    createDefaultConversations(tempToken, userId)
+                    createDefaultConversations(idToken, uid)
                 } catch (e: Exception) {
-                    // 忽略错误，不影响登录
-                    android.util.Log.w("LoginViewModel", "Failed to create default conversations: ${e.message}")
+                    // Ignore errors, not critical
+                    Log.w(TAG, "Failed to create default conversations: ${e.message}")
                 }
 
                 _loginSuccess.value = true
 
+            } catch (e: FirebaseAuthInvalidUserException) {
+                Log.e(TAG, "❌ User not found", e)
+                _error.value = "User not found. Please check your username."
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                Log.e(TAG, "❌ Invalid password", e)
+                _error.value = "Invalid password. Please try again."
             } catch (e: Exception) {
-                android.util.Log.e("LoginViewModel", "❌ Login error", e)
+                Log.e(TAG, "❌ Login error", e)
                 _error.value = "Login error: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    /**
+     * Convert username to email format for Firebase Authentication
+     *
+     * Examples:
+     * - student1 → student1@nottingham.edu.my
+     * - teacher1 → teacher1@nottingham.edu.my
+     * - admin → admin@nottingham.edu.my
+     */
+    private fun convertUsernameToEmail(username: String): String {
+        return "$username@nottingham.edu.my"
     }
 
     /**
@@ -139,5 +182,27 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 // User can still manually create conversations
             }
         }
+    }
+
+    /**
+     * Check if a user is currently logged in
+     */
+    fun isUserLoggedIn(): Boolean {
+        return firebaseAuth.currentUser != null
+    }
+
+    /**
+     * Logout the current user
+     */
+    fun logout() {
+        firebaseAuth.signOut()
+        viewModelScope.launch {
+            tokenManager.clearAllData()
+        }
+        Log.d(TAG, "🚪 User logged out successfully")
+    }
+
+    companion object {
+        private const val TAG = "LoginViewModel"
     }
 }

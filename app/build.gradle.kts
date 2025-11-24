@@ -129,6 +129,8 @@ dependencies {
     // FIREBASE //
     // Firebase BOM - manages all Firebase library versions
     implementation(platform(libs.firebase.bom))
+    // Firebase Authentication for user identity management
+    implementation(libs.firebase.auth)
     // Firebase Realtime Database with Kotlin extensions
     implementation(libs.firebase.database)
     // Firebase Analytics (optional but recommended)
