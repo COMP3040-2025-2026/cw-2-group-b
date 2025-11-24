@@ -100,10 +100,11 @@ class InstattRepository {
      * @param studentName 学生姓名（从 TokenManager 获取）
      * @param matricNumber 学号（可选）
      * @param email 邮箱（可选）
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun signIn(
         studentId: Long,
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         studentName: String = "Student $studentId", // 默认值，调用时应传入真实姓名
         matricNumber: String? = null,
@@ -262,9 +263,10 @@ class InstattRepository {
 
     /**
      * 检查学生是否已经签到
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun hasStudentSignedIn(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         studentId: Long
     ): Result<Boolean> {

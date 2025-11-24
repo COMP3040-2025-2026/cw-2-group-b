@@ -232,24 +232,7 @@ class InstattDayCoursesFragment : Fragment() {
 
         lifecycleScope.launch {
             // ⚠️ 注意：Firebase scheduleId 是字符串，但 sessions 仍使用数字 ID
-            // 尝试从字符串 ID 中提取数字部分（如果可能）
-            val scheduleIdLong = extractNumericId(course.id)
-
-            if (scheduleIdLong == null) {
-                Toast.makeText(
-                    context,
-                    "⚠️ Sign-in not available: Course schedule ID '${course.id}' cannot be converted to numeric format.\n" +
-                    "This course uses Firebase-only scheduling.",
-                    Toast.LENGTH_LONG
-                ).show()
-                android.util.Log.w(
-                    "InstattStudent",
-                    "Cannot sign in to course ${course.courseCode}: scheduleId '${course.id}' is not numeric"
-                )
-                return@launch
-            }
-
-            // 学生 ID 也需要数字格式
+            // ✅ 学生 ID 需要数字格式（Firebase sessions 使用数字 studentId）
             val studentIdLong = studentId.toLongOrNull()
             if (studentIdLong == null) {
                 Toast.makeText(
@@ -260,10 +243,11 @@ class InstattDayCoursesFragment : Fragment() {
                 return@launch
             }
 
-            // 使用 Firebase 签到 - 毫秒级响应
+            // ✅ 使用 Firebase 签到 - 毫秒级响应
+            // courseScheduleId 现在直接使用 String 类型（如 "comp2001_1"）
             val result = repository.signIn(
                 studentId = studentIdLong,
-                courseScheduleId = scheduleIdLong,
+                courseScheduleId = course.id,  // ✅ 直接使用 String ID
                 date = today,
                 studentName = studentName,
                 matricNumber = null, // 可以从 TokenManager 获取学号
@@ -451,26 +435,6 @@ class InstattDayCoursesFragment : Fragment() {
                 )
             )
             else -> emptyList()
-        }
-    }
-
-    /**
-     * 尝试从 Firebase 字符串 ID 中提取数字部分
-     *
-     * 示例：
-     * - "123" → 123
-     * - "comp2001_1" → null（不支持）
-     * - "456" → 456
-     *
-     * ⚠️ 这是临时解决方案，理想情况下应该重构 sessions 数据结构支持字符串 ID
-     */
-    private fun extractNumericId(id: String): Long? {
-        return try {
-            id.toLong()
-        } catch (e: NumberFormatException) {
-            // 如果 ID 包含下划线，尝试提取最后一部分数字
-            // 例如 "comp2001_1" → 提取不出来，返回 null
-            null
         }
     }
 
