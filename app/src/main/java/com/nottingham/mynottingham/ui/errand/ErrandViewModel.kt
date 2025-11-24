@@ -7,7 +7,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.local.TokenManager
-import com.nottingham.mynottingham.data.model.Errand
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.remote.dto.CreateErrandRequest
 import kotlinx.coroutines.flow.first
@@ -30,13 +29,17 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 val response = RetrofitInstance.apiService.getAvailableErrands()
                 if (response.isSuccessful) {
                     response.body()?.let { errands ->
-                        // ✅ 新增：只保留状态为 "PENDING" 的任务
-                        // 这样 "IN_PROGRESS" (已接单) 和 "COMPLETED" 的任务就会被自动过滤掉
+                        // 1. 过滤：只显示 PENDING (待接单) 的任务
                         val filteredErrands = errands.filter { it.status == "PENDING" }
 
+                        // 2. 转换
                         val taskList = filteredErrands.map { it.toErrandTask() }
-                        Log.d("ErrandViewModel", "Loaded ${taskList.size} tasks (filtered) from backend")
-                        _tasks.postValue(taskList)
+
+                        // 3. 排序：按时间倒序 (最新的在最上面)
+                        val sortedList = taskList.sortedByDescending { it.timestamp }
+
+                        Log.d("ErrandViewModel", "Loaded ${sortedList.size} tasks from backend")
+                        _tasks.postValue(sortedList)
                     }
                 } else {
                     Log.e("ErrandViewModel", "Failed to load tasks: ${response.errorBody()?.string()}")
@@ -50,14 +53,14 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
     fun addTask(task: ErrandTask) {
         viewModelScope.launch {
             try {
-                val userId = tokenManager.getUserId().first() ?: ""
-                val token = "Bearer $userId"
+                // [关键修复] 必须使用 getToken() 获取 JWT，不能用 getUserId()
+                val jwtToken = tokenManager.getToken().first() ?: ""
+                val token = "Bearer $jwtToken"
 
-                // Convert ErrandTask to CreateErrandRequest
                 val request = CreateErrandRequest(
                     title = task.title,
                     description = task.description,
-                    type = "SHOPPING", // Default type, could be enhanced
+                    type = "SHOPPING",
                     priority = "HIGH",
                     pickupLocation = task.location,
                     deliveryLocation = task.location,
@@ -67,22 +70,15 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
 
                 val response = RetrofitInstance.apiService.createErrand(token, request)
                 if (response.isSuccessful) {
-                    Log.d("ErrandViewModel", "Task created successfully")
-                    // Reload tasks to get updated list from server
+                    Log.d("ErrandViewModel", "Task created successfully on server")
+                    // 成功后重新从服务器加载，确保数据一致且排序正确
                     loadTasks()
                 } else {
-                    Log.e("ErrandViewModel", "Failed to create task: ${response.errorBody()?.string()}")
-                    // Fallback: add to local list only
-                    val currentTasks = _tasks.value?.toMutableList() ?: mutableListOf()
-                    currentTasks.add(task)
-                    _tasks.value = currentTasks
+                    Log.e("ErrandViewModel", "Failed to create task: ${response.code()} ${response.errorBody()?.string()}")
+                    // 如果需要 Fallback 可以在这里处理，但建议依赖服务器刷新
                 }
             } catch (e: Exception) {
                 Log.e("ErrandViewModel", "Error creating task", e)
-                // Fallback: add to local list only
-                val currentTasks = _tasks.value?.toMutableList() ?: mutableListOf()
-                currentTasks.add(task)
-                _tasks.value = currentTasks
             }
         }
     }
@@ -96,9 +92,9 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
             location = this.location,
             requesterId = this.requesterId,
             requesterName = this.requesterName,
-            requesterAvatar = "", // ErrandResponse does not have avatar
+            requesterAvatar = "",
             deadline = this.deadline ?: "",
-            timestamp = this.createdAt
+            timestamp = this.createdAt,
         )
     }
 }
