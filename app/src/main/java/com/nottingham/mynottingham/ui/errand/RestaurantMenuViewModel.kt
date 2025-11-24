@@ -117,6 +117,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
     private fun calculateTotals(qtyMap: Map<String, Int>) {
         var subtotalValue = 0.0
         var count = 0
+        var baseDeliveryFee = 0.0 // Initialize fee accumulator
         val itemsList = mutableListOf<CartItem>()
 
         qtyMap.forEach { (id, qty) ->
@@ -125,19 +126,15 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 subtotalValue += menuItem.price * qty
                 count += qty
                 itemsList.add(CartItem(menuItem, qty))
+
+                // New delivery fee logic based on category
+                when (menuItem.category) {
+                    "noodles", "rice" -> baseDeliveryFee += 2.0 * qty
+                    "drinks" -> baseDeliveryFee += 1.0 * qty
+                }
             }
         }
 
-        // Base delivery fee (e.g., standard flat fee or based on subtotal, excluding extra fee)
-        val baseDeliveryFee = if (count > 0) {
-            when {
-                subtotalValue > 50.0 -> 0.0 // Free delivery for subtotals over RM 50
-                else -> 2.0 // Standard delivery fee
-            }
-        } else {
-            0.0
-        }
-        
         // Add selected delivery option's extra fee
         val totalDeliveryFee = baseDeliveryFee + (_selectedDeliveryExtraFee.value ?: 0.0)
 
