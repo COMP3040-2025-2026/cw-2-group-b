@@ -177,11 +177,17 @@ class TeacherInstattFragment : Fragment() {
                 lifecycleScope.launch {
                     val result = repository.unlockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID
 
-                    result.onSuccess {
+                    result.onSuccess { isFirstTime ->
+                        val message = if (isFirstTime) {
+                            "✅ Session unlocked for ${course.courseName}\n📊 This is session #${course.attendedClasses + 1}"
+                        } else {
+                            "✅ Session re-opened for ${course.courseName}\n⏱️ Auto-locks in 20 minutes"
+                        }
+
                         Toast.makeText(
                             context,
-                            "Sign-in unlocked for ${course.courseName}",
-                            Toast.LENGTH_SHORT
+                            message,
+                            Toast.LENGTH_LONG
                         ).show()
 
                         // Firebase 会自动通知所有学生端，无需手动刷新
