@@ -405,6 +405,13 @@ class TeacherInstattFragment : Fragment() {
 
     private fun showCourseManagementDialog(course: Course) {
         val bottomSheet = CourseManagementBottomSheet.newInstance(course)
+
+        // 🔴 修复：设置回调监听器，当session状态改变时刷新主界面
+        bottomSheet.onSessionStatusChanged = {
+            loadTodayCourses()
+            android.util.Log.d("TeacherInstatt", "🔄 Refreshing course list after session status change")
+        }
+
         bottomSheet.show(parentFragmentManager, "CourseManagementBottomSheet")
     }
 

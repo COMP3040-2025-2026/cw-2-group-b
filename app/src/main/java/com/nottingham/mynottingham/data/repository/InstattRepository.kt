@@ -100,16 +100,17 @@ class InstattRepository {
 
     /**
      * 学生签到 - 使用 Firebase 实现毫秒级响应
+     * ✅ 修复：支持 String UID（Firebase UID）
+     * @param studentUid Firebase UID (String)
      * @param studentName 学生姓名（从 TokenManager 获取）
      * @param matricNumber 学号（可选）
      * @param email 邮箱（可选）
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun signIn(
-        studentId: Long,
+        studentUid: String,  // 🔴 改为 String UID
         courseScheduleId: String,
         date: String,
-        studentName: String = "Student $studentId", // 默认值，调用时应传入真实姓名
+        studentName: String = "Student", // 默认值，调用时应传入真实姓名
         matricNumber: String? = null,
         email: String? = null
     ): Result<Unit> {
@@ -118,7 +119,7 @@ class InstattRepository {
             firebaseManager.signIn(
                 courseScheduleId = courseScheduleId,
                 date = date,
-                studentId = studentId,
+                studentUid = studentUid,  // 🔴 传递 String UID
                 studentName = studentName,
                 matricNumber = matricNumber,
                 email = email
@@ -163,22 +164,30 @@ class InstattRepository {
         // Step 3: 监听 Firebase 实时签到数据
         firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
             .collect { firebaseStudents ->
-                // Step 4: 合并数据
+                // Step 4: 合并数据 - 🔴 使用 Firebase UID 匹配，避免重名问题
                 if (enrolledStudents.isNotEmpty()) {
                     // 有注册学生数据 - 使用合并模式（完整名册 + 实时状态）
-                    val mergedList = enrolledStudents.map { (studentId, studentName) ->
-                        // 查找该学生在 Firebase 中的实时签到记录
+                    val mergedList = enrolledStudents.map { (studentUid, studentName) ->
+                        // 🔴 修复：使用 Firebase UID 匹配（唯一标识符）
                         val firebaseRecord = firebaseStudents.find {
-                            it.studentId == studentId.toString()
+                            it.studentId == studentUid  // UID 对 UID 匹配
                         }
 
                         if (firebaseRecord != null) {
                             // Firebase 有该学生的签到记录，使用 Firebase 的实时数据
+                            android.util.Log.d(
+                                "InstattRepository",
+                                "✅ Matched enrolled student $studentName ($studentUid) with Firebase record"
+                            )
                             firebaseRecord
                         } else {
                             // Firebase 还没有该学生的签到记录，显示为 ABSENT
+                            android.util.Log.d(
+                                "InstattRepository",
+                                "⚠️ Student $studentName ($studentUid) enrolled but not signed in yet"
+                            )
                             StudentAttendance(
-                                studentId = studentId.toString(),
+                                studentId = studentUid,  // 使用 Firebase UID
                                 studentName = studentName,
                                 matricNumber = null,
                                 email = null,
@@ -225,11 +234,11 @@ class InstattRepository {
 
     /**
      * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符，避免重名问题
      */
     suspend fun markAttendance(
         teacherId: String,  // Firebase UID (not used in Firebase operations)
-        studentId: String,  // Firebase UID
+        studentUid: String,  // 🔴 Firebase UID (String)
         courseScheduleId: String,
         date: String,
         status: String,
@@ -244,14 +253,11 @@ class InstattRepository {
                 AttendanceStatus.ABSENT
             }
 
-            // 尝试将 studentId 转换为 Long（Firebase Manager 可能仍需要）
-            val studentIdLong = studentId.toLongOrNull()
-                ?: return@withContext Result.failure(Exception("Invalid student ID format"))
-
+            // 🔴 直接使用 Firebase UID，不再转换为 Long
             firebaseManager.markStudentAttendance(
                 courseScheduleId = courseScheduleId,
                 date = date,
-                studentId = studentIdLong,
+                studentUid = studentUid,  // 🔴 传递 String UID
                 status = attendanceStatus,
                 studentName = studentName,
                 matricNumber = matricNumber,
@@ -274,15 +280,15 @@ class InstattRepository {
 
     /**
      * 检查学生是否已经签到
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符
      */
     suspend fun hasStudentSignedIn(
         courseScheduleId: String,
         date: String,
-        studentId: Long
+        studentUid: String  // 🔴 改为 String UID
     ): Result<Boolean> {
         return withContext(Dispatchers.IO) {
-            firebaseManager.hasStudentSignedIn(courseScheduleId, date, studentId)
+            firebaseManager.hasStudentSignedIn(courseScheduleId, date, studentUid)
         }
     }
 }

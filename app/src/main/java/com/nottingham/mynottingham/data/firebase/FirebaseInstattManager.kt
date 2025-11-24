@@ -120,12 +120,12 @@ class FirebaseInstattManager {
 
     /**
      * 教师手动标记学生出勤状态
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * 🔴 修复：使用 String UID（Firebase UID）作为唯一标识符
      */
     suspend fun markStudentAttendance(
         courseScheduleId: String,
         date: String,
-        studentId: Long,
+        studentUid: String,  // 🔴 改为 String UID
         status: AttendanceStatus,
         studentName: String,
         matricNumber: String? = null,
@@ -134,7 +134,7 @@ class FirebaseInstattManager {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
             val studentData = mapOf(
-                "studentId" to studentId,
+                "studentUid" to studentUid,  // 🔴 保存 Firebase UID
                 "studentName" to studentName,
                 "matricNumber" to matricNumber,
                 "email" to email,
@@ -142,10 +142,18 @@ class FirebaseInstattManager {
                 "checkInTime" to java.time.Instant.now().toString(),
                 "timestamp" to System.currentTimeMillis()
             )
-            sessionsRef.child(sessionKey).child("students").child(studentId.toString())
+            // 🔴 使用 Firebase UID 作为 key
+            sessionsRef.child(sessionKey).child("students").child(studentUid)
                 .setValue(studentData).await()
+
+            android.util.Log.d(
+                "FirebaseInstatt",
+                "✅ Teacher marked $studentName ($studentUid) as ${status.name}"
+            )
+
             Result.success(Unit)
         } catch (e: Exception) {
+            android.util.Log.e("FirebaseInstatt", "❌ Failed to mark attendance: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -179,8 +187,14 @@ class FirebaseInstattManager {
 
                 snapshot.children.forEach { child ->
                     try {
-                        val studentIdLong = child.child("studentId").getValue(Long::class.java) ?: 0L
-                        val studentId = studentIdLong.toString()  // Convert to String for Firebase UID compatibility
+                        // 🔴 修复：支持新旧两种数据格式
+                        // 新格式：studentUid (String)
+                        // 旧格式：studentId (Long)
+                        val studentUid = child.child("studentUid").getValue(String::class.java)
+                            ?: child.child("studentId").getValue(Long::class.java)?.toString()
+                            ?: child.key  // 如果都没有，使用节点key作为UID
+                            ?: ""
+
                         val studentName = child.child("studentName").getValue(String::class.java) ?: ""
                         val matricNumber = child.child("matricNumber").getValue(String::class.java)
                         val email = child.child("email").getValue(String::class.java)
@@ -195,7 +209,7 @@ class FirebaseInstattManager {
 
                         students.add(
                             StudentAttendance(
-                                studentId = studentId,
+                                studentId = studentUid,  // 使用 UID
                                 studentName = studentName,
                                 matricNumber = matricNumber,
                                 email = email,
@@ -204,6 +218,11 @@ class FirebaseInstattManager {
                                 checkInTime = checkInTime
                             )
                         )
+
+                        android.util.Log.d(
+                            "FirebaseInstatt",
+                            "📋 Parsed student: $studentName ($studentUid) - $status"
+                        )
                     } catch (e: Exception) {
                         // Skip invalid entries
                         android.util.Log.w("FirebaseInstatt", "Failed to parse student: ${e.message}")
@@ -211,6 +230,7 @@ class FirebaseInstattManager {
                 }
 
                 // 发送最新的学生列表（可能为空）
+                android.util.Log.d("FirebaseInstatt", "📤 Emitting ${students.size} students to listener")
                 trySend(students)
             }
 
@@ -233,12 +253,14 @@ class FirebaseInstattManager {
 
     /**
      * 学生签到
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * ✅ 修复：支持 String UID（Firebase UID）
+     * @param studentUid Firebase UID (String)
+     * @param studentName 学生姓名
      */
     suspend fun signIn(
         courseScheduleId: String,
         date: String,
-        studentId: Long,
+        studentUid: String,  // 🔴 改为 String UID
         studentName: String,
         matricNumber: String? = null,
         email: String? = null
@@ -263,9 +285,9 @@ class FirebaseInstattManager {
                 return Result.failure(Exception("Session is locked"))
             }
 
-            // 写入签到数据
+            // 写入签到数据 - 使用 Firebase UID 作为 key
             val studentData = mapOf(
-                "studentId" to studentId,
+                "studentUid" to studentUid,  // 🔴 保存 Firebase UID
                 "studentName" to studentName,
                 "matricNumber" to matricNumber,
                 "email" to email,
@@ -274,11 +296,18 @@ class FirebaseInstattManager {
                 "timestamp" to System.currentTimeMillis()
             )
 
-            sessionsRef.child(sessionKey).child("students").child(studentId.toString())
+            // 使用 Firebase UID 作为 key（而不是数字 ID）
+            sessionsRef.child(sessionKey).child("students").child(studentUid)
                 .setValue(studentData).await()
+
+            android.util.Log.d(
+                "FirebaseInstatt",
+                "✅ Student $studentName ($studentUid) signed in to $sessionKey"
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {
+            android.util.Log.e("FirebaseInstatt", "❌ Sign-in failed: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -335,18 +364,18 @@ class FirebaseInstattManager {
 
     /**
      * 检查学生是否已经签到
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符
      */
     suspend fun hasStudentSignedIn(
         courseScheduleId: String,
         date: String,
-        studentId: Long
+        studentUid: String  // 🔴 改为 String UID
     ): Result<Boolean> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
             val snapshot = sessionsRef.child(sessionKey)
                 .child("students")
-                .child(studentId.toString())
+                .child(studentUid)  // 🔴 使用 String UID
                 .get()
                 .await()
 
@@ -361,16 +390,17 @@ class FirebaseInstattManager {
     /**
      * 检查并执行20分钟自动锁定
      * 如果session超过autoLockTime且仍未锁定，则自动锁定并标记未签到学生为缺席
+     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符
      *
      * @param courseScheduleId 课程排课ID
      * @param date 日期
-     * @param enrolledStudents 所有选课学生列表（用于标记缺席）
+     * @param enrolledStudents 所有选课学生列表（UID, 姓名）
      * @return Result<Boolean> - true表示执行了自动锁定，false表示无需锁定
      */
     suspend fun checkAndAutoLockSession(
         courseScheduleId: String,
         date: String,
-        enrolledStudents: List<Pair<Long, String>>  // List of (studentId, studentName)
+        enrolledStudents: List<Pair<String, String>>  // 🔴 List of (studentUid, studentName)
     ): Result<Boolean> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
@@ -407,26 +437,28 @@ class FirebaseInstattManager {
 
                 // 2. 标记所有未签到学生为缺席
                 val studentsSnapshot = sessionRef.child("students").get().await()
-                val signedInStudentIds = studentsSnapshot.children.mapNotNull {
-                    it.child("studentId").getValue(Long::class.java)
+                // 🔴 使用 studentUid (String) 作为 key
+                val signedInStudentUids = studentsSnapshot.children.mapNotNull {
+                    it.child("studentUid").getValue(String::class.java) ?: it.key
                 }.toSet()
 
-                for ((studentId, studentName) in enrolledStudents) {
-                    if (studentId !in signedInStudentIds) {
+                for ((studentUid, studentName) in enrolledStudents) {
+                    if (studentUid !in signedInStudentUids) {
                         // 标记为缺席
                         val absentData = mapOf(
-                            "studentId" to studentId,
+                            "studentUid" to studentUid,  // 🔴 使用 Firebase UID
                             "studentName" to studentName,
                             "status" to AttendanceStatus.ABSENT.name,
                             "markedAt" to currentTime,
                             "autoMarked" to true  // 标记这是自动标记的缺席
                         )
-                        sessionRef.child("students").child(studentId.toString())
+                        // 🔴 使用 studentUid 作为 key
+                        sessionRef.child("students").child(studentUid)
                             .setValue(absentData).await()
 
                         android.util.Log.d(
                             "FirebaseInstatt",
-                            "Auto-marked student $studentId ($studentName) as ABSENT"
+                            "Auto-marked student $studentUid ($studentName) as ABSENT"
                         )
                     }
                 }

@@ -202,17 +202,39 @@ class InstattDayCoursesFragment : Fragment() {
                     courseScheduleId = course.id,  // 直接使用字符串 ID
                     date = date
                 ).collect { isLocked ->
+                    val oldSignInStatus = course.signInStatus
+                    val oldTodayStatus = course.todayStatus
+                    val newSignInStatus = if (isLocked) SignInStatus.LOCKED else SignInStatus.UNLOCKED
+
                     android.util.Log.d(
                         "InstattStudent",
-                        "🔄 ${course.courseCode} status changed: isLocked=$isLocked"
+                        "🔄 ${course.courseCode} (${course.id}) status changed: $oldSignInStatus -> $newSignInStatus (isLocked=$isLocked)"
+                    )
+                    android.util.Log.d(
+                        "InstattStudent",
+                        "🔥 Firebase path: sessions/${course.id}_$date/isLocked"
                     )
 
-                    course.signInStatus = if (isLocked) {
-                        SignInStatus.LOCKED
+                    if (oldSignInStatus != newSignInStatus) {
+                        // 🔴 修复：同时更新 signInStatus 和 todayStatus
+                        course.signInStatus = newSignInStatus
+
+                        // 当session解锁时，将todayStatus设置为IN_PROGRESS（显示铅笔图标）
+                        // 当session锁定时，保持原状态（如果已签到则保持ATTENDED）
+                        if (!isLocked) {
+                            course.todayStatus = TodayClassStatus.IN_PROGRESS
+                            android.util.Log.d("InstattStudent", "✏️ Set todayStatus to IN_PROGRESS (pencil icon)")
+                        } else if (isLocked && course.todayStatus == TodayClassStatus.IN_PROGRESS) {
+                            // 如果锁定且当前是IN_PROGRESS，恢复为UPCOMING
+                            course.todayStatus = TodayClassStatus.UPCOMING
+                            android.util.Log.d("InstattStudent", "🔒 Set todayStatus back to UPCOMING (lock icon)")
+                        }
+
+                        binding.rvCourses.adapter?.notifyDataSetChanged()
+                        android.util.Log.d("InstattStudent", "✅ UI updated - adapter notified (todayStatus: ${course.todayStatus})")
                     } else {
-                        SignInStatus.UNLOCKED
+                        android.util.Log.d("InstattStudent", "⏩ No status change, skipping UI update")
                     }
-                    binding.rvCourses.adapter?.notifyDataSetChanged()
                 }
             }
         }
@@ -235,23 +257,16 @@ class InstattDayCoursesFragment : Fragment() {
         ).show()
 
         lifecycleScope.launch {
-            // ⚠️ 注意：Firebase scheduleId 是字符串，但 sessions 仍使用数字 ID
-            // ✅ 学生 ID 需要数字格式（Firebase sessions 使用数字 studentId）
-            val studentIdLong = studentId.toLongOrNull()
-            if (studentIdLong == null) {
-                Toast.makeText(
-                    context,
-                    "⚠️ Sign-in requires numeric student ID. Your Firebase UID cannot be used.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@launch
-            }
+            // ✅ 修复：直接使用 Firebase UID (String)，不再需要转换为 Long
+            android.util.Log.d(
+                "InstattStudent",
+                "📝 Attempting sign-in: studentId=$studentId, course=${course.id}, date=$today"
+            )
 
             // ✅ 使用 Firebase 签到 - 毫秒级响应
-            // courseScheduleId 现在直接使用 String 类型（如 "comp2001_1"）
             val result = repository.signIn(
-                studentId = studentIdLong,
-                courseScheduleId = course.id,  // ✅ 直接使用 String ID
+                studentUid = studentId,  // 🔴 直接使用 String UID
+                courseScheduleId = course.id,
                 date = today,
                 studentName = studentName,
                 matricNumber = null, // 可以从 TokenManager 获取学号
@@ -261,19 +276,24 @@ class InstattDayCoursesFragment : Fragment() {
             result.onSuccess {
                 Toast.makeText(
                     context,
-                    "Signed in to ${course.courseName}",
+                    "✅ Signed in to ${course.courseName}",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                // Firebase 会自动通知教师端，无需手动刷新
-                // 但为了更新本地 UI，仍然刷新一次
-                loadCourses()
+                android.util.Log.d("InstattStudent", "✅ Sign-in successful!")
+
+                // 更新本地状态为已签到
+                course.todayStatus = TodayClassStatus.ATTENDED
+                course.hasStudentSigned = true
+                binding.rvCourses.adapter?.notifyDataSetChanged()
             }.onFailure { error ->
                 Toast.makeText(
                     context,
-                    "Sign-in failed: ${error.message}",
+                    "❌ Sign-in failed: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("InstattStudent", "❌ Sign-in failed: ${error.message}", error)
             }
         }
     }

@@ -36,6 +36,9 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
     private lateinit var course: Course
     private lateinit var studentAdapter: StudentAttendanceAdapter
 
+    // 🔴 新增：监听器，用于通知父界面刷新
+    var onSessionStatusChanged: (() -> Unit)? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -214,12 +217,23 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 ).show()
                 course.signInStatus = SignInStatus.UNLOCKED
                 updateSessionStatusUI()
+
+                // 🔴 修复：通知父界面刷新课程列表
+                onSessionStatusChanged?.invoke()
+
+                // 添加调试日志
+                android.util.Log.d(
+                    "CourseManagement",
+                    "✅ Session ${course.id} unlocked, Firebase updated at sessions/${course.id}_$today"
+                )
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),
                     "Failed to unlock: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("CourseManagement", "❌ Failed to unlock: ${error.message}", error)
             }
         }
     }
@@ -243,12 +257,22 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 ).show()
                 course.signInStatus = SignInStatus.LOCKED
                 updateSessionStatusUI()
+
+                // 🔴 修复：通知父界面刷新课程列表
+                onSessionStatusChanged?.invoke()
+
+                android.util.Log.d(
+                    "CourseManagement",
+                    "✅ Session ${course.id} locked, Firebase updated"
+                )
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),
                     "Failed to lock: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("CourseManagement", "❌ Failed to lock: ${error.message}", error)
             }
         }
     }
@@ -264,8 +288,8 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         lifecycleScope.launch {
             val result = repository.markAttendance(
                 teacherId = teacherId,
-                studentId = student.studentId,
-                courseScheduleId = course.id,  // ✅ 修复：直接使用 String ID
+                studentUid = student.studentId,  // 🔴 修复：使用 studentUid 参数名
+                courseScheduleId = course.id,
                 date = today,
                 status = status.name,
                 studentName = student.studentName,
