@@ -8,16 +8,18 @@ import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.Conversation
-import com.nottingham.mynottingham.data.repository.MessageRepository
+import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Message (conversation list) screen
+ * 🔥 Migrated to Firebase - no longer depends on backend API
  */
 class MessageViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = MessageRepository(application)
+    // 🔥 使用 Firebase Repository 替代传统的 HTTP Repository
+    private val firebaseRepo = FirebaseMessageRepository()
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -30,11 +32,6 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     private val _conversations = MutableLiveData<List<Conversation>>()
     val conversations: LiveData<List<Conversation>> = _conversations
-
-    // Sync throttling to prevent data loss during frequent navigation
-    private var lastSyncTime: Long = 0
-    private var isSyncing: Boolean = false
-    private val SYNC_THROTTLE_MS = 5000L // 5 seconds minimum between syncs
 
     // Pinned conversations
     val pinnedConversations: LiveData<List<Conversation>> = conversations.map { list ->
@@ -57,54 +54,31 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Observe conversations from repository
+     * 🔥 Firebase 实时监听 - 无需手动同步
      */
     private fun observeConversations() {
         viewModelScope.launch {
-            repository.getConversationsFlow(currentUserId).collect { conversationList ->
-                // Sort by pinned status and last message time
+            firebaseRepo.getConversationsFlow(currentUserId).collect { conversationList ->
+                // Firebase 已经处理了排序，但我们保持一致性
                 val sorted = conversationList.sortedWith(
                     compareByDescending<Conversation> { it.isPinned }
                         .thenByDescending { it.lastMessageTime }
                 )
                 _conversations.postValue(sorted)
+                _loading.postValue(false) // 数据加载完成
             }
         }
     }
 
     /**
-     * Sync conversations from API
-     * Throttled to prevent data loss during frequent navigation switches
+     * 🔥 已移除 syncConversations() 方法
+     * Firebase 实时监听自动同步，无需手动调用
+     * 保留此注释以提醒：如果 Fragment 中有调用 syncConversations，需要移除
      */
-    fun syncConversations(token: String, forceSync: Boolean = false) {
-        val currentTime = System.currentTimeMillis()
-
-        // Skip if already syncing
-        if (isSyncing && !forceSync) {
-            return
-        }
-
-        // Skip if synced recently (unless forced)
-        if (!forceSync && (currentTime - lastSyncTime) < SYNC_THROTTLE_MS) {
-            return
-        }
-
-        isSyncing = true
-        _loading.value = true
-        lastSyncTime = currentTime
-
-        viewModelScope.launch {
-            val result = repository.syncConversations(token)
-            _loading.value = false
-            isSyncing = false
-
-            result.onFailure { e ->
-                _error.value = e.message ?: "Failed to sync conversations"
-            }
-        }
-    }
 
     /**
-     * Search conversations
+     * Search conversations (client-side filtering)
+     * 🔥 Firebase 版本 - 在本地过滤现有数据
      */
     fun searchConversations(query: String) {
         viewModelScope.launch {
@@ -112,24 +86,24 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                 // Revert to full list
                 observeConversations()
             } else {
-                // Search in repository with current user ID
-                repository.searchConversations(query, currentUserId).collect { conversationList ->
-                    val sorted = conversationList.sortedWith(
-                        compareByDescending<Conversation> { it.isPinned }
-                            .thenByDescending { it.lastMessageTime }
-                    )
-                    _conversations.postValue(sorted)
+                // 在现有对话列表中搜索
+                val currentList = _conversations.value ?: emptyList()
+                val filtered = currentList.filter { conversation ->
+                    conversation.participantName.contains(query, ignoreCase = true) ||
+                    conversation.lastMessage.contains(query, ignoreCase = true)
                 }
+                _conversations.postValue(filtered)
             }
         }
     }
 
     /**
      * Toggle pinned status
+     * 🔥 不再需要 token 参数
      */
-    fun togglePinned(token: String, conversationId: String, isPinned: Boolean) {
+    fun togglePinned(conversationId: String, isPinned: Boolean) {
         viewModelScope.launch {
-            val result = repository.updatePinnedStatus(token, conversationId, !isPinned)
+            val result = firebaseRepo.togglePinConversation(currentUserId, conversationId, !isPinned)
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to update pinned status"
             }
@@ -138,10 +112,11 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Mark conversation as read
+     * 🔥 不再需要 token 参数
      */
-    fun markAsRead(token: String, conversationId: String, currentUserId: String) {
+    fun markAsRead(conversationId: String) {
         viewModelScope.launch {
-            val result = repository.markMessagesAsRead(token, conversationId, currentUserId)
+            val result = firebaseRepo.markMessagesAsRead(conversationId, currentUserId)
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to mark as read"
             }
@@ -149,24 +124,49 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * Mark conversation as unread
-     */
-    fun markAsUnread(conversationId: String) {
-        viewModelScope.launch {
-            repository.markConversationAsUnread(conversationId)
-        }
-    }
-
-    /**
      * Delete conversation
+     * 🔥 不再需要 token 参数
      * Returns Result indicating success or failure
      */
-    suspend fun deleteConversation(token: String, conversationId: String): Result<Unit> {
-        val result = repository.deleteConversation(token, conversationId)
+    suspend fun deleteConversation(conversationId: String): Result<Unit> {
+        val result = firebaseRepo.deleteConversation(currentUserId, conversationId)
         result.onFailure { e ->
             _error.value = e.message ?: "Failed to delete conversation"
         }
         return result
+    }
+
+    /**
+     * Search users for creating new conversation
+     * 🔥 新增方法 - 搜索用户以创建对话
+     */
+    fun searchUsers(query: String): LiveData<List<Map<String, String>>> {
+        val result = MutableLiveData<List<Map<String, String>>>()
+        viewModelScope.launch {
+            firebaseRepo.searchUsers(query).collect { users ->
+                result.postValue(users)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Create new conversation
+     * 🔥 新增方法 - 创建新对话
+     */
+    suspend fun createConversation(
+        participantIds: List<String>,
+        currentUserName: String,
+        isGroup: Boolean = false,
+        groupName: String? = null
+    ): Result<String> {
+        return firebaseRepo.createConversation(
+            participantIds = participantIds,
+            currentUserId = currentUserId,
+            currentUserName = currentUserName,
+            isGroup = isGroup,
+            groupName = groupName
+        )
     }
 
     /**

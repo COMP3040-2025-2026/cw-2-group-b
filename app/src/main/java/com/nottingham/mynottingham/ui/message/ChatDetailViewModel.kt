@@ -8,20 +8,21 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.ChatMessage
-import com.nottingham.mynottingham.data.repository.MessageRepository
-import com.nottingham.mynottingham.data.websocket.WebSocketManager
+import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
 import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Chat Detail screen
+ * 🔥 Migrated to Firebase - no longer depends on backend API or WebSocket
  */
 class ChatDetailViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = MessageRepository(application)
-    private var webSocketManager: WebSocketManager? = null
+    // 🔥 使用 Firebase Repository 替代传统的 HTTP Repository
+    private val firebaseRepo = FirebaseMessageRepository()
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -35,110 +36,56 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
     private val _messageSent = MutableLiveData<Boolean>()
     val messageSent: LiveData<Boolean> = _messageSent
 
-    private val _typingStatus = MutableLiveData<String?>()
-    val typingStatus: LiveData<String?> = _typingStatus
-
     private var conversationId: String = ""
     private var currentUserId: String = ""
     private var currentUserName: String = ""
-    private var typingJob: Job? = null
+    private var currentUserAvatar: String? = null
 
     /**
      * Messages for current conversation
+     * 🔥 Firebase 实时监听 - 自动更新
      */
-    val messages: MutableLiveData<LiveData<List<ChatMessage>>> = MutableLiveData()
+    private val _messages = MutableLiveData<List<ChatMessage>>()
+    val messages: LiveData<List<ChatMessage>> = _messages
 
     /**
      * Initialize chat for a specific conversation
+     * 🔥 Firebase 实时监听 - 自动接收新消息
      */
-    fun initializeChat(conversationId: String, userId: String, userName: String = "") {
+    fun initializeChat(
+        conversationId: String,
+        userId: String,
+        userName: String = "",
+        userAvatar: String? = null
+    ) {
         this.conversationId = conversationId
         this.currentUserId = userId
         this.currentUserName = userName
+        this.currentUserAvatar = userAvatar
 
-        // Observe messages from repository
-        messages.value = repository.getMessagesFlow(conversationId).asLiveData()
-
-        // Setup WebSocket
-        setupWebSocket(userId)
-    }
-
-    /**
-     * Setup WebSocket connection and listeners
-     */
-    private fun setupWebSocket(userId: String) {
-        webSocketManager = WebSocketManager.getInstance(userId)
-        webSocketManager?.connect()
-        webSocketManager?.joinConversation(conversationId)
-
-        // Listen to WebSocket messages
+        // 🔥 实时监听消息 - Firebase 自动推送更新
         viewModelScope.launch {
-            webSocketManager?.messageFlow?.collect { wsMessage ->
-                Log.d(TAG, "WebSocket message received: ${wsMessage.type}")
-                handleWebSocketMessage(wsMessage)
+            _loading.postValue(true)
+            firebaseRepo.getMessagesFlow(conversationId).collect { messageList ->
+                _messages.postValue(messageList)
+                _loading.postValue(false)
             }
         }
+
+        // 自动标记为已读
+        markAsRead()
     }
 
     /**
-     * Handle incoming WebSocket messages
+     * 🔥 已移除 WebSocket 相关代码
+     * Firebase ValueEventListener 提供了相同的实时功能
      */
-    private fun handleWebSocketMessage(wsMessage: com.nottingham.mynottingham.data.websocket.WebSocketMessage) {
-        when (wsMessage.type) {
-            "NEW_MESSAGE" -> {
-                // Reload messages when new message arrives
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    viewModelScope.launch {
-                        // Refresh messages from local database
-                        // The message should already be saved from repository sendMessage
-                        // or we can trigger a sync here if needed
-                        Log.d(TAG, "New message received in conversation")
-                    }
-                }
-            }
-            "TYPING" -> {
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    val senderId = data["senderId"] as? String
-                    if (senderId != currentUserId) {
-                        val senderName = data["senderName"] as? String ?: "Someone"
-                        _typingStatus.value = "$senderName is typing..."
-                    }
-                }
-            }
-            "STOP_TYPING" -> {
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    _typingStatus.value = null
-                }
-            }
-            "MESSAGE_READ" -> {
-                // Handle message read status
-                Log.d(TAG, "Message read notification received")
-            }
-        }
-    }
-
-    /**
-     * Load messages from API
-     */
-    fun loadMessages(token: String) {
-        _loading.value = true
-        viewModelScope.launch {
-            val result = repository.syncMessages(token, conversationId)
-            _loading.value = false
-
-            result.onFailure { e ->
-                _error.value = e.message ?: "Failed to load messages"
-            }
-        }
-    }
 
     /**
      * Send a message
+     * 🔥 不再需要 token 参数
      */
-    fun sendMessage(token: String, content: String) {
+    fun sendMessage(content: String) {
         if (content.isBlank() || content.length > Constants.MAX_MESSAGE_LENGTH) {
             _error.value = "Message is invalid"
             return
@@ -146,56 +93,35 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
 
         _sendingMessage.value = true
         viewModelScope.launch {
-            val result = repository.sendMessage(token, conversationId, content)
+            val result = firebaseRepo.sendMessage(
+                conversationId = conversationId,
+                senderId = currentUserId,
+                senderName = currentUserName,
+                senderAvatar = currentUserAvatar,
+                message = content
+            )
             _sendingMessage.value = false
 
             result.onSuccess {
                 _messageSent.value = true
                 // Mark as read since user is in the chat
-                markAsRead(token)
+                markAsRead()
             }
 
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to send message"
+                Log.e(TAG, "Failed to send message", e)
             }
         }
     }
 
     /**
      * Mark messages as read
+     * 🔥 不再需要 token 参数
      */
-    fun markAsRead(token: String) {
+    fun markAsRead() {
         viewModelScope.launch {
-            repository.markMessagesAsRead(token, conversationId, currentUserId)
-        }
-    }
-
-    /**
-     * Update typing status
-     */
-    fun updateTyping(token: String, isTyping: Boolean) {
-        // Cancel previous typing job
-        typingJob?.cancel()
-
-        // Send via WebSocket for real-time updates
-        if (isTyping) {
-            webSocketManager?.sendTyping(conversationId, currentUserId, currentUserName)
-        } else {
-            webSocketManager?.sendStopTyping(conversationId, currentUserId)
-        }
-
-        // Also update via API
-        viewModelScope.launch {
-            repository.updateTypingStatus(token, conversationId, isTyping)
-        }
-
-        // Auto-stop typing after timeout
-        if (isTyping) {
-            typingJob = viewModelScope.launch {
-                delay(Constants.TYPING_INDICATOR_TIMEOUT_MS)
-                webSocketManager?.sendStopTyping(conversationId, currentUserId)
-                repository.updateTypingStatus(token, conversationId, false)
-            }
+            firebaseRepo.markMessagesAsRead(conversationId, currentUserId)
         }
     }
 
@@ -215,12 +141,11 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Cleanup when ViewModel is destroyed
+     * 🔥 不再需要清理 WebSocket 连接
      */
     override fun onCleared() {
         super.onCleared()
-        // Leave conversation and disconnect WebSocket
-        webSocketManager?.leaveConversation(conversationId)
-        // Note: Don't destroy WebSocket instance as it might be used by other screens
+        // Firebase listeners are automatically cleaned up when Flow collection is cancelled
     }
 
     companion object {
