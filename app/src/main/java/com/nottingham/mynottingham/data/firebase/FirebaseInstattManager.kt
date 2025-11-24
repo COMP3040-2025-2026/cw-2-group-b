@@ -145,7 +145,8 @@ class FirebaseInstattManager {
 
                 snapshot.children.forEach { child ->
                     try {
-                        val studentId = child.child("studentId").getValue(Long::class.java) ?: 0L
+                        val studentIdLong = child.child("studentId").getValue(Long::class.java) ?: 0L
+                        val studentId = studentIdLong.toString()  // Convert to String for Firebase UID compatibility
                         val studentName = child.child("studentName").getValue(String::class.java) ?: ""
                         val matricNumber = child.child("matricNumber").getValue(String::class.java)
                         val email = child.child("email").getValue(String::class.java)

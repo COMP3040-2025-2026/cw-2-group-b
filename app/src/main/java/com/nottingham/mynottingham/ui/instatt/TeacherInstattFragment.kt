@@ -35,7 +35,8 @@ class TeacherInstattFragment : Fragment() {
     // Backend integration
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    private var teacherId: Long = 0L
+    // 🔴 修复：将 teacherId 从 Long 改为 String，以支持 Firebase UID
+    private var teacherId: String = ""
 
     // 移除轮询机制 - 改用 Firebase 实时监听
     // private val handler = Handler(Looper.getMainLooper())
@@ -58,9 +59,11 @@ class TeacherInstattFragment : Fragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            teacherId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            // 🔴 修复：直接获取 String 类型的 Firebase UID，不要转换为 Long
+            teacherId = tokenManager.getUserId().first() ?: ""
 
-            if (teacherId == 0L) {
+            // 🔴 修复：检查是否为空字符串
+            if (teacherId.isEmpty()) {
                 Toast.makeText(
                     context,
                     "User not logged in",

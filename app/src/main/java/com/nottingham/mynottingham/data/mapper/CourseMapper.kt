@@ -75,7 +75,7 @@ object CourseMapper {
 
     fun toStudentAttendance(dto: StudentAttendanceDto): StudentAttendance {
         return StudentAttendance(
-            studentId = dto.studentId,
+            studentId = dto.studentId.toString(),  // Convert Long to String for Firebase UID compatibility
             studentName = dto.studentName,
             matricNumber = dto.matricNumber,
             email = dto.email,

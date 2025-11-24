@@ -97,7 +97,7 @@ enum class UserRole {
 
 // Student attendance information (for teacher's view of student list)
 data class StudentAttendance(
-    val studentId: Long,
+    val studentId: String,  // Firebase UID
     val studentName: String,
     val matricNumber: String?,  // Nullable as it may not be set for all students
     val email: String?,  // Nullable as it may not be set for all students

@@ -32,7 +32,8 @@ class InstattDayCoursesFragment : Fragment() {
 
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    private var studentId: Long = 0L
+    // 🔴 修复：将 studentId 从 Long 改为 String，以支持 Firebase UID
+    private var studentId: String = ""
     private var studentName: String = ""
 
     // 移除轮询机制 - 改用 Firebase 实时监听
@@ -98,10 +99,12 @@ class InstattDayCoursesFragment : Fragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            studentId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            // 🔴 修复：直接获取 String 类型的 Firebase UID，不要转换为 Long
+            studentId = tokenManager.getUserId().first() ?: ""
             studentName = tokenManager.getFullName().first() ?: "Student"
 
-            if (studentId == 0L) {
+            // 🔴 修复：检查是否为空字符串
+            if (studentId.isEmpty()) {
                 Toast.makeText(
                     context,
                     "User not logged in",
@@ -258,9 +261,22 @@ class InstattDayCoursesFragment : Fragment() {
         ).show()
 
         lifecycleScope.launch {
+            // 🔴 修复：repository.signIn 仍然使用 Long 类型（Firebase attendance 记录使用数字 ID）
+            // 尝试将 Firebase UID 转换为 Long（仅当使用传统数字 ID 时）
+            val studentIdLong = studentId.toLongOrNull()
+
+            if (studentIdLong == null) {
+                Toast.makeText(
+                    context,
+                    "Invalid student ID format. Sign-in requires numeric ID.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
             // 使用 Firebase 签到 - 毫秒级响应
             val result = repository.signIn(
-                studentId = studentId,
+                studentId = studentIdLong,
                 courseScheduleId = course.id.toLong(),
                 date = today,
                 studentName = studentName,

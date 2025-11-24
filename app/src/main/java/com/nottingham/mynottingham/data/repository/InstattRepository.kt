@@ -49,10 +49,19 @@ class InstattRepository {
         }
     }
 
-    suspend fun getTeacherCourses(teacherId: Long, date: String): Result<List<Course>> {
+    /**
+     * 🔴 修复：将 teacherId 从 Long 改为 String，以支持 Firebase UID
+     * 注意：这些方法仍然调用后端 API，需要将 String UID 转换为 Long ID
+     * TODO: 完全迁移到 Firebase（使用 FirebaseCourseRepository）
+     */
+    suspend fun getTeacherCourses(teacherId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getTeacherCourses(teacherId, date)
+                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
+                val teacherIdLong = teacherId.toLongOrNull()
+                    ?: return@withContext Result.failure(Exception("Invalid teacher ID format. Backend requires numeric ID but received Firebase UID."))
+
+                val response = apiService.getTeacherCourses(teacherIdLong, date)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val courses = response.body()?.data?.map { CourseMapper.toCourse(it) } ?: emptyList()
                     Result.success(courses)
@@ -65,10 +74,17 @@ class InstattRepository {
         }
     }
 
-    suspend fun getStudentCourses(studentId: Long, date: String): Result<List<Course>> {
+    /**
+     * 🔴 修复：将 studentId 从 Long 改为 String，以支持 Firebase UID
+     */
+    suspend fun getStudentCourses(studentId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getStudentCourses(studentId, date)
+                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
+                val studentIdLong = studentId.toLongOrNull()
+                    ?: return@withContext Result.failure(Exception("Invalid student ID format. Backend requires numeric ID but received Firebase UID."))
+
+                val response = apiService.getStudentCourses(studentIdLong, date)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val courses = response.body()?.data?.map { CourseMapper.toCourse(it) } ?: emptyList()
                     Result.success(courses)
@@ -83,20 +99,24 @@ class InstattRepository {
 
     /**
      * 教师开启签到 - 使用 Firebase 实现实时更新
+     * 🔴 修复：teacherId 改为 String（虽然这个方法实际上不使用 teacherId）
      */
-    suspend fun unlockSession(teacherId: Long, courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun unlockSession(teacherId: String, courseScheduleId: Long, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             // 直接使用 Firebase，不再调用后端 API
+            // 注意：firebaseManager 不需要 teacherId
             firebaseManager.unlockSession(courseScheduleId, date)
         }
     }
 
     /**
      * 教师关闭签到 - 使用 Firebase 实现实时更新
+     * 🔴 修复：teacherId 改为 String（虽然这个方法实际上不使用 teacherId）
      */
-    suspend fun lockSession(teacherId: Long, courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun lockSession(teacherId: String, courseScheduleId: Long, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             // 直接使用 Firebase，不再调用后端 API
+            // 注意：firebaseManager 不需要 teacherId
             firebaseManager.lockSession(courseScheduleId, date)
         }
     }
@@ -143,7 +163,7 @@ class InstattRepository {
      * - 离线场景自动降级为 Firebase-only 模式
      */
     fun getStudentAttendanceList(
-        teacherId: Long,
+        teacherId: String,  // Firebase UID
         courseScheduleId: Long,
         date: String
     ): Flow<List<StudentAttendance>> = flow {
@@ -186,13 +206,17 @@ class InstattRepository {
      * 通常在教师端用于显示"应到学生"基准线
      */
     suspend fun getStudentAttendanceListOnce(
-        teacherId: Long,
+        teacherId: String,  // Firebase UID
         courseScheduleId: Long,
         date: String
     ): Result<List<StudentAttendance>> {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getStudentAttendanceList(teacherId, courseScheduleId, date)
+                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
+                val teacherIdLong = teacherId.toLongOrNull()
+                    ?: return@withContext Result.failure(Exception("Invalid teacher ID format. Backend requires numeric ID but received Firebase UID."))
+
+                val response = apiService.getStudentAttendanceList(teacherIdLong, courseScheduleId, date)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val students = response.body()?.data?.map { CourseMapper.toStudentAttendance(it) } ?: emptyList()
                     Result.success(students)
@@ -209,8 +233,8 @@ class InstattRepository {
      * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
      */
     suspend fun markAttendance(
-        teacherId: Long,
-        studentId: Long,
+        teacherId: String,  // Firebase UID (not used in Firebase operations)
+        studentId: String,  // Firebase UID
         courseScheduleId: Long,
         date: String,
         status: String,
@@ -225,10 +249,14 @@ class InstattRepository {
                 AttendanceStatus.ABSENT
             }
 
+            // 尝试将 studentId 转换为 Long（Firebase Manager 可能仍需要）
+            val studentIdLong = studentId.toLongOrNull()
+                ?: return@withContext Result.failure(Exception("Invalid student ID format"))
+
             firebaseManager.markStudentAttendance(
                 courseScheduleId = courseScheduleId,
                 date = date,
-                studentId = studentId,
+                studentId = studentIdLong,
                 status = attendanceStatus,
                 studentName = studentName,
                 matricNumber = matricNumber,

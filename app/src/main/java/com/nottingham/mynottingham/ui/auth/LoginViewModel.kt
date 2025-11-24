@@ -119,14 +119,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 tokenManager.saveToken(idToken)
                 tokenManager.saveUserInfo(uid, user.username, userType)
                 tokenManager.saveFullName(user.name)
+                tokenManager.saveEmail(user.email) // ✅ 保存邮箱
 
-                // Save additional information
+                // ✅ 保存完整的用户信息
                 if (userType == "STUDENT") {
-                    tokenManager.saveFaculty(user.faculty)
-                    tokenManager.saveYearOfStudy(user.year.toString())
+                    tokenManager.saveStudentId(user.studentId) // 保存学号
+                    tokenManager.saveFaculty(user.faculty)     // 保存学院
+                    tokenManager.saveMajor(user.program)        // 保存专业 (User.program -> TokenManager.major)
+                    tokenManager.saveYearOfStudy(user.year.toString()) // 保存年级
                 } else if (userType == "TEACHER") {
-                    tokenManager.saveDepartment(user.faculty) // Teacher's faculty field stores department
+                    tokenManager.saveEmployeeId(user.studentId) // 教师的 studentId 字段存的是 Employee ID
+                    tokenManager.saveDepartment(user.faculty)   // 教师的 faculty 字段存的是 Department
+                    // ✅ 保存教师专属字段
+                    user.title?.let { tokenManager.saveTitle(it) }
+                    user.officeRoom?.let { tokenManager.saveOfficeRoom(it) }
                 }
+
+                // ✅ 保存头像 URL (如果有)
+                user.profileImageUrl?.let { tokenManager.saveAvatar(it) }
 
                 Log.d(TAG, "✅ Login successful: ${user.username} ($userType) | UID: $uid")
                 Log.d(TAG, "👤 User info: ${user.name} | Email: ${user.email}")
