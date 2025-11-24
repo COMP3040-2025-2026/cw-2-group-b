@@ -172,7 +172,7 @@ class TeacherInstattFragment : Fragment() {
                 // Unlock sign-in via Firebase - 实时生效
                 // LOCKED 和 CLOSED 状态都允许重新开启签到
                 lifecycleScope.launch {
-                    val result = repository.unlockSession(teacherId, course.id.toLong(), today)
+                    val result = repository.unlockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID
 
                     result.onSuccess {
                         Toast.makeText(
@@ -196,7 +196,7 @@ class TeacherInstattFragment : Fragment() {
             SignInStatus.UNLOCKED -> {
                 // Lock sign-in via Firebase - 实时生效
                 lifecycleScope.launch {
-                    val result = repository.lockSession(teacherId, course.id.toLong(), today)
+                    val result = repository.lockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID
 
                     result.onSuccess {
                         Toast.makeText(
