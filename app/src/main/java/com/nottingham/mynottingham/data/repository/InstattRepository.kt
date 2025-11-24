@@ -73,9 +73,9 @@ class InstattRepository {
 
     /**
      * 教师开启签到 - 使用 Firebase 实现实时更新
-     * 🔴 修复：teacherId 改为 String（虽然这个方法实际上不使用 teacherId）
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
-    suspend fun unlockSession(teacherId: String, courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun unlockSession(teacherId: String, courseScheduleId: String, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             // 直接使用 Firebase，不再调用后端 API
             // 注意：firebaseManager 不需要 teacherId
@@ -85,9 +85,9 @@ class InstattRepository {
 
     /**
      * 教师关闭签到 - 使用 Firebase 实现实时更新
-     * 🔴 修复：teacherId 改为 String（虽然这个方法实际上不使用 teacherId）
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
-    suspend fun lockSession(teacherId: String, courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun lockSession(teacherId: String, courseScheduleId: String, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             // 直接使用 Firebase，不再调用后端 API
             // 注意：firebaseManager 不需要 teacherId
@@ -135,10 +135,12 @@ class InstattRepository {
      * - 教师能看到完整班级名册（包括未签到学生）
      * - Firebase 实时更新签到状态（毫秒级响应）
      * - 离线场景自动降级为 Firebase-only 模式
+     *
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     fun getStudentAttendanceList(
         teacherId: String,  // Firebase UID
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String
     ): Flow<List<StudentAttendance>> = flow {
         // Step 1: 尝试从 MySQL 获取已注册学生名单（一次性查询）
@@ -178,19 +180,25 @@ class InstattRepository {
      *
      * 此方法返回从 MySQL 查询的完整班级花名册，包含所有已注册学生及其历史签到状态
      * 通常在教师端用于显示"应到学生"基准线
+     *
+     * ✅ 修复：courseScheduleId 改为 String，但需要转换为 Long 调用后端
      */
     suspend fun getStudentAttendanceListOnce(
         teacherId: String,  // Firebase UID
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String
     ): Result<List<StudentAttendance>> {
         return withContext(Dispatchers.IO) {
             try {
                 // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
                 val teacherIdLong = teacherId.toLongOrNull()
-                    ?: return@withContext Result.failure(Exception("Invalid teacher ID format. Backend requires numeric ID but received Firebase UID."))
+                    ?: return@withContext Result.failure(Exception("Backend disabled: teacher ID is Firebase UID"))
 
-                val response = apiService.getStudentAttendanceList(teacherIdLong, courseScheduleId, date)
+                // 尝试将 courseScheduleId 转换为 Long
+                val scheduleIdLong = courseScheduleId.toLongOrNull()
+                    ?: return@withContext Result.failure(Exception("Backend disabled: schedule ID is Firebase string ID"))
+
+                val response = apiService.getStudentAttendanceList(teacherIdLong, scheduleIdLong, date)
                 if (response.isSuccessful && response.body()?.success == true) {
                     val students = response.body()?.data?.map { CourseMapper.toStudentAttendance(it) } ?: emptyList()
                     Result.success(students)
@@ -205,11 +213,12 @@ class InstattRepository {
 
     /**
      * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun markAttendance(
         teacherId: String,  // Firebase UID (not used in Firebase operations)
         studentId: String,  // Firebase UID
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         status: String,
         studentName: String,
@@ -242,9 +251,10 @@ class InstattRepository {
     /**
      * 学生端：监听 session 的锁定状态（实时）
      * 当教师 unlock session 时，学生端的签到按钮立即变亮
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     fun listenToSessionLockStatus(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String
     ): Flow<Boolean> {
         return firebaseManager.listenToSessionLockStatus(courseScheduleId, date)

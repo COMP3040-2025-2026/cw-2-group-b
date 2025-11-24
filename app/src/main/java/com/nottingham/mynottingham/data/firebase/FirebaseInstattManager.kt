@@ -42,9 +42,10 @@ class FirebaseInstattManager {
 
     /**
      * 生成 session key: {courseScheduleId}_{date}
-     * Example: "123_2025-01-15"
+     * Example: "comp2001_1_2025-01-15"
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
-    private fun getSessionKey(courseScheduleId: Long, date: String): String {
+    private fun getSessionKey(courseScheduleId: String, date: String): String {
         return "${courseScheduleId}_$date"
     }
 
@@ -52,8 +53,9 @@ class FirebaseInstattManager {
 
     /**
      * 教师开启签到：将 session 标记为 unlocked
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
-    suspend fun unlockSession(courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun unlockSession(courseScheduleId: String, date: String): Result<Unit> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
             val updates = mapOf(
@@ -70,8 +72,9 @@ class FirebaseInstattManager {
 
     /**
      * 教师关闭签到：将 session 标记为 locked
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
-    suspend fun lockSession(courseScheduleId: Long, date: String): Result<Unit> {
+    suspend fun lockSession(courseScheduleId: String, date: String): Result<Unit> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
             val updates = mapOf(
@@ -88,9 +91,10 @@ class FirebaseInstattManager {
 
     /**
      * 教师手动标记学生出勤状态
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun markStudentAttendance(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         studentId: Long,
         status: AttendanceStatus,
@@ -122,9 +126,10 @@ class FirebaseInstattManager {
      * 当有学生签到时，实时更新列表
      *
      * 重要：即使 Firebase 没有数据或未连接，也会立即发送空列表，避免 UI 一直 loading
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     fun listenToStudentAttendanceList(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String
     ): Flow<List<StudentAttendance>> = callbackFlow {
         val sessionKey = getSessionKey(courseScheduleId, date)
@@ -199,9 +204,10 @@ class FirebaseInstattManager {
 
     /**
      * 学生签到
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun signIn(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         studentId: Long,
         studentName: String,
@@ -253,9 +259,10 @@ class FirebaseInstattManager {
      * 当教师 unlock session 时，学生端的签到按钮立即变亮
      *
      * 重要：如果 session 不存在，默认返回 true (locked)
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     fun listenToSessionLockStatus(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String
     ): Flow<Boolean> = callbackFlow {
         val sessionKey = getSessionKey(courseScheduleId, date)
@@ -299,9 +306,10 @@ class FirebaseInstattManager {
 
     /**
      * 检查学生是否已经签到
+     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
      */
     suspend fun hasStudentSignedIn(
-        courseScheduleId: Long,
+        courseScheduleId: String,
         date: String,
         studentId: Long
     ): Result<Boolean> {

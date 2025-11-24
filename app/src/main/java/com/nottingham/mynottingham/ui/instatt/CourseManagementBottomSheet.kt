@@ -177,7 +177,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         lifecycleScope.launch {
             repository.getStudentAttendanceList(
                 teacherId,
-                course.id.toLong(),
+                course.id,  // ✅ 修复：直接使用 String ID
                 today
             ).collect { students ->
                 // 每当有学生签到，这里会自动收到更新
@@ -204,7 +204,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.unlockSession(teacherId, course.id.toLong(), today)
+            val result = repository.unlockSession(teacherId, course.id, today)  // ✅ 修复：直接使用 String ID
 
             result.onSuccess {
                 Toast.makeText(
@@ -233,7 +233,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.lockSession(teacherId, course.id.toLong(), today)
+            val result = repository.lockSession(teacherId, course.id, today)  // ✅ 修复：直接使用 String ID
 
             result.onSuccess {
                 Toast.makeText(
@@ -265,7 +265,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
             val result = repository.markAttendance(
                 teacherId = teacherId,
                 studentId = student.studentId,
-                courseScheduleId = course.id.toLong(),
+                courseScheduleId = course.id,  // ✅ 修复：直接使用 String ID
                 date = today,
                 status = status.name,
                 studentName = student.studentName,
