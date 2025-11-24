@@ -150,6 +150,12 @@ class FirebaseCourseRepository {
             val room = scheduleSnapshot.child("room").getValue(String::class.java) ?: ""
             val type = scheduleSnapshot.child("type").getValue(String::class.java) ?: "LECTURE"
 
+            // ✅ 从 Firebase sessions 查询真实的签到状态
+            val sessionKey = "${scheduleId}_$date"
+            val sessionSnapshot = database.getReference("sessions").child(sessionKey).get().await()
+            val isLocked = sessionSnapshot.child("isLocked").getValue(Boolean::class.java) ?: true
+            val signInStatus = if (isLocked) SignInStatus.LOCKED else SignInStatus.UNLOCKED
+
             val course = Course(
                 id = scheduleId,  // 使用 scheduleId 作为唯一标识
                 courseName = name,
@@ -163,7 +169,7 @@ class FirebaseCourseRepository {
                 location = room,
                 courseType = parseCourseType(type),
                 todayStatus = TodayClassStatus.UPCOMING, // TODO: 根据时间判断
-                signInStatus = SignInStatus.LOCKED,
+                signInStatus = signInStatus,  // ✅ 使用从session读取的真实状态
                 signInUnlockedAt = null,
                 hasStudentSigned = false
             )
