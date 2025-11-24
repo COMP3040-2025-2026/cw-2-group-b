@@ -70,10 +70,17 @@ class FoodMenuItemDetailFragment : Fragment() {
         return when {
             name.contains("Beef") -> com.nottingham.mynottingham.R.drawable.bsn
             name.contains("Fried Noodles") -> com.nottingham.mynottingham.R.drawable.fn
+            name.contains("Sour and Spicy Noodles") -> com.nottingham.mynottingham.R.drawable.snf
+            name.contains("Fried Sauce Noodles") -> com.nottingham.mynottingham.R.drawable.zjm
+            name.contains("Chongqing Noodles") -> com.nottingham.mynottingham.R.drawable.cq
             name.contains("Chicken Fried Rice") -> com.nottingham.mynottingham.R.drawable.fcr
             name.contains("Combo") -> com.nottingham.mynottingham.R.drawable.crs
+            name.contains("Mapo Tofu Rice") -> com.nottingham.mynottingham.R.drawable.mpdf
+            name.contains("Egg Fried Rice") -> com.nottingham.mynottingham.R.drawable.dcf
             name.contains("Bubble") -> com.nottingham.mynottingham.R.drawable.bt
             name.contains("Lemon") -> com.nottingham.mynottingham.R.drawable.ilt
+            name.contains("Milk") -> com.nottingham.mynottingham.R.drawable.nn
+            name.contains("Soy Milk") -> com.nottingham.mynottingham.R.drawable.dj
             else -> com.nottingham.mynottingham.R.drawable.ic_placeholder
         }
     }
