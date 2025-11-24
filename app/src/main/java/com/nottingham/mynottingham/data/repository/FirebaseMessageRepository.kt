@@ -292,7 +292,7 @@ class FirebaseMessageRepository {
                     // 这里需要从 users 节点获取对方的名称和头像
                     // 暂时使用占位符，后续可以通过 getUserInfo 方法获取
                     userConvData["participantName"] = "Loading..."
-                    userConvData["participantAvatar"] = null
+                    // 不设置 participantAvatar，保持为空
                 } else if (isGroup && groupName != null) {
                     userConvData["participantName"] = groupName
                 }
