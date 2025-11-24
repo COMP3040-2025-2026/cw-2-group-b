@@ -113,8 +113,8 @@ class FirebaseCourseRepository {
     /**
      * 获取课程及其所有排课
      * @param courseId 课程ID (如 "comp3040")
-     * @param date 日期 (用于判断今日状态)
-     * @return List<Course> 一门课程的多个排课时间
+     * @param date 日期 (用于判断今日状态和过滤星期几)
+     * @return List<Course> 一门课程在指定日期的排课
      */
     private suspend fun getCourseWithSchedules(courseId: String, date: String): List<Course> {
         // 1. 获取课程基本信息
@@ -127,7 +127,10 @@ class FirebaseCourseRepository {
         val name = courseSnapshot.child("name").getValue(String::class.java) ?: ""
         val semester = courseSnapshot.child("semester").getValue(String::class.java) ?: "25-26"
 
-        // 2. 查询该课程的所有排课
+        // 2. 从日期解析出星期几
+        val targetDayOfWeek = getDayOfWeekFromDate(date)
+
+        // 3. 查询该课程的所有排课
         val schedulesSnapshot = schedulesRef.orderByChild("courseId").equalTo(courseId).get().await()
 
         val courses = mutableListOf<Course>()
@@ -136,6 +139,12 @@ class FirebaseCourseRepository {
             val scheduleId = scheduleSnapshot.key ?: continue
 
             val dayOfWeek = scheduleSnapshot.child("dayOfWeek").getValue(String::class.java) ?: continue
+
+            // ✅ 只添加匹配当天星期的课程
+            if (dayOfWeek.uppercase() != targetDayOfWeek.name) {
+                continue
+            }
+
             val startTime = scheduleSnapshot.child("startTime").getValue(String::class.java) ?: "00:00"
             val endTime = scheduleSnapshot.child("endTime").getValue(String::class.java) ?: "00:00"
             val room = scheduleSnapshot.child("room").getValue(String::class.java) ?: ""
@@ -163,6 +172,47 @@ class FirebaseCourseRepository {
         }
 
         return courses
+    }
+
+    /**
+     * 从日期字符串解析出星期几
+     * @param date 日期字符串 (格式: yyyy-MM-dd)
+     * @return DayOfWeek 星期几
+     */
+    private fun getDayOfWeekFromDate(date: String): DayOfWeek {
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val localDate = java.time.LocalDate.parse(date)
+                when (localDate.dayOfWeek) {
+                    java.time.DayOfWeek.MONDAY -> DayOfWeek.MONDAY
+                    java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUESDAY
+                    java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WEDNESDAY
+                    java.time.DayOfWeek.THURSDAY -> DayOfWeek.THURSDAY
+                    java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRIDAY
+                    java.time.DayOfWeek.SATURDAY -> DayOfWeek.SATURDAY
+                    java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUNDAY
+                }
+            } else {
+                // Fallback for older Android versions
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                val parsedDate = sdf.parse(date)
+                val calendar = java.util.Calendar.getInstance()
+                calendar.time = parsedDate ?: return DayOfWeek.MONDAY
+                when (calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
+                    java.util.Calendar.MONDAY -> DayOfWeek.MONDAY
+                    java.util.Calendar.TUESDAY -> DayOfWeek.TUESDAY
+                    java.util.Calendar.WEDNESDAY -> DayOfWeek.WEDNESDAY
+                    java.util.Calendar.THURSDAY -> DayOfWeek.THURSDAY
+                    java.util.Calendar.FRIDAY -> DayOfWeek.FRIDAY
+                    java.util.Calendar.SATURDAY -> DayOfWeek.SATURDAY
+                    java.util.Calendar.SUNDAY -> DayOfWeek.SUNDAY
+                    else -> DayOfWeek.MONDAY
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseCourseRepo", "Error parsing date: ${e.message}")
+            DayOfWeek.MONDAY
+        }
     }
 
     /**
