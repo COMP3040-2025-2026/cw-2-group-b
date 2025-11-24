@@ -1,0 +1,142 @@
+<resources>
+    <string name="app_name">My Nottingham</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_shuttle">Shuttle</string>
+    <string name="nav_booking">Booking</string>
+    <string name="nav_errand">Errand</string>
+    <string name="nav_notti">Notti</string>
+    <string name="nav_message">Messages</string>
+    <string name="nav_forum">Forum</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">Network error. Please check your connection.</string>
+    <string name="error_required_field">This field is required</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="submit">Submit</string>
+    <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="search">Search</string>
+
+    <!-- Login -->
+    <string name="login_title">Login</string>
+    <string name="username">Username</string>
+    <string name="username_hint">please enter your username</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="password_hint">please enter your password</string>
+    <string name="student_id">Student ID</string>
+    <string name="login_button">Login</string>
+    <string name="welcome_back">Welcome Back</string>
+    <string name="login_warning">Only use the official school account to log in. Login means agreeing to the real name authentication system</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="error_invalid_email">Invalid email address</string>
+    <string name="error_invalid_password">Password must be at least 6 characters</string>
+
+    <!-- Home -->
+    <string name="welcome">Welcome to My Nottingham</string>
+    <string name="services_title">Campus Services</string>
+
+    <!-- Shuttle -->
+    <string name="shuttle_title">Campus Shuttle</string>
+    <string name="shuttle_routes">Shuttle Routes</string>
+    <string name="shuttle_schedule">Schedule</string>
+    <string name="route">Route %s</string>
+    <string name="departure">Departure</string>
+    <string name="arrival">Arrival</string>
+    <string name="weekday">Weekday</string>
+    <string name="weekend">Weekend</string>
+
+    <!-- Booking -->
+    <string name="booking_title">Sports Booking</string>
+    <string name="facility_list">Facilities</string>
+    <string name="select_facility">Select a Facility</string>
+    <string name="select_date">Select Date</string>
+    <string name="select_time">Select Time</string>
+    <string name="my_bookings">My Bookings</string>
+    <string name="booking_confirmed">Booking Confirmed</string>
+    <string name="booking_cancelled">Booking Cancelled</string>
+    <string name="cancel_booking">Cancel Booking</string>
+    <string name="cancel_booking_confirm">Are you sure you want to cancel this booking?</string>
+
+    <!-- Errand -->
+    <string name="errand_title">Campus Errand</string>
+    <string name="post_task">Post Task</string>
+    <string name="all_tasks">All Tasks</string>
+    <string name="my_tasks">My Tasks</string>
+    <string name="accepted_tasks">Accepted Tasks</string>
+    <string name="task_title">Task Title</string>
+    <string name="task_description">Description</string>
+    <string name="pickup_location">Pickup Location</string>
+    <string name="delivery_location">Delivery Location</string>
+    <string name="delivery_fee">Delivery Fee</string>
+    <string name="priority">Priority</string>
+    <string name="priority_standard">Standard (1-2 hours)</string>
+    <string name="priority_express">Express (30 min)</string>
+    <string name="accept_task">Accept Task</string>
+    <string name="mark_picked_up">Mark as Picked Up</string>
+    <string name="mark_completed">Mark as Completed</string>
+
+    <!-- Notti AI -->
+    <string name="notti_title">Notti AI Assistant</string>
+    <string name="ask_notti">Ask Notti anything…</string>
+    <string name="send">Send</string>
+
+    <!-- Messages -->
+    <string name="messages_title">Messages</string>
+    <string name="conversations">Conversations</string>
+    <string name="new_message">New Message</string>
+    <string name="type_message">Type a message…</string>
+    <string name="title_new_message">New Message</string>
+    <string name="label_suggested_contacts">SUGGESTED CONTACTS</string>
+    <string name="label_all_contacts">ALL CONTACTS</string>
+    <string name="msg_no_contacts">No contacts available</string>
+    <string name="msg_start_conversation">Start a conversation</string>
+    <string name="hint_type_message">Type a message…</string>
+    <string name="cd_send_message">Send message</string>
+    <string name="cd_user_avatar">User avatar</string>
+    <string name="msg_empty_conversations">No conversations yet</string>
+    <string name="msg_pinned">Pinned</string>
+    <string name="msg_unpinned">Unpinned</string>
+    <string name="search_messages">Search messages…</string>
+
+    <!-- Forum -->
+    <string name="forum_title">Campus Forum</string>
+    <string name="create_post">Create Post</string>
+    <string name="post_title">Post Title</string>
+    <string name="post_content">Post Content</string>
+    <string name="category">Category</string>
+    <string name="category_study">Study</string>
+    <string name="category_events">Events</string>
+    <string name="category_career">Career</string>
+    <string name="category_questions">Questions</string>
+    <string name="category_general">General</string>
+    <string name="category_food">Food</string>
+    <string name="comments">Comments</string>
+    <string name="add_comment">Add Comment</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="settings">Settings</string>
+    <string name="notifications">Notifications</string>
+    <string name="errand_notifications">Errand Notifications</string>
+    <string name="delivery_mode">Delivery Mode</string>
+    <string name="logout">Logout</string>
+    <string name="logout_confirm">Are you sure you want to logout?</string>
+    <string name="name">Name</string>
+    <string name="faculty">Faculty</string>
+    <string name="year">Year</string>
+    <string name="program">Program</string>
+
+    <!-- Instatt -->
+    <string name="attendance_status">Attendance Status</string>
+</resources>

@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment"
+    app:enterAnim="@anim/slide_in_right"
+    app:exitAnim="@anim/slide_out_left"
+    app:popEnterAnim="@anim/slide_in_left"
+    app:popExitAnim="@anim/slide_out_right">
+
+    <!-- Login Fragment -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.nottingham.mynottingham.ui.auth.LoginFragment"
+        android:label="Login"
+        tools:layout="@layout/fragment_login">
+        <action
+            android:id="@+id/action_login_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Home Fragment -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.nottingham.mynottingham.ui.home.HomeFragment"
+        android:label="@string/nav_home"
+        tools:layout="@layout/fragment_home">
+
+        <!-- Navigation actions from Home to feature screens -->
+        <action
+            android:id="@+id/action_home_to_instatt"
+            app:destination="@id/instattFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_shuttle"
+            app:destination="@id/shuttleFragment"
+            app:enterAnim="@anim/slide_up_fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/slide_down_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_errand"
+            app:destination="@id/errandFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_notti"
+            app:destination="@id/nottiFragment"
+            app:enterAnim="@anim/slide_up_fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/slide_down_fade_out" />
+
+        <action
+            android:id="@+id/action_home_to_sports"
+            app:destination="@id/bookingFragment"
+            app:enterAnim="@anim/scale_fade_in"
+            app:exitAnim="@anim/scale_fade_out"
+            app:popEnterAnim="@anim/scale_fade_in"
+            app:popExitAnim="@anim/scale_fade_out" />
+    </fragment>
+
+    <!-- Shuttle Fragment -->
+    <fragment
+        android:id="@+id/shuttleFragment"
+        android:name="com.nottingham.mynottingham.ui.shuttle.ShuttleFragment"
+        android:label="@string/nav_shuttle"
+        tools:layout="@layout/fragment_shuttle" />
+
+    <!-- Booking Fragment -->
+    <fragment
+        android:id="@+id/bookingFragment"
+        android:name="com.nottingham.mynottingham.ui.booking.BookingFragment"
+        android:label="@string/nav_booking"
+        tools:layout="@layout/fragment_booking" />
+
+    <!-- Message Fragment -->
+    <fragment
+        android:id="@+id/messageFragment"
+        android:name="com.nottingham.mynottingham.ui.message.MessageFragment"
+        android:label="@string/nav_message"
+        tools:layout="@layout/fragment_message">
+
+        <!-- Navigate to Chat Detail -->
+        <action
+            android:id="@+id/action_message_to_chat_detail"
+            app:destination="@id/chatDetailFragment" />
+
+        <!-- Navigate to New Message -->
+        <action
+            android:id="@+id/action_message_to_new_message"
+            app:destination="@id/newMessageFragment" />
+
+        <!-- Navigate to New Group -->
+        <action
+            android:id="@+id/action_message_to_new_group"
+            app:destination="@id/newGroupFragment" />
+
+    </fragment>
+
+    <!-- Chat Detail Fragment -->
+    <fragment
+        android:id="@+id/chatDetailFragment"
+        android:name="com.nottingham.mynottingham.ui.message.ChatDetailFragment"
+        android:label="Chat"
+        tools:layout="@layout/fragment_chat_detail">
+
+        <argument
+            android:name="conversationId"
+            app:argType="string" />
+
+        <argument
+            android:name="participantName"
+            app:argType="string" />
+
+        <argument
+            android:name="participantAvatar"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+
+        <argument
+            android:name="isOnline"
+            app:argType="boolean"
+            android:defaultValue="false" />
+
+    </fragment>
+
+    <!-- New Message Fragment -->
+    <fragment
+        android:id="@+id/newMessageFragment"
+        android:name="com.nottingham.mynottingham.ui.message.NewMessageFragment"
+        android:label="@string/title_new_message"
+        tools:layout="@layout/fragment_new_message">
+
+        <!-- Navigate to Chat Detail after creating conversation -->
+        <action
+            android:id="@+id/action_new_message_to_chat_detail"
+            app:destination="@id/chatDetailFragment"
+            app:popUpTo="@id/messageFragment" />
+
+    </fragment>
+
+    <!-- New Group Fragment -->
+    <fragment
+        android:id="@+id/newGroupFragment"
+        android:name="com.nottingham.mynottingham.ui.message.NewGroupFragment"
+        android:label="New Group"
+        tools:layout="@layout/fragment_new_group">
+
+        <!-- Navigate to Chat Detail after creating group -->
+        <action
+            android:id="@+id/action_new_group_to_chat_detail"
+            app:destination="@id/chatDetailFragment"
+            app:popUpTo="@id/messageFragment" />
+
+    </fragment>
+
+    <!-- Profile Fragment -->
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.nottingham.mynottingham.ui.profile.ProfileFragment"
+        android:label="@string/nav_profile"
+        tools:layout="@layout/fragment_profile">
+        <action
+            android:id="@+id/action_profile_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Errand Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/errandFragment"
+        android:name="com.nottingham.mynottingham.ui.errand.ErrandFragment"
+        android:label="@string/nav_errand"
+        tools:layout="@layout/fragment_errand" />
+
+    <!-- Notti AI Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/nottiFragment"
+        android:name="com.nottingham.mynottingham.ui.notti.NottiFragment"
+        android:label="@string/nav_notti"
+        tools:layout="@layout/fragment_notti" />
+
+    <!-- Forum Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/forumFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.ForumFragment"
+        android:label="@string/nav_forum"
+        tools:layout="@layout/fragment_forum">
+
+        <!-- Navigate to Create Post -->
+        <action
+            android:id="@+id/action_forum_to_create_post"
+            app:destination="@id/createPostFragment" />
+
+        <!-- Navigate to Post Detail -->
+        <action
+            android:id="@+id/action_forum_to_post_detail"
+            app:destination="@id/forumDetailFragment" />
+
+    </fragment>
+
+    <!-- Create Post Fragment -->
+    <fragment
+        android:id="@+id/createPostFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.CreatePostFragment"
+        android:label="Create Post"
+        tools:layout="@layout/fragment_create_post" />
+
+    <!-- Forum Detail Fragment -->
+    <fragment
+        android:id="@+id/forumDetailFragment"
+        android:name="com.nottingham.mynottingham.ui.forum.ForumDetailFragment"
+        android:label="Post Detail"
+        tools:layout="@layout/fragment_forum_detail">
+
+        <argument
+            android:name="postId"
+            app:argType="long" />
+
+    </fragment>
+
+    <!-- Instatt Fragment - can be accessed from Home -->
+    <fragment
+        android:id="@+id/instattFragment"
+        android:name="com.nottingham.mynottingham.ui.instatt.InstattFragment"
+        android:label="Instatt"
+        tools:layout="@layout/fragment_instatt" />
+
+    <fragment
+        android:id="@+id/foodMenuItemDetailFragment"
+        android:name="com.nottingham.mynottingham.ui.errand.FoodMenuItemDetailFragment"
+        android:label="Food Details"
+        tools:layout="@layout/fragment_food_menu_item_detail">
+        <argument
+            android:name="menuItem"
+            app:argType="com.nottingham.mynottingham.data.model.MenuItem" />
+    </fragment>
+
+</navigation>

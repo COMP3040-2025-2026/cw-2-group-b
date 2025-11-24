@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/spacing_md"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/spacing_lg">
+
+        <!-- Task Type Badge -->
+        <TextView
+            android:id="@+id/tv_task_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_task_type_badge"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="Shopping"
+            android:textColor="@color/primary"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Reward Amount -->
+        <TextView
+            android:id="@+id/tv_reward"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RM 5.00"
+            android:textColor="#FF6B6B"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Task Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Buy coffee from Starbucks"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_task_type" />
+
+        <!-- Description -->
+        <TextView
+            android:id="@+id/tv_description"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="Need someone to get me a grande iced latte from Starbucks on campus."
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_title" />
+
+        <!-- Location Icon + Text -->
+        <TextView
+            android:id="@+id/tv_location"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="16dp"
+            android:drawablePadding="6dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Library"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:drawableStartCompat="@android:drawable/ic_menu_mylocation"
+            app:drawableTint="@color/text_secondary"
+            app:layout_constraintEnd_toStartOf="@id/tv_deadline"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_description" />
+
+        <!-- Deadline Icon + Text -->
+        <TextView
+            android:id="@+id/tv_deadline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawablePadding="6dp"
+            android:text="30 mins"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:drawableStartCompat="@android:drawable/ic_menu_recent_history"
+            app:drawableTint="@color/text_secondary"
+            app:layout_constraintBottom_toBottomOf="@id/tv_location"
+            app:layout_constraintEnd_toStartOf="@id/tv_requester"
+            app:layout_constraintStart_toEndOf="@id/tv_location"
+            app:layout_constraintTop_toTopOf="@id/tv_location" />
+
+        <!-- Requester Icon + Name -->
+        <TextView
+            android:id="@+id/tv_requester"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="6dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Sarah L."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:drawableStartCompat="@android:drawable/ic_menu_myplaces"
+            app:drawableTint="@color/text_secondary"
+            app:layout_constraintBottom_toBottomOf="@id/tv_location"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_deadline"
+            app:layout_constraintTop_toTopOf="@id/tv_location" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

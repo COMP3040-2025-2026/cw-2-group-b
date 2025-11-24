@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="12dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- Author Avatar -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivAuthorAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_profile"
+            app:shapeAppearanceOverlay="@style/CircleImageView"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Author Name -->
+        <TextView
+            android:id="@+id/tvAuthorName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:ellipsize="end"
+            android:maxLines="1"
+            app:layout_constraintStart_toEndOf="@id/ivAuthorAvatar"
+            app:layout_constraintEnd_toStartOf="@id/chipCategory"
+            app:layout_constraintTop_toTopOf="@id/ivAuthorAvatar"
+            tools:text="John Doe" />
+
+        <!-- Timestamp -->
+        <TextView
+            android:id="@+id/tvTimestamp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toEndOf="@id/ivAuthorAvatar"
+            app:layout_constraintEnd_toStartOf="@id/chipCategory"
+            app:layout_constraintTop_toBottomOf="@id/tvAuthorName"
+            app:layout_constraintBottom_toBottomOf="@id/ivAuthorAvatar"
+            tools:text="2 hours ago" />
+
+        <!-- Category Badge -->
+        <TextView
+            android:id="@+id/chipCategory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:background="@drawable/bg_category_tag"
+            android:textColor="#1976d2"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="ACADEMIC" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="2"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ivAuthorAvatar"
+            tools:text="This is a sample forum post title that might be quite long" />
+
+        <!-- Content Preview -->
+        <TextView
+            android:id="@+id/tvContent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="3"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            tools:text="This is the content of the forum post. It can be quite long but we'll only show a preview here with a maximum of 3 lines..." />
+
+        <!-- Post Image (if exists) -->
+        <ImageView
+            android:id="@+id/ivPostImage"
+            android:layout_width="0dp"
+            android:layout_height="200dp"
+            android:layout_marginTop="12dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:background="?attr/colorSurfaceVariant"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvContent"
+            tools:visibility="visible"
+            tools:src="@drawable/ic_placeholder" />
+
+        <!-- Tags -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupTags"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:singleLine="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ivPostImage"
+            tools:visibility="visible">
+
+            <com.google.android.material.chip.Chip
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="sample"
+                style="@style/Widget.Material3.Chip.Suggestion"
+                android:textSize="11sp"
+                app:chipMinHeight="24dp" />
+        </com.google.android.material.chip.ChipGroup>
+
+        <!-- Footer Barrier (for consistent positioning) -->
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/barrierContent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="chipGroupTags,ivPostImage,tvContent" />
+
+        <!-- Like Icon -->
+        <TextView
+            android:id="@+id/tvLikes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_thumb_up_outline"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/barrierContent"
+            tools:text="245" />
+
+        <!-- Comment Icon -->
+        <TextView
+            android:id="@+id/tvComments"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_comment_outline"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toEndOf="@id/tvLikes"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:text="38" />
+
+        <!-- Views Icon -->
+        <TextView
+            android:id="@+id/tvViews"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="4dp"
+            android:drawableStart="@drawable/ic_eye_outline"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            app:drawableTint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintStart_toEndOf="@id/tvComments"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:text="1.2k" />
+
+
+        <!-- Locked indicator -->
+        <ImageView
+            android:id="@+id/ivLocked"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_lock"
+            android:visibility="gone"
+            app:tint="?attr/colorOnSurfaceVariant"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:visibility="visible" />
+
+        <!-- Pinned indicator -->
+        <ImageView
+            android:id="@+id/ivPinned"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_pin"
+            android:visibility="gone"
+            app:tint="?attr/colorPrimary"
+            app:layout_constraintEnd_toStartOf="@id/ivLocked"
+            app:layout_constraintTop_toTopOf="@id/tvLikes"
+            app:layout_constraintBottom_toBottomOf="@id/tvLikes"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>
