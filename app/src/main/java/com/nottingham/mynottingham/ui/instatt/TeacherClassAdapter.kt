@@ -11,7 +11,8 @@ import com.nottingham.mynottingham.databinding.ItemTeacherClassBinding
 class TeacherClassAdapter(
     private val courses: List<Course>,
     private val onToggleSignIn: (Course) -> Unit,
-    private val onCourseClick: (Course) -> Unit
+    private val onCourseClick: (Course) -> Unit,
+    private val onMoreOptionsClick: (Course) -> Unit  // ✅ 新增：三个点按钮回调
 ) : RecyclerView.Adapter<TeacherClassAdapter.TeacherClassViewHolder>() {
 
     inner class TeacherClassViewHolder(private val binding: ItemTeacherClassBinding) :
@@ -58,6 +59,11 @@ class TeacherClassAdapter(
             // Toggle button click
             binding.btnToggleSignin.setOnClickListener {
                 onToggleSignIn(course)
+            }
+
+            // ✅ 三个点按钮点击 - 打开学生管理对话框
+            binding.ivMoreOptions.setOnClickListener {
+                onMoreOptionsClick(course)
             }
 
             // Card click to open course management dialog

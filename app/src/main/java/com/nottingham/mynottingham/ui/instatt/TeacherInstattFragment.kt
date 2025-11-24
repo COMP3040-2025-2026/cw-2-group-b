@@ -92,6 +92,9 @@ class TeacherInstattFragment : Fragment() {
             },
             onCourseClick = { course ->
                 showCourseManagementDialog(course)
+            },
+            onMoreOptionsClick = { course ->  // ✅ 新增：三个点按钮回调
+                showCourseManagementDialog(course)
             }
         )
         binding.rvClasses.adapter = adapter

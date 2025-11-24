@@ -54,17 +54,46 @@ class FirebaseInstattManager {
     /**
      * 教师开启签到：将 session 标记为 unlocked
      * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * ✅ 新增：检测是否首次unlock，记录firstUnlockTime和unlockCount
+     * ✅ 新增：设置20分钟自动锁定时间
+     *
+     * @return Result<Boolean> - true表示首次unlock（需要增加totalClasses），false表示重复unlock
      */
-    suspend fun unlockSession(courseScheduleId: String, date: String): Result<Unit> {
+    suspend fun unlockSession(courseScheduleId: String, date: String): Result<Boolean> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
-            val updates = mapOf(
+            val sessionRef = sessionsRef.child(sessionKey)
+
+            // 检查session是否已存在firstUnlockTime
+            val snapshot = sessionRef.get().await()
+            val isFirstTime = !snapshot.hasChild("firstUnlockTime")
+            val currentUnlockCount = snapshot.child("unlockCount").getValue(Long::class.java) ?: 0L
+
+            val currentTime = System.currentTimeMillis()
+            val updates = mutableMapOf<String, Any>(
                 "isLocked" to false,
                 "isActive" to true,
-                "startTime" to System.currentTimeMillis()
+                "lastUnlockTime" to currentTime,
+                "unlockCount" to (currentUnlockCount + 1)
             )
-            sessionsRef.child(sessionKey).updateChildren(updates).await()
-            Result.success(Unit)
+
+            // 只有首次unlock才设置firstUnlockTime
+            if (isFirstTime) {
+                updates["firstUnlockTime"] = currentTime
+                updates["startTime"] = currentTime
+            }
+
+            // 设置20分钟后自动锁定的时间戳（每次unlock都更新）
+            updates["autoLockTime"] = currentTime + (20 * 60 * 1000) // 20分钟
+
+            sessionRef.updateChildren(updates).await()
+
+            android.util.Log.d(
+                "FirebaseInstatt",
+                "Session $sessionKey unlocked. First time: $isFirstTime, unlock count: ${currentUnlockCount + 1}"
+            )
+
+            Result.success(isFirstTime)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -328,6 +357,88 @@ class FirebaseInstattManager {
     }
 
     // ==================== Utility Functions ====================
+
+    /**
+     * 检查并执行20分钟自动锁定
+     * 如果session超过autoLockTime且仍未锁定，则自动锁定并标记未签到学生为缺席
+     *
+     * @param courseScheduleId 课程排课ID
+     * @param date 日期
+     * @param enrolledStudents 所有选课学生列表（用于标记缺席）
+     * @return Result<Boolean> - true表示执行了自动锁定，false表示无需锁定
+     */
+    suspend fun checkAndAutoLockSession(
+        courseScheduleId: String,
+        date: String,
+        enrolledStudents: List<Pair<Long, String>>  // List of (studentId, studentName)
+    ): Result<Boolean> {
+        return try {
+            val sessionKey = getSessionKey(courseScheduleId, date)
+            val sessionRef = sessionsRef.child(sessionKey)
+
+            val snapshot = sessionRef.get().await()
+            if (!snapshot.exists()) {
+                return Result.success(false)
+            }
+
+            val isLocked = snapshot.child("isLocked").getValue(Boolean::class.java) ?: true
+            val autoLockTime = snapshot.child("autoLockTime").getValue(Long::class.java) ?: 0L
+            val currentTime = System.currentTimeMillis()
+
+            // 如果已经锁定或没有设置autoLockTime，无需操作
+            if (isLocked || autoLockTime == 0L) {
+                return Result.success(false)
+            }
+
+            // 检查是否超过autoLockTime
+            if (currentTime >= autoLockTime) {
+                android.util.Log.d(
+                    "FirebaseInstatt",
+                    "Auto-locking session $sessionKey (exceeded 20 minutes)"
+                )
+
+                // 1. 锁定session
+                val lockUpdates = mapOf(
+                    "isLocked" to true,
+                    "isActive" to false,
+                    "autoLockedAt" to currentTime
+                )
+                sessionRef.updateChildren(lockUpdates).await()
+
+                // 2. 标记所有未签到学生为缺席
+                val studentsSnapshot = sessionRef.child("students").get().await()
+                val signedInStudentIds = studentsSnapshot.children.mapNotNull {
+                    it.child("studentId").getValue(Long::class.java)
+                }.toSet()
+
+                for ((studentId, studentName) in enrolledStudents) {
+                    if (studentId !in signedInStudentIds) {
+                        // 标记为缺席
+                        val absentData = mapOf(
+                            "studentId" to studentId,
+                            "studentName" to studentName,
+                            "status" to AttendanceStatus.ABSENT.name,
+                            "markedAt" to currentTime,
+                            "autoMarked" to true  // 标记这是自动标记的缺席
+                        )
+                        sessionRef.child("students").child(studentId.toString())
+                            .setValue(absentData).await()
+
+                        android.util.Log.d(
+                            "FirebaseInstatt",
+                            "Auto-marked student $studentId ($studentName) as ABSENT"
+                        )
+                    }
+                }
+
+                return Result.success(true)
+            }
+
+            Result.success(false)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /**
      * 删除过期的 session（可选的清理功能）

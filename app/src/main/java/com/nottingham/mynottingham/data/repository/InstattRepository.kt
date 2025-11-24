@@ -74,8 +74,11 @@ class InstattRepository {
     /**
      * 教师开启签到 - 使用 Firebase 实现实时更新
      * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * ✅ 新增：返回是否首次unlock（用于增加课程总数）
+     *
+     * @return Result<Boolean> - true表示首次unlock，false表示重复unlock
      */
-    suspend fun unlockSession(teacherId: String, courseScheduleId: String, date: String): Result<Unit> {
+    suspend fun unlockSession(teacherId: String, courseScheduleId: String, date: String): Result<Boolean> {
         return withContext(Dispatchers.IO) {
             // 直接使用 Firebase，不再调用后端 API
             // 注意：firebaseManager 不需要 teacherId
