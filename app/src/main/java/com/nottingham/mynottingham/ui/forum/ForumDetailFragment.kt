@@ -20,8 +20,9 @@ import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
-import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
+import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.FragmentForumDetailBinding
+import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -35,8 +36,9 @@ class ForumDetailFragment : Fragment() {
     private lateinit var tokenManager: TokenManager
     private lateinit var commentAdapter: ForumCommentAdapter
 
-    private var postId: Long = 0L
-    private var currentUserId: Long? = null
+    // ⚠️ 修复：ID 类型改为 String
+    private var postId: String = ""
+    private var currentUserId: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,12 +53,12 @@ class ForumDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Get postId from arguments
+        // Get postId from arguments (handle both String and Long for compatibility)
         arguments?.let {
-            postId = it.getLong("postId")
+            postId = it.getString("postId") ?: it.getLong("postId", 0L).toString()
         }
 
-        if (postId == 0L) {
+        if (postId == "0" || postId.isEmpty()) {
             Toast.makeText(context, "Invalid Post ID", Toast.LENGTH_SHORT).show()
             findNavController().navigateUp()
             return
@@ -64,7 +66,7 @@ class ForumDetailFragment : Fragment() {
 
         // Get current user ID
         lifecycleScope.launch {
-            currentUserId = tokenManager.getUserId().first()?.toLongOrNull()
+            currentUserId = tokenManager.getUserId().first() ?: ""
         }
 
         setupUI()
@@ -73,100 +75,66 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Back button
-        binding.btnBack.setOnClickListener {
-            findNavController().navigateUp()
-        }
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
-        // More options button
-        binding.btnMoreOptions.setOnClickListener {
-            showPostOptionsMenu()
-        }
+        binding.btnMoreOptions.setOnClickListener { showPostOptionsMenu() }
 
-        // Comments RecyclerView
         commentAdapter = ForumCommentAdapter { comment ->
-            lifecycleScope.launch {
-                val token = tokenManager.getToken().first() ?: ""
-                if (token.isNotEmpty()) {
-                    viewModel.likeComment(token, comment.id)
-                } else {
-                    Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
-                }
-            }
+            // Like comment
+            viewModel.likeComment(comment.id)
         }
         binding.recyclerComments.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = commentAdapter
         }
 
-        // Send Comment
         binding.btnSendComment.setOnClickListener {
             val content = binding.etComment.text.toString().trim()
             if (content.isNotEmpty()) {
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty()) {
-                        viewModel.sendComment(token, postId, content)
-                        binding.etComment.text.clear()
-                        hideKeyboard()
-                    }
-                }
+                viewModel.sendComment(postId, content)
+                binding.etComment.text.clear()
+                hideKeyboard()
             }
         }
 
-        // Like Post
         binding.layoutLike.setOnClickListener {
-            lifecycleScope.launch {
-                val token = tokenManager.getToken().first() ?: ""
-                if (token.isNotEmpty()) {
-                    viewModel.likePost(token, postId)
-                }
-            }
+            viewModel.likePost(postId)
         }
     }
 
     private fun setupObservers() {
-        // Observe Post Data
         lifecycleScope.launch {
-            viewModel.getPostFlow(postId).collect { post ->
-                post?.let { bindPostData(it) }
-            }
+            viewModel.getPostFlow(0L) // 参数为了兼容保留，实际 ViewModel 内部用 StateFlow
+                .collect { post ->
+                    post?.let { bindPostData(it) }
+                }
         }
 
-        // Observe Comments
         lifecycleScope.launch {
-            viewModel.getCommentsFlow(postId).collect { comments ->
-                commentAdapter.submitList(comments)
-            }
+            viewModel.getCommentsFlow(0L) // 同上
+                .collect { comments ->
+                    commentAdapter.submitList(comments)
+                }
         }
 
-        // Loading State
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.isVisible = isLoading
         }
 
-        // Error State
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
-                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }
         }
 
-        // Comment Success
         viewModel.commentSuccess.observe(viewLifecycleOwner) { success ->
             if (success) {
                 Toast.makeText(context, "Comment added", Toast.LENGTH_SHORT).show()
                 viewModel.clearCommentSuccess()
-                // Refresh data to ensure everything is synced
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty()) viewModel.loadPostDetail(token, postId)
-                }
             }
         }
 
-        // Delete Success
         viewModel.deleteSuccess.observe(viewLifecycleOwner) { success ->
             if (success) {
                 Toast.makeText(context, "Post deleted successfully", Toast.LENGTH_SHORT).show()
@@ -199,16 +167,9 @@ class ForumDetailFragment : Fragment() {
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Post")
-            .setMessage("Are you sure you want to delete this post? This action cannot be undone.")
+            .setMessage("Are you sure you want to delete this post?")
             .setPositiveButton("Delete") { dialog, _ ->
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty() && postId != 0L) {
-                        viewModel.deletePost(token, postId)
-                    } else {
-                        Toast.makeText(context, "Unable to delete post", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                viewModel.deletePost(postId)
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
@@ -217,7 +178,8 @@ class ForumDetailFragment : Fragment() {
             .show()
     }
 
-    private fun bindPostData(post: ForumPostEntity) {
+    // ⚠️ 修复：接收 ForumPost 数据模型，而非 Entity
+    private fun bindPostData(post: ForumPost) {
         binding.apply {
             tvAuthorName.text = post.authorName
             tvTimestamp.text = DateUtils.getRelativeTimeSpanString(
@@ -229,31 +191,18 @@ class ForumDetailFragment : Fragment() {
             tvViews.text = post.views.toString()
 
             chipCategory.text = post.category
-            // Set chip color based on category
-            chipCategory.setChipBackgroundColorResource(
-                when (post.category) {
-                    "ACADEMIC" -> R.color.category_academic
-                    "EVENTS" -> R.color.category_events
-                    "SPORTS" -> R.color.category_sports
-                    "SOCIAL" -> R.color.category_social
-                    else -> R.color.category_general
-                }
-            )
 
             // Avatar
             if (!post.authorAvatar.isNullOrEmpty()) {
-                Glide.with(requireContext())
-                    .load(Constants.BASE_URL + post.authorAvatar)
-                    .placeholder(R.drawable.ic_profile)
-                    .circleCrop()
-                    .into(ivAuthorAvatar)
+                 val avatarResId = AvatarUtils.getDrawableId(post.authorAvatar)
+                 ivAuthorAvatar.setImageResource(avatarResId)
             }
 
             // Post Image
             if (!post.imageUrl.isNullOrEmpty()) {
                 ivPostImage.isVisible = true
                 Glide.with(requireContext())
-                    .load(Constants.BASE_URL + post.imageUrl)
+                    .load(post.imageUrl)
                     .placeholder(R.drawable.ic_placeholder)
                     .into(ivPostImage)
             } else {
@@ -261,24 +210,12 @@ class ForumDetailFragment : Fragment() {
             }
 
             // Like Status
-            if (post.isLikedByCurrentUser) {
+            if (post.isLiked) {
                 ivLike.setImageResource(R.drawable.ic_favorite)
                 ivLike.setColorFilter(requireContext().getColor(R.color.primary))
             } else {
                 ivLike.setImageResource(R.drawable.ic_favorite_border)
                 ivLike.clearColorFilter()
-            }
-
-            // Tags
-            chipGroupTags.removeAllViews()
-            post.tags?.split(",")?.forEach { tag ->
-                if (tag.isNotBlank()) {
-                    val chip = Chip(context).apply {
-                        text = tag.trim()
-                        isClickable = false
-                    }
-                    chipGroupTags.addView(chip)
-                }
             }
 
             // Show/hide more options button based on author
@@ -287,12 +224,7 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun loadData() {
-        lifecycleScope.launch {
-            val token = tokenManager.getToken().first() ?: ""
-            if (token.isNotEmpty()) {
-                viewModel.loadPostDetail(token, postId)
-            }
-        }
+        viewModel.loadPostDetail(postId)
     }
 
     private fun hideKeyboard() {

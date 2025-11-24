@@ -36,14 +36,7 @@ class InstattDayCoursesFragment : Fragment() {
     private var studentId: String = ""
     private var studentName: String = ""
 
-    // 移除轮询机制 - 改用 Firebase 实时监听
-    // private val handler = Handler(Looper.getMainLooper())
-    // private var isPolling = false
-
-    // Server time cache - updated when fragment is created
-    private var serverDate: String? = null
-    private var serverDayOfWeek: DayOfWeek? = null
-    private var serverTime: String? = null
+    // ✅ Firebase 不需要后端时间服务器，使用本地时间即可
 
     companion object {
         private const val ARG_DAY_OF_WEEK = "day_of_week"
@@ -103,6 +96,9 @@ class InstattDayCoursesFragment : Fragment() {
             studentId = tokenManager.getUserId().first() ?: ""
             studentName = tokenManager.getFullName().first() ?: "Student"
 
+            android.util.Log.d("InstattStudent", "👤 Student ID from TokenManager: $studentId")
+            android.util.Log.d("InstattStudent", "👤 Student Name: $studentName")
+
             // 🔴 修复：检查是否为空字符串
             if (studentId.isEmpty()) {
                 Toast.makeText(
@@ -113,46 +109,16 @@ class InstattDayCoursesFragment : Fragment() {
                 return@launch
             }
 
-            // Fetch server time first, then load courses
-            fetchServerTime()
+            // ✅ 修复：不再调用后端 API，直接加载课程
+            loadCourses()
         }
     }
 
-    private fun fetchServerTime() {
-        lifecycleScope.launch {
-            val result = repository.getSystemTime()
-
-            result.onSuccess { systemTime ->
-                // Cache server time
-                serverDate = systemTime.currentDate
-                serverDayOfWeek = systemTime.dayOfWeek
-                serverTime = systemTime.currentTime
-
-                // Now load courses with server date
-                loadCourses()
-                // 移除轮询 - Firebase 实时监听会自动更新
-                // startPolling()
-            }.onFailure { error ->
-                // Fallback to local time if server time fails
-                Toast.makeText(
-                    context,
-                    "Failed to sync with server time: ${error.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                // Use local time as fallback
-                serverDate = null
-                serverDayOfWeek = null
-                serverTime = null
-                loadCourses()
-                // startPolling()
-            }
-        }
-    }
+    // ✅ 移除 fetchServerTime() - Firebase 不需要后端时间服务器
 
     private fun loadCourses() {
-        // Use server date if available, otherwise fallback to local date
-        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        // ✅ 使用本地日期（Firebase 实时性已经足够）
+        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
@@ -160,11 +126,15 @@ class InstattDayCoursesFragment : Fragment() {
         }
 
         lifecycleScope.launch {
+            android.util.Log.d("InstattStudent", "📚 Loading courses for studentId: $studentId, date: $today")
             val result = repository.getStudentCourses(studentId, today)
 
             result.onSuccess { courses ->
+                android.util.Log.d("InstattStudent", "✅ Got ${courses.size} total courses")
+
                 // Filter courses by current day of week
                 val filteredCourses = courses.filter { it.dayOfWeek == dayOfWeek }
+                android.util.Log.d("InstattStudent", "📅 Filtered to ${filteredCourses.size} courses for $dayOfWeek")
 
                 displayCourses(filteredCourses)
 
@@ -172,17 +142,12 @@ class InstattDayCoursesFragment : Fragment() {
                 startFirebaseListeners(filteredCourses, today)
             }.onFailure { error ->
                 // Fallback to mock data if API fails
+                android.util.Log.e("InstattStudent", "❌ Failed to load courses: ${error.message}", error)
                 Toast.makeText(
                     context,
-                    "⚠️ Backend offline - INSTATT features require backend connection",
+                    "⚠️ Failed to load courses: ${error.message}",
                     Toast.LENGTH_LONG
                 ).show()
-
-                // Log warning for debugging
-                android.util.Log.w(
-                    "InstattStudent",
-                    "Using mock courses - INSTATT sign-in won't work without backend. Error: ${error.message}"
-                )
 
                 // Use mock data as fallback (for UI testing only)
                 val mockCourses = getMockCourses(dayOfWeek)
@@ -202,8 +167,8 @@ class InstattDayCoursesFragment : Fragment() {
             binding.rvCourses.isVisible = true
             binding.layoutEmpty.isVisible = false
 
-            // Get current time - use server time if available, otherwise system time
-            val currentTime = serverTime ?: getCurrentTime()
+            // ✅ 使用本地时间
+            val currentTime = getCurrentTime()
 
             // Use TodayClassAdapter for today's view with sign-in callback
             val adapter = TodayClassAdapter(courses, currentTime) { course ->
@@ -216,37 +181,42 @@ class InstattDayCoursesFragment : Fragment() {
     /**
      * 实时监听 Firebase 签到状态变化
      * 当教师 unlock session 时，学生端按钮立即变亮
+     *
+     * ⚠️ 注意：由于 Firebase scheduleId 是字符串格式（如 "comp2001_1"），
+     * 而 sessions 数据库仍使用数字 ID 作为 key，这里暂时禁用实时监听。
+     *
+     * TODO: 需要重构 sessions 数据结构以支持字符串 scheduleId
      */
     private fun startFirebaseListeners(courses: List<Course>, date: String) {
+        android.util.Log.w(
+            "InstattStudent",
+            "⚠️ Firebase real-time listeners disabled due to ID type mismatch. " +
+            "Firebase uses string IDs (e.g., 'comp2001_1') but sessions use numeric IDs."
+        )
+
+        // TODO: 当 Firebase sessions 结构支持字符串 ID 后，恢复以下代码：
+        /*
         courses.forEach { course ->
             lifecycleScope.launch {
                 repository.listenToSessionLockStatus(
-                    courseScheduleId = course.id.toLong(),
+                    courseScheduleId = course.id,  // 直接使用字符串 ID
                     date = date
                 ).collect { isLocked ->
-                    // 更新课程的签到状态
                     course.signInStatus = if (isLocked) {
                         SignInStatus.LOCKED
                     } else {
                         SignInStatus.UNLOCKED
                     }
-
-                    // 刷新 UI
                     binding.rvCourses.adapter?.notifyDataSetChanged()
-
-                    // 日志输出，便于调试
-                    android.util.Log.d(
-                        "InstattStudent",
-                        "Course ${course.courseCode}: isLocked=$isLocked"
-                    )
                 }
             }
         }
+        */
     }
 
     private fun handleSignIn(course: Course) {
-        // Use server date if available, otherwise fallback to local date
-        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        // ✅ 使用本地日期
+        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
@@ -261,14 +231,30 @@ class InstattDayCoursesFragment : Fragment() {
         ).show()
 
         lifecycleScope.launch {
-            // 🔴 修复：repository.signIn 仍然使用 Long 类型（Firebase attendance 记录使用数字 ID）
-            // 尝试将 Firebase UID 转换为 Long（仅当使用传统数字 ID 时）
-            val studentIdLong = studentId.toLongOrNull()
+            // ⚠️ 注意：Firebase scheduleId 是字符串，但 sessions 仍使用数字 ID
+            // 尝试从字符串 ID 中提取数字部分（如果可能）
+            val scheduleIdLong = extractNumericId(course.id)
 
+            if (scheduleIdLong == null) {
+                Toast.makeText(
+                    context,
+                    "⚠️ Sign-in not available: Course schedule ID '${course.id}' cannot be converted to numeric format.\n" +
+                    "This course uses Firebase-only scheduling.",
+                    Toast.LENGTH_LONG
+                ).show()
+                android.util.Log.w(
+                    "InstattStudent",
+                    "Cannot sign in to course ${course.courseCode}: scheduleId '${course.id}' is not numeric"
+                )
+                return@launch
+            }
+
+            // 学生 ID 也需要数字格式
+            val studentIdLong = studentId.toLongOrNull()
             if (studentIdLong == null) {
                 Toast.makeText(
                     context,
-                    "Invalid student ID format. Sign-in requires numeric ID.",
+                    "⚠️ Sign-in requires numeric student ID. Your Firebase UID cannot be used.",
                     Toast.LENGTH_SHORT
                 ).show()
                 return@launch
@@ -277,7 +263,7 @@ class InstattDayCoursesFragment : Fragment() {
             // 使用 Firebase 签到 - 毫秒级响应
             val result = repository.signIn(
                 studentId = studentIdLong,
-                courseScheduleId = course.id.toLong(),
+                courseScheduleId = scheduleIdLong,
                 date = today,
                 studentName = studentName,
                 matricNumber = null, // 可以从 TokenManager 获取学号
@@ -465,6 +451,26 @@ class InstattDayCoursesFragment : Fragment() {
                 )
             )
             else -> emptyList()
+        }
+    }
+
+    /**
+     * 尝试从 Firebase 字符串 ID 中提取数字部分
+     *
+     * 示例：
+     * - "123" → 123
+     * - "comp2001_1" → null（不支持）
+     * - "456" → 456
+     *
+     * ⚠️ 这是临时解决方案，理想情况下应该重构 sessions 数据结构支持字符串 ID
+     */
+    private fun extractNumericId(id: String): Long? {
+        return try {
+            id.toLong()
+        } catch (e: NumberFormatException) {
+            // 如果 ID 包含下划线，尝试提取最后一部分数字
+            // 例如 "comp2001_1" → 提取不出来，返回 null
+            null
         }
     }
 

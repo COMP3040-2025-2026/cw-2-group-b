@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
-import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
+import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.ItemForumPostBinding
 import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
@@ -19,9 +19,9 @@ import com.nottingham.mynottingham.util.Constants
  * RecyclerView Adapter for displaying forum posts
  */
 class ForumAdapter(
-    private val onPostClick: (ForumPostEntity) -> Unit,
-    private val onLikeClick: (ForumPostEntity) -> Unit
-) : ListAdapter<ForumPostEntity, ForumAdapter.ForumPostViewHolder>(ForumPostDiffCallback()) {
+    private val onPostClick: (ForumPost) -> Unit,
+    private val onLikeClick: (ForumPost) -> Unit
+) : ListAdapter<ForumPost, ForumAdapter.ForumPostViewHolder>(ForumPostDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ForumPostViewHolder {
         val binding = ItemForumPostBinding.inflate(
@@ -40,7 +40,7 @@ class ForumAdapter(
         private val binding: ItemForumPostBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(post: ForumPostEntity) {
+        fun bind(post: ForumPost) {
             binding.apply {
                 // Author info
                 tvAuthorName.text = post.authorName
@@ -53,7 +53,8 @@ class ForumAdapter(
 
                 // Category badge
                 chipCategory.text = post.category
-                (chipCategory.background.mutate() as? android.graphics.drawable.GradientDrawable)?.setColor(
+                // Handle gradient background safely
+                (chipCategory.background?.mutate() as? android.graphics.drawable.GradientDrawable)?.setColor(
                     itemView.context.getColor(getCategoryColor(post.category))
                 )
                 chipCategory.setTextColor(itemView.context.getColor(android.R.color.white))
@@ -66,35 +67,18 @@ class ForumAdapter(
                 if (!post.imageUrl.isNullOrEmpty()) {
                     ivPostImage.isVisible = true
                     Glide.with(itemView.context)
-                        .load(Constants.BASE_URL + post.imageUrl)
+                        .load(post.imageUrl) // Firebase URLs are typically complete
                         .placeholder(R.drawable.ic_placeholder)
                         .error(R.drawable.ic_placeholder)
                         .centerCrop()
-                        .dontAnimate() // Prevent animation conflicts with RecyclerView animations
+                        .dontAnimate()
                         .into(ivPostImage)
                 } else {
                     ivPostImage.isVisible = false
                 }
 
-                // Tags
-                if (!post.tags.isNullOrEmpty()) {
-                    chipGroupTags.isVisible = true
-                    chipGroupTags.removeAllViews()
-
-                    val tagList = post.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    tagList.forEach { tag ->
-                        val chip = Chip(itemView.context).apply {
-                            text = tag
-                            isClickable = false
-                            isCheckable = false
-                            setChipBackgroundColorResource(R.color.chip_background)
-                            textSize = 11f
-                        }
-                        chipGroupTags.addView(chip)
-                    }
-                } else {
-                    chipGroupTags.isVisible = false
-                }
+                // Tags - Currently not in ForumPost model, hidden for now
+                chipGroupTags.isVisible = false
 
                 // Stats
                 tvLikes.text = post.likes.toString()
@@ -102,15 +86,15 @@ class ForumAdapter(
                 tvViews.text = post.views.toString()
 
                 // Like icon state
-                if (post.isLikedByCurrentUser) {
+                if (post.isLiked) {
                     tvLikes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_favorite, 0, 0, 0)
                 } else {
                     tvLikes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_favorite_border, 0, 0, 0)
                 }
 
-                // Pinned and locked indicators
-                ivPinned.isVisible = post.isPinned
-                ivLocked.isVisible = post.isLocked
+                // Pinned and locked indicators - Not in current model
+                ivPinned.isVisible = false
+                ivLocked.isVisible = false
 
                 // Click listeners
                 root.setOnClickListener { onPostClick(post) }
@@ -147,12 +131,12 @@ class ForumAdapter(
         }
     }
 
-    class ForumPostDiffCallback : DiffUtil.ItemCallback<ForumPostEntity>() {
-        override fun areItemsTheSame(oldItem: ForumPostEntity, newItem: ForumPostEntity): Boolean {
+    class ForumPostDiffCallback : DiffUtil.ItemCallback<ForumPost>() {
+        override fun areItemsTheSame(oldItem: ForumPost, newItem: ForumPost): Boolean {
             return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: ForumPostEntity, newItem: ForumPostEntity): Boolean {
+        override fun areContentsTheSame(oldItem: ForumPost, newItem: ForumPost): Boolean {
             return oldItem == newItem
         }
     }

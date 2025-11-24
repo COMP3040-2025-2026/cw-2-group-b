@@ -60,7 +60,7 @@ class ProfileFragment : Fragment() {
 
     private fun loadUserInfo() {
         // 1. 监听本地存储的头像变化，自动更新 UI
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getAvatar().collect { avatarKey ->
                 // 使用工具类把字符串 "tx1" 变成资源 ID
                 val resId = AvatarUtils.getDrawableId(avatarKey)
@@ -68,7 +68,7 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getFullName().collect { fullName ->
                 fullName?.let {
                     binding.tvName.text = it
@@ -77,7 +77,7 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getEmail().collect { email ->
                 email?.let {
                     binding.tvEmail.text = it
@@ -86,7 +86,7 @@ class ProfileFragment : Fragment() {
         }
 
         // Determine user type and load appropriate info
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getUserType().collect { userType ->
                 if (userType == "TEACHER") {
                     loadTeacherInfo()
@@ -98,7 +98,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun loadStudentInfo() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getStudentId().collect { studentId ->
                 studentId?.let {
                     binding.tvStudentId.text = "Student ID: $it"
@@ -106,21 +106,21 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getFaculty().collect { faculty ->
                 binding.labelFaculty.text = "Faculty"
                 binding.valueFaculty.text = faculty ?: "—"
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getYearOfStudy().collect { year ->
                 binding.labelYear.text = "Year"
                 binding.valueYear.text = year?.let { "Year $it" } ?: "—"
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getMajor().collect { major ->
                 binding.labelProgram.text = "Program"
                 binding.valueProgram.text = major ?: "—"
@@ -129,7 +129,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun loadTeacherInfo() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getEmployeeId().collect { employeeId ->
                 employeeId?.let {
                     binding.tvStudentId.text = "Employee ID: $it"
@@ -137,21 +137,21 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getDepartment().collect { department ->
                 binding.labelFaculty.text = "Department"
                 binding.valueFaculty.text = department ?: "—"
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getTitle().collect { title ->
                 binding.labelYear.text = "Title"
                 binding.valueYear.text = title ?: "—"
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getOfficeRoom().collect { officeRoom ->
                 binding.labelProgram.text = "Office"
                 binding.valueProgram.text = officeRoom ?: "—"

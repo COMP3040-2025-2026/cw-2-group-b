@@ -54,17 +54,14 @@ class ForumFragment : Fragment() {
             onPostClick = { post ->
                 // Navigate to post detail
                 val bundle = Bundle().apply {
-                    putLong("postId", post.id)
+                    // ⚠️ 修复：Firebase ID 是 String 类型
+                    putString("postId", post.id)
                 }
                 findNavController().navigate(R.id.action_forum_to_post_detail, bundle)
             },
             onLikeClick = { post ->
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty()) {
-                        viewModel.likePost(token, post.id)
-                    }
-                }
+                // ⚠️ 修复：Firebase 实现不需要 Token，只需要 ID
+                viewModel.likePost(post.id)
             }
         )
 
@@ -118,27 +115,22 @@ class ForumFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        // Observe posts from local database
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.posts.collect { posts ->
                 Log.d("ForumFragment", "Received ${posts.size} posts")
                 adapter.submitList(posts)
-
-                // Show/hide empty state
-                binding.layoutEmpty.isVisible = posts.isEmpty() && !viewModel.loading.value!!
+                binding.layoutEmpty.isVisible = posts.isEmpty() && viewModel.loading.value == false
             }
         }
 
-        // Observe loading state
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
             binding.progressBar.isVisible = isLoading
         }
 
-        // Observe errors
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
-                Log.e("ForumFragment", "Error: $it")
-                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                // 暂时忽略错误显示，避免频繁弹窗
                 viewModel.clearError()
             }
         }
@@ -147,22 +139,9 @@ class ForumFragment : Fragment() {
     private fun loadPosts(refresh: Boolean = true) {
         lifecycleScope.launch {
             val token = tokenManager.getToken().first() ?: ""
-            if (token.isEmpty()) {
-                Log.e("ForumFragment", "No token available")
-                Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-
-            Log.d("ForumFragment", "Loading posts with token: ${token.take(20)}...")
+            // Firebase 实际上不需要这个 token 来加载公开帖子
             viewModel.loadPosts(token, if (currentCategory == "All") null else currentCategory, refresh)
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Don't auto-refresh to prevent flickering
-        // Users can use pull-to-refresh if needed
-        // loadPosts(refresh = true)
     }
 
     override fun onDestroyView() {

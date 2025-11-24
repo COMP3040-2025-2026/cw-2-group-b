@@ -38,11 +38,23 @@ class FirebaseCourseRepository {
      */
     suspend fun getStudentCourses(studentId: String, date: String): Result<List<Course>> {
         return try {
+            android.util.Log.d("FirebaseCourseRepo", "🔍 Fetching courses for studentId: $studentId")
+            android.util.Log.d("FirebaseCourseRepo", "📅 Date: $date")
+            android.util.Log.d("FirebaseCourseRepo", "🔗 Database URL: ${database.reference.database.app.name}")
+
             // 1. 获取学生选修的课程ID列表
             val studentCoursesSnapshot = studentCoursesRef.child(studentId).get().await()
+
+            android.util.Log.d("FirebaseCourseRepo", "📊 Snapshot exists: ${studentCoursesSnapshot.exists()}")
+            android.util.Log.d("FirebaseCourseRepo", "📊 Snapshot value: ${studentCoursesSnapshot.value}")
+            android.util.Log.d("FirebaseCourseRepo", "📊 Children count: ${studentCoursesSnapshot.childrenCount}")
+
             val courseIds = studentCoursesSnapshot.children.mapNotNull { it.key }
 
+            android.util.Log.d("FirebaseCourseRepo", "📚 Found ${courseIds.size} courses: $courseIds")
+
             if (courseIds.isEmpty()) {
+                android.util.Log.w("FirebaseCourseRepo", "⚠️ No courses found for student: $studentId")
                 return Result.success(emptyList())
             }
 
@@ -51,16 +63,19 @@ class FirebaseCourseRepository {
 
             for (courseId in courseIds) {
                 try {
+                    android.util.Log.d("FirebaseCourseRepo", "📖 Loading course: $courseId")
                     val course = getCourseWithSchedules(courseId, date)
+                    android.util.Log.d("FirebaseCourseRepo", "✅ Loaded ${course.size} schedules for $courseId")
                     courses.addAll(course)
                 } catch (e: Exception) {
-                    android.util.Log.w("FirebaseCourseRepo", "Failed to load course $courseId: ${e.message}")
+                    android.util.Log.w("FirebaseCourseRepo", "❌ Failed to load course $courseId: ${e.message}", e)
                 }
             }
 
+            android.util.Log.d("FirebaseCourseRepo", "✅ Total courses loaded: ${courses.size}")
             Result.success(courses)
         } catch (e: Exception) {
-            android.util.Log.e("FirebaseCourseRepo", "Error fetching student courses: ${e.message}")
+            android.util.Log.e("FirebaseCourseRepo", "❌ Error fetching student courses: ${e.message}", e)
             Result.failure(e)
         }
     }
