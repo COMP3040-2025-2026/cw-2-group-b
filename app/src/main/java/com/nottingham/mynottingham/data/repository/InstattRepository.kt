@@ -12,6 +12,8 @@ import com.nottingham.mynottingham.data.remote.dto.SignInRequest
 import com.nottingham.mynottingham.data.remote.dto.UnlockSessionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 /**
@@ -129,24 +131,60 @@ class InstattRepository {
     /**
      * 获取学生签到名单 - 返回 Flow 实现实时监听
      * 当学生签到时，教师端会自动收到更新
+     *
+     * 数据合并策略：
+     * 1. 从 MySQL 获取所有已注册学生名单（基础数据）
+     * 2. 实时监听 Firebase 签到数据（实时更新）
+     * 3. 将 Firebase 数据覆盖到 MySQL 名单上，未签到学生保持 ABSENT 状态
+     *
+     * 优点：
+     * - 教师能看到完整班级名册（包括未签到学生）
+     * - Firebase 实时更新签到状态（毫秒级响应）
+     * - 离线场景自动降级为 Firebase-only 模式
      */
     fun getStudentAttendanceList(
         teacherId: Long,
         courseScheduleId: Long,
         date: String
-    ): Flow<List<StudentAttendance>> {
-        // 返回 Firebase 的实时监听 Flow
-        return firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
-    }
+    ): Flow<List<StudentAttendance>> = flow {
+        // Step 1: 尝试从 MySQL 获取已注册学生名单（一次性查询）
+        val enrolledResult = getStudentAttendanceListOnce(teacherId, courseScheduleId, date)
+        val enrolledStudents = enrolledResult.getOrNull() ?: emptyList()
+
+        // Step 2: 监听 Firebase 实时签到数据
+        firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
+            .collect { firebaseStudents ->
+                // Step 3: 合并数据
+                if (enrolledStudents.isNotEmpty()) {
+                    // 有 MySQL 数据 - 使用合并模式（完整名册 + 实时状态）
+                    val mergedList = enrolledStudents.map { enrolled ->
+                        // 查找该学生在 Firebase 中的实时签到记录
+                        val firebaseRecord = firebaseStudents.find { it.studentId == enrolled.studentId }
+
+                        if (firebaseRecord != null) {
+                            // Firebase 有该学生的签到记录，使用 Firebase 的实时数据
+                            firebaseRecord
+                        } else {
+                            // Firebase 还没有该学生的签到记录，保留 MySQL 的默认状态
+                            enrolled
+                        }
+                    }
+                    emit(mergedList)
+                } else {
+                    // MySQL 查询失败或返回空（可能后端离线）- 降级为 Firebase-only 模式
+                    // 这种模式下只显示已签到学生，但至少保证实时性
+                    emit(firebaseStudents)
+                }
+            }
+    }.flowOn(Dispatchers.IO)
 
     /**
-     * 兼容方法：一次性获取学生名单（非实时）
-     * 保留此方法以防某些场景需要一次性查询
+     * 一次性获取 MySQL 中的已注册学生名单
+     * 用于内部实现：提供基础名册数据，供 getStudentAttendanceList() 合并使用
+     *
+     * 此方法返回从 MySQL 查询的完整班级花名册，包含所有已注册学生及其历史签到状态
+     * 通常在教师端用于显示"应到学生"基准线
      */
-    @Deprecated(
-        "Use getStudentAttendanceList() Flow version for real-time updates",
-        ReplaceWith("getStudentAttendanceList(teacherId, courseScheduleId, date)")
-    )
     suspend fun getStudentAttendanceListOnce(
         teacherId: Long,
         courseScheduleId: Long,

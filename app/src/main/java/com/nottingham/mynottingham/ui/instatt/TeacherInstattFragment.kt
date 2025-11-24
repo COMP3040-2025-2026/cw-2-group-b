@@ -123,15 +123,23 @@ class TeacherInstattFragment : Fragment() {
                 // Fallback to mock data if API fails
                 Toast.makeText(
                     context,
-                    "Using offline data (Backend not connected)",
-                    Toast.LENGTH_SHORT
+                    "⚠️ Backend offline - INSTATT features require backend connection",
+                    Toast.LENGTH_LONG
                 ).show()
 
-                // Use mock data as fallback
+                // Log warning for debugging
+                android.util.Log.w(
+                    "InstattTeacher",
+                    "Using mock courses - INSTATT unlock/lock won't work without backend. Error: ${error.message}"
+                )
+
+                // Use mock data as fallback (for UI testing only)
                 val currentDay = getCurrentDayOfWeek()
                 courses.clear()
                 courses.addAll(getMockTeacherCourses(currentDay))
                 displayCourses()
+
+                // Note: Firebase operations won't work properly with mock course IDs
             }
         }
     }

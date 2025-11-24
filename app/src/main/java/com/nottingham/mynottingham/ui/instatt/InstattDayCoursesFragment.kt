@@ -171,13 +171,22 @@ class InstattDayCoursesFragment : Fragment() {
                 // Fallback to mock data if API fails
                 Toast.makeText(
                     context,
-                    "Using offline data (Backend not connected)",
-                    Toast.LENGTH_SHORT
+                    "⚠️ Backend offline - INSTATT features require backend connection",
+                    Toast.LENGTH_LONG
                 ).show()
 
-                // Use mock data as fallback
+                // Log warning for debugging
+                android.util.Log.w(
+                    "InstattStudent",
+                    "Using mock courses - INSTATT sign-in won't work without backend. Error: ${error.message}"
+                )
+
+                // Use mock data as fallback (for UI testing only)
                 val mockCourses = getMockCourses(dayOfWeek)
                 displayCourses(mockCourses)
+
+                // Note: Firebase listeners won't be started for mock courses
+                // since they need real courseScheduleIds from MySQL
             }
         }
     }
