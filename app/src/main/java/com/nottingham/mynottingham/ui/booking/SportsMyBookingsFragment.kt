@@ -70,8 +70,11 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
     }
 
     private fun observeBookings() {
+        // Start loading bookings from Firebase
+        viewModel.getUserBookings(currentUserId)
+
         // Observe LiveData from ViewModel
-        viewModel.getUserBookings(currentUserId).observe(viewLifecycleOwner) { bookings ->
+        viewModel.userBookings.observe(viewLifecycleOwner) { bookings ->
             if (bookings.isEmpty()) {
                 binding.tvEmptyState.visibility = View.VISIBLE
                 rvBookings.visibility = View.GONE

@@ -107,11 +107,6 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 // Get Firebase ID token (can be used for backend authentication if needed)
                 val idToken = firebaseUser.getIdToken(false).await().token ?: ""
 
-                tokenManager.saveUserId(uid)
-                tokenManager.saveUsername(user.username)
-                tokenManager.saveFullName(user.name)
-                tokenManager.saveToken(idToken)
-
                 // Determine user type based on role
                 val userType = when {
                     user.role == "STUDENT" -> "STUDENT"
@@ -119,7 +114,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     user.role == "ADMIN" -> "ADMIN"
                     else -> "STUDENT" // Default fallback
                 }
-                tokenManager.saveUserType(userType)
+
+                // Save user info (uses DataStore)
+                tokenManager.saveToken(idToken)
+                tokenManager.saveUserInfo(uid, user.username, userType)
+                tokenManager.saveFullName(user.name)
 
                 // Save additional information
                 if (userType == "STUDENT") {
@@ -197,7 +196,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         firebaseAuth.signOut()
         viewModelScope.launch {
-            tokenManager.clearAllData()
+            tokenManager.clearToken()
         }
         Log.d(TAG, "🚪 User logged out successfully")
     }

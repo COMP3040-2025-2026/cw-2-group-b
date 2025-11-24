@@ -182,7 +182,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
             val timeSlot = dateTime.hour
 
             BookingEntity(
-                id = id.hashCode().toLong(), // 临时ID转换
+                id = id, // Firebase 生成的真实 ID
                 userId = userId,
                 userName = userName,
                 facilityName = facilityName,
