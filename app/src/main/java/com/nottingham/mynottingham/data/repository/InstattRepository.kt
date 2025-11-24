@@ -19,15 +19,17 @@ import kotlinx.coroutines.withContext
 /**
  * InstattRepository - 统一管理签到系统的数据访问
  *
- * 架构设计：
- * - 课程查询（getTeacherCourses, getStudentCourses）：继续使用 HTTP + MySQL
- * - 实时签到操作（unlock/lock/signIn）：使用 Firebase Realtime Database
- * - 实时监听（学生名单、锁定状态）：通过 Flow 实现响应式更新
+ * 架构设计（已迁移到 Firebase）：
+ * - 课程查询（getTeacherCourses, getStudentCourses）：✅ 使用 Firebase Realtime Database
+ * - 实时签到操作（unlock/lock/signIn）：✅ 使用 Firebase Realtime Database
+ * - 实时监听（学生名单、锁定状态）：✅ 通过 Flow 实现响应式更新
  */
 class InstattRepository {
 
     private val apiService = RetrofitInstance.apiService
     private val firebaseManager = FirebaseInstattManager()
+    // ✅ 新增：引入 Firebase 课程仓库
+    private val firebaseCourseRepo = FirebaseCourseRepository()
 
     suspend fun getSystemTime(): Result<SystemTime> {
         return withContext(Dispatchers.IO) {
@@ -50,50 +52,22 @@ class InstattRepository {
     }
 
     /**
-     * 🔴 修复：将 teacherId 从 Long 改为 String，以支持 Firebase UID
-     * 注意：这些方法仍然调用后端 API，需要将 String UID 转换为 Long ID
-     * TODO: 完全迁移到 Firebase（使用 FirebaseCourseRepository）
+     * ✅ 已迁移：使用 Firebase 获取教师课程
      */
     suspend fun getTeacherCourses(teacherId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
-            try {
-                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
-                val teacherIdLong = teacherId.toLongOrNull()
-                    ?: return@withContext Result.failure(Exception("Invalid teacher ID format. Backend requires numeric ID but received Firebase UID."))
-
-                val response = apiService.getTeacherCourses(teacherIdLong, date)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val courses = response.body()?.data?.map { CourseMapper.toCourse(it) } ?: emptyList()
-                    Result.success(courses)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to load courses"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            // 直接调用 FirebaseCourseRepository
+            firebaseCourseRepo.getTeacherCourses(teacherId, date)
         }
     }
 
     /**
-     * 🔴 修复：将 studentId 从 Long 改为 String，以支持 Firebase UID
+     * ✅ 已迁移：使用 Firebase 获取学生课程
      */
     suspend fun getStudentCourses(studentId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
-            try {
-                // 尝试将 Firebase UID 转换为 Long（仅当后端仍在使用时）
-                val studentIdLong = studentId.toLongOrNull()
-                    ?: return@withContext Result.failure(Exception("Invalid student ID format. Backend requires numeric ID but received Firebase UID."))
-
-                val response = apiService.getStudentCourses(studentIdLong, date)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val courses = response.body()?.data?.map { CourseMapper.toCourse(it) } ?: emptyList()
-                    Result.success(courses)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to load courses"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            // 直接调用 FirebaseCourseRepository
+            firebaseCourseRepo.getStudentCourses(studentId, date)
         }
     }
 

@@ -1,108 +1,86 @@
 package com.nottingham.mynottingham.ui.forum
 
 import android.app.Application
-import android.util.Log
-import androidx.lifecycle.AndroidViewModel
-import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
-import com.nottingham.mynottingham.data.repository.ForumRepository
+import androidx.lifecycle.viewModelScope
+import com.nottingham.mynottingham.data.model.ForumPost
+import com.nottingham.mynottingham.data.repository.FirebaseForumRepository
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.ui.base.BaseViewModel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Forum (post list) screen
- * Extends BaseViewModel for common utilities
+ * ✅ Migrated to Firebase - real-time post updates
  */
 class ForumViewModel(application: Application) : BaseViewModel(application) {
 
-    private val repository = ForumRepository(application)
+    // ✅ 替换为 Firebase Repository
+    private val repository = FirebaseForumRepository()
+    private val tokenManager = TokenManager(application)
 
     private val _currentCategory = MutableStateFlow<String?>(null)
+    private val _currentUserId = MutableStateFlow<String>("")
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val posts: Flow<List<ForumPostEntity>> = _currentCategory.flatMapLatest { category ->
-        when (category) {
-            "TRENDING" -> repository.getTrendingPostsFlow()
-            else -> repository.getPostsFlow(category)
+    init {
+        // 初始化时获取用户 ID
+        viewModelScope.launch {
+            tokenManager.getUserId().collect { uid ->
+                _currentUserId.value = uid ?: ""
+            }
         }
     }
 
-    private var currentPage = 0
-    private var hasMore = true
+    // ✅ 核心修改：组合 currentCategory 和 currentUserId 来生成帖子流
+    // Firebase 返回 ForumPost 模型（不再使用 Room 的 ForumPostEntity）
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val posts: Flow<List<ForumPost>> = combine(_currentCategory, _currentUserId) { category, userId ->
+        Pair(category, userId)
+    }.flatMapLatest { (category, userId) ->
+        if (userId.isEmpty()) flowOf(emptyList())
+        else repository.getPostsFlow(category, userId)
+    }
 
     /**
-     * Load posts from API and observe from database
+     * ✅ 修改：Firebase 是实时的，不需要手动 loadPosts
+     * 这个方法现在主要用于处理"刷新"动作（虽然 Flow 会自动更新，但保留接口兼容性）
      */
     fun loadPosts(token: String, category: String? = null, refresh: Boolean = false) {
-        Log.d("ForumViewModel", "loadPosts called with category: $category, refresh: $refresh")
-
-        if (_loading.value == true) {
-            Log.d("ForumViewModel", "Already loading, skipping")
-            return
+        // Firebase Flow 自动处理数据，这里可以留空，或者重置一些 UI 状态
+        if (category != _currentCategory.value) {
+            filterByCategory(category)
         }
-
-        val page = if (refresh) 0 else currentPage
-
-        launchDataLoad(
-            block = {
-                Log.d("ForumViewModel", "Fetching posts from API: page=$page, category=$category")
-                repository.fetchPosts(token, page, 20, category)
-            },
-            onSuccess = { pagedResponse ->
-                Log.d("ForumViewModel", "Successfully fetched ${pagedResponse.posts.size} posts")
-                hasMore = pagedResponse.hasNext
-                currentPage = if (refresh) 0 else page
-            }
-        )
     }
 
-    /**
-     * Filter posts by category
-     */
     fun filterByCategory(category: String?) {
-        Log.d("ForumViewModel", "filterByCategory called with: $category")
         _currentCategory.value = category
     }
 
-    /**
-     * Like/unlike post
-     */
+    // ✅ 保留兼容旧代码的 Long ID 方法
     fun likePost(token: String, postId: Long) {
-        launchDataLoad(
-            block = {
-                Log.d("ForumViewModel", "Liking post: $postId")
-                repository.likePost(token, postId)
-            },
-            onSuccess = {
-                Log.d("ForumViewModel", "Post liked successfully")
-            }
-        )
+        likePost(postId.toString())
     }
 
-    /**
-     * Delete post
-     */
+    // 新方法适配 Firebase String ID
+    fun likePost(postId: String) {
+        viewModelScope.launch {
+            repository.toggleLikePost(postId, _currentUserId.value)
+        }
+    }
+
+    // ✅ 保留兼容旧代码的 Long ID 方法
     fun deletePost(token: String, postId: Long) {
-        launchOperation(
-            block = { repository.deletePost(token, postId) },
-            onSuccess = {
-                Log.d("ForumViewModel", "Post deleted successfully")
-            }
-        )
+         deletePost(postId.toString())
     }
 
-    /**
-     * Clean old cached data
-     */
-    fun cleanOldCache() {
+    fun deletePost(postId: String) {
         launchOperation(
-            block = {
-                repository.cleanOldCache()
-                Result.success(Unit)
-            },
+            block = { repository.deletePost(postId) },
             onSuccess = { }
         )
     }
 
+    fun cleanOldCache() {
+        // Firebase 不需要手动清理本地缓存，SDK 会处理
+    }
 }

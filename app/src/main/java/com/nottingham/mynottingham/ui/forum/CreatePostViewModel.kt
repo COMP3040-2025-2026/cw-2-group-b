@@ -6,17 +6,20 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.nottingham.mynottingham.data.remote.dto.CreateForumPostRequest
-import com.nottingham.mynottingham.data.repository.ForumRepository
+import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.repository.FirebaseForumRepository
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 
 /**
  * ViewModel for Create Post screen
+ * ✅ Migrated to Firebase - no longer uses backend API
  */
 class CreatePostViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = ForumRepository(application)
+    private val repository = FirebaseForumRepository()
+    private val tokenManager = TokenManager(application)
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -29,9 +32,10 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * Create a new post
+     * ⚠️ 注意：image 参数保留但暂不支持（需要先配置 Firebase Storage）
      */
     fun createPost(
-        token: String,
+        token: String, // 参数保留但不再使用
         title: String,
         content: String,
         category: String,
@@ -53,17 +57,30 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
         _error.value = null
 
         viewModelScope.launch {
-            val request = CreateForumPostRequest(
+            val userId = tokenManager.getUserId().firstOrNull() ?: ""
+            val userName = tokenManager.getFullName().firstOrNull() ?: "User"
+            val userAvatar = tokenManager.getAvatar().firstOrNull()
+
+            Log.d("CreatePostViewModel", "Creating post: title=$title, category=$category, tags=$tags")
+            Log.d("CreatePostViewModel", "User: userId=$userId, userName=$userName")
+
+            // ⚠️ TODO: 如果有 image，需要先上传到 Firebase Storage 获取 URL
+            // 暂时只支持纯文本帖子
+            val imageUrl: String? = null
+
+            if (image != null) {
+                Log.w("CreatePostViewModel", "Image upload not yet implemented. Image will be ignored.")
+            }
+
+            val result = repository.createPost(
+                authorId = userId,
+                authorName = userName,
+                authorAvatar = userAvatar,
+                category = category,
                 title = title.trim(),
                 content = content.trim(),
-                category = category,
-                tags = tags?.filter { it.isNotBlank() }
+                imageUrl = imageUrl
             )
-
-            Log.d("CreatePostViewModel", "Creating post: title=$title, category=$category, tags=$tags, hasImage=${image != null}")
-            Log.d("CreatePostViewModel", "Token: ${if (token.isNotEmpty()) "present (${token.length} chars)" else "EMPTY!"}")
-
-            val result = repository.createPost(token, request, image)
 
             result.onSuccess {
                 Log.d("CreatePostViewModel", "Post created successfully")
