@@ -13,18 +13,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+import com.nottingham.mynottingham.R
+
 class RestaurantMenuViewModel(application: Application) : AndroidViewModel(application) {
 
     private val errandDao = AppDatabase.getInstance(application).errandDao()
 
     // 6个固定菜品数据
     val menuItems = listOf(
-        MenuItem("1", "noodles", "Beef Noodle Soup", "Traditional beef noodle with rich broth", 12.50),
-        MenuItem("2", "noodles", "Fried Noodles", "Stir-fried noodles with vegetables", 10.00),
-        MenuItem("3", "rice", "Chicken Fried Rice", "Fragrant fried rice with chicken", 11.00),
-        MenuItem("4", "rice", "Combo Rice Set", "Rice with 2 meat and 2 veg dishes", 15.00),
-        MenuItem("5", "drinks", "Bubble Tea", "Sweet milk tea with pearls", 6.00),
-        MenuItem("6", "drinks", "Iced Lemon Tea", "Refreshing lemon tea", 4.50)
+        MenuItem("1", "noodles", "Beef Noodle Soup", "Traditional beef noodle with rich broth", 12.50, R.drawable.bsn),
+        MenuItem("2", "noodles", "Fried Noodles", "Stir-fried noodles with vegetables", 10.00, R.drawable.fn),
+        MenuItem("3", "rice", "Chicken Fried Rice", "Fragrant fried rice with chicken", 11.00, R.drawable.fcr),
+        MenuItem("4", "rice", "Combo Rice Set", "Rice with 2 meat and 2 veg dishes", 15.00, R.drawable.crs),
+        MenuItem("5", "drinks", "Bubble Tea", "Sweet milk tea with pearls", 6.00, R.drawable.bt),
+        MenuItem("6", "drinks", "Iced Lemon Tea", "Refreshing lemon tea", 4.50, R.drawable.ilt),
+        MenuItem("7", "drinks", "Milk", "Fresh milk", 3.00, R.drawable.nn),
+        MenuItem("8", "drinks", "Soy Milk", "Fresh soy milk", 3.00, R.drawable.dj),
+        MenuItem("9", "rice", "Mapo Tofu Rice", "Spicy tofu with rice", 13.00, R.drawable.mpdf),
+        MenuItem("10", "rice", "Egg Fried Rice", "Classic egg fried rice", 8.00, R.drawable.dcf),
+        MenuItem("11", "noodles", "Sour and Spicy Noodles", "Sour and spicy noodles", 12.00, R.drawable.snf),
+        MenuItem("12", "noodles", "Fried Sauce Noodles", "Noodles with fried sauce", 11.00, R.drawable.zjm),
+        MenuItem("13", "noodles", "Chongqing Noodles", "Spicy Chongqing noodles", 12.00, R.drawable.cq)
     )
 
     private val _categories = MutableLiveData<List<String>>()

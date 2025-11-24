@@ -9,5 +9,6 @@ data class MenuItem(
     val category: String,
     val name: String,
     val description: String,
-    val price: Double
+    val price: Double,
+    val imageResId: Int
 ) : Parcelable

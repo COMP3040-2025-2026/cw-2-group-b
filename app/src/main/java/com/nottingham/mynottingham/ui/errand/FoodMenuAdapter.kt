@@ -60,7 +60,7 @@ class FoodMenuAdapter(
                 with(holder.binding) {
                     tvFoodName.text = item.name
                     tvFoodPrice.text = String.format("RM %.2f", item.price)
-                    ivFoodImage.setImageResource(getImageResId(item.name))
+                    ivFoodImage.setImageResource(item.imageResId)
 
                     if (qty > 0) {
                         btnAdd.visibility = View.GONE
@@ -91,17 +91,5 @@ class FoodMenuAdapter(
     fun updateQuantities(newQuantities: Map<String, Int>) {
         cartQuantities = newQuantities
         notifyDataSetChanged()
-    }
-    
-    private fun getImageResId(name: String): Int {
-        return when {
-            name.contains("Beef") -> com.nottingham.mynottingham.R.drawable.bsn
-            name.contains("Fried Noodles") -> com.nottingham.mynottingham.R.drawable.fn
-            name.contains("Chicken Fried Rice") -> com.nottingham.mynottingham.R.drawable.fcr
-            name.contains("Combo") -> com.nottingham.mynottingham.R.drawable.crs
-            name.contains("Bubble") -> com.nottingham.mynottingham.R.drawable.bt
-            name.contains("Lemon") -> com.nottingham.mynottingham.R.drawable.ilt
-            else -> com.nottingham.mynottingham.R.drawable.ic_placeholder
-        }
     }
 }
