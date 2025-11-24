@@ -1,6 +1,8 @@
 package com.nottingham.mynottingham.data.repository
 
+import com.nottingham.mynottingham.data.firebase.FirebaseInstattManager
 import com.nottingham.mynottingham.data.mapper.CourseMapper
+import com.nottingham.mynottingham.data.model.AttendanceStatus
 import com.nottingham.mynottingham.data.model.Course
 import com.nottingham.mynottingham.data.model.StudentAttendance
 import com.nottingham.mynottingham.data.model.SystemTime
@@ -9,11 +11,21 @@ import com.nottingham.mynottingham.data.remote.dto.MarkAttendanceRequest
 import com.nottingham.mynottingham.data.remote.dto.SignInRequest
 import com.nottingham.mynottingham.data.remote.dto.UnlockSessionRequest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
+/**
+ * InstattRepository - 统一管理签到系统的数据访问
+ *
+ * 架构设计：
+ * - 课程查询（getTeacherCourses, getStudentCourses）：继续使用 HTTP + MySQL
+ * - 实时签到操作（unlock/lock/signIn）：使用 Firebase Realtime Database
+ * - 实时监听（学生名单、锁定状态）：通过 Flow 实现响应式更新
+ */
 class InstattRepository {
 
     private val apiService = RetrofitInstance.apiService
+    private val firebaseManager = FirebaseInstattManager()
 
     suspend fun getSystemTime(): Result<SystemTime> {
         return withContext(Dispatchers.IO) {
@@ -67,55 +79,75 @@ class InstattRepository {
         }
     }
 
+    /**
+     * 教师开启签到 - 使用 Firebase 实现实时更新
+     */
     suspend fun unlockSession(teacherId: Long, courseScheduleId: Long, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                val request = UnlockSessionRequest(courseScheduleId, date)
-                val response = apiService.unlockSession(teacherId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to unlock session"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            // 直接使用 Firebase，不再调用后端 API
+            firebaseManager.unlockSession(courseScheduleId, date)
         }
     }
 
+    /**
+     * 教师关闭签到 - 使用 Firebase 实现实时更新
+     */
     suspend fun lockSession(teacherId: Long, courseScheduleId: Long, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                val request = UnlockSessionRequest(courseScheduleId, date)
-                val response = apiService.lockSession(teacherId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to lock session"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            // 直接使用 Firebase，不再调用后端 API
+            firebaseManager.lockSession(courseScheduleId, date)
         }
     }
 
-    suspend fun signIn(studentId: Long, courseScheduleId: Long, date: String): Result<Unit> {
+    /**
+     * 学生签到 - 使用 Firebase 实现毫秒级响应
+     * @param studentName 学生姓名（从 TokenManager 获取）
+     * @param matricNumber 学号（可选）
+     * @param email 邮箱（可选）
+     */
+    suspend fun signIn(
+        studentId: Long,
+        courseScheduleId: Long,
+        date: String,
+        studentName: String = "Student $studentId", // 默认值，调用时应传入真实姓名
+        matricNumber: String? = null,
+        email: String? = null
+    ): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                val request = SignInRequest(courseScheduleId, date)
-                val response = apiService.signIn(studentId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to sign in"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            // 直接写入 Firebase，无需等待后端响应
+            firebaseManager.signIn(
+                courseScheduleId = courseScheduleId,
+                date = date,
+                studentId = studentId,
+                studentName = studentName,
+                matricNumber = matricNumber,
+                email = email
+            )
         }
     }
 
-    suspend fun getStudentAttendanceList(
+    /**
+     * 获取学生签到名单 - 返回 Flow 实现实时监听
+     * 当学生签到时，教师端会自动收到更新
+     */
+    fun getStudentAttendanceList(
+        teacherId: Long,
+        courseScheduleId: Long,
+        date: String
+    ): Flow<List<StudentAttendance>> {
+        // 返回 Firebase 的实时监听 Flow
+        return firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
+    }
+
+    /**
+     * 兼容方法：一次性获取学生名单（非实时）
+     * 保留此方法以防某些场景需要一次性查询
+     */
+    @Deprecated(
+        "Use getStudentAttendanceList() Flow version for real-time updates",
+        ReplaceWith("getStudentAttendanceList(teacherId, courseScheduleId, date)")
+    )
+    suspend fun getStudentAttendanceListOnce(
         teacherId: Long,
         courseScheduleId: Long,
         date: String
@@ -135,25 +167,60 @@ class InstattRepository {
         }
     }
 
+    /**
+     * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
+     */
     suspend fun markAttendance(
         teacherId: Long,
         studentId: Long,
         courseScheduleId: Long,
         date: String,
-        status: String
+        status: String,
+        studentName: String,
+        matricNumber: String? = null,
+        email: String? = null
     ): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                val request = MarkAttendanceRequest(studentId, courseScheduleId, date, status)
-                val response = apiService.markAttendance(teacherId, request)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to mark attendance"))
-                }
+            val attendanceStatus = try {
+                AttendanceStatus.valueOf(status)
             } catch (e: Exception) {
-                Result.failure(e)
+                AttendanceStatus.ABSENT
             }
+
+            firebaseManager.markStudentAttendance(
+                courseScheduleId = courseScheduleId,
+                date = date,
+                studentId = studentId,
+                status = attendanceStatus,
+                studentName = studentName,
+                matricNumber = matricNumber,
+                email = email
+            )
+        }
+    }
+
+    /**
+     * 学生端：监听 session 的锁定状态（实时）
+     * 当教师 unlock session 时，学生端的签到按钮立即变亮
+     */
+    fun listenToSessionLockStatus(
+        courseScheduleId: Long,
+        date: String
+    ): Flow<Boolean> {
+        return firebaseManager.listenToSessionLockStatus(courseScheduleId, date)
+    }
+
+    /**
+     * 检查学生是否已经签到
+     */
+    suspend fun hasStudentSignedIn(
+        courseScheduleId: Long,
+        date: String,
+        studentId: Long
+    ): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            firebaseManager.hasStudentSignedIn(courseScheduleId, date, studentId)
         }
     }
 }
+

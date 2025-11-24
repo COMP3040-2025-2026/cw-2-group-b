@@ -1,8 +1,6 @@
 package com.nottingham.mynottingham.ui.instatt
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,8 +36,10 @@ class TeacherInstattFragment : Fragment() {
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
     private var teacherId: Long = 0L
-    private val handler = Handler(Looper.getMainLooper())
-    private var isPolling = false
+
+    // 移除轮询机制 - 改用 Firebase 实时监听
+    // private val handler = Handler(Looper.getMainLooper())
+    // private var isPolling = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -70,7 +70,8 @@ class TeacherInstattFragment : Fragment() {
             }
 
             loadTodayCourses()
-            startPolling()
+            // 移除轮询 - Firebase 实时监听会自动更新
+            // startPolling()
         }
     }
 
@@ -156,8 +157,9 @@ class TeacherInstattFragment : Fragment() {
         }
 
         when (course.signInStatus) {
-            SignInStatus.LOCKED -> {
-                // Unlock sign-in via API
+            SignInStatus.LOCKED, SignInStatus.CLOSED -> {
+                // Unlock sign-in via Firebase - 实时生效
+                // LOCKED 和 CLOSED 状态都允许重新开启签到
                 lifecycleScope.launch {
                     val result = repository.unlockSession(teacherId, course.id.toLong(), today)
 
@@ -168,7 +170,8 @@ class TeacherInstattFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // Reload to update UI
+                        // Firebase 会自动通知所有学生端，无需手动刷新
+                        // 但为了更新本地 UI，仍然刷新一次
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -180,7 +183,7 @@ class TeacherInstattFragment : Fragment() {
                 }
             }
             SignInStatus.UNLOCKED -> {
-                // Manually lock sign-in via API
+                // Lock sign-in via Firebase - 实时生效
                 lifecycleScope.launch {
                     val result = repository.lockSession(teacherId, course.id.toLong(), today)
 
@@ -191,7 +194,7 @@ class TeacherInstattFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // Reload to update UI
+                        // Firebase 会自动通知所有学生端，无需手动刷新
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -202,37 +205,12 @@ class TeacherInstattFragment : Fragment() {
                     }
                 }
             }
-            SignInStatus.CLOSED -> {
-                // Already closed, do nothing
-                Toast.makeText(
-                    context,
-                    "Sign-in is already closed",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
         }
     }
 
-    private fun startPolling() {
-        if (isPolling) return
-        isPolling = true
-
-        val pollingRunnable = object : Runnable {
-            override fun run() {
-                if (isPolling && _binding != null) {
-                    loadTodayCourses()
-                    handler.postDelayed(this, 3_000) // Poll every 3 seconds for real-time updates
-                }
-            }
-        }
-
-        handler.postDelayed(pollingRunnable, 3_000)
-    }
-
-    private fun stopPolling() {
-        isPolling = false
-        handler.removeCallbacksAndMessages(null)
-    }
+    // 移除轮询机制 - 已被 Firebase 实时监听取代
+    // private fun startPolling() { ... }
+    // private fun stopPolling() { ... }
 
     private fun getCurrentDayOfWeek(): DayOfWeek {
         val calendar = Calendar.getInstance()
@@ -412,7 +390,9 @@ class TeacherInstattFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopPolling()
+        // stopPolling() - 已移除轮询
+        // Firebase Flow 会在 lifecycleScope 结束时自动清理
         _binding = null
     }
 }
+

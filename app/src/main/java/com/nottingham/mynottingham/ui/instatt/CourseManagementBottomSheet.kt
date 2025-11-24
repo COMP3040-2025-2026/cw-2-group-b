@@ -170,29 +170,24 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
             java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
+        // 使用 Firebase Flow 实时监听学生签到名单
         lifecycleScope.launch {
-            val result = repository.getStudentAttendanceList(
+            repository.getStudentAttendanceList(
                 teacherId,
                 course.id.toLong(),
                 today
-            )
+            ).collect { students ->
+                // 每当有学生签到，这里会自动收到更新
+                binding.progressBar.visibility = View.GONE
 
-            binding.progressBar.visibility = View.GONE
-
-            result.onSuccess { students ->
                 if (students.isEmpty()) {
                     binding.tvEmptyState.visibility = View.VISIBLE
+                    binding.rvStudentList.visibility = View.GONE
                 } else {
+                    binding.tvEmptyState.visibility = View.GONE
                     binding.rvStudentList.visibility = View.VISIBLE
                     studentAdapter.submitList(students)
                 }
-            }.onFailure { error ->
-                binding.tvEmptyState.visibility = View.VISIBLE
-                Toast.makeText(
-                    requireContext(),
-                    "Failed to load students: ${error.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         }
     }
@@ -265,11 +260,14 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
         lifecycleScope.launch {
             val result = repository.markAttendance(
-                teacherId,
-                student.studentId,
-                course.id.toLong(),
-                today,
-                status.name
+                teacherId = teacherId,
+                studentId = student.studentId,
+                courseScheduleId = course.id.toLong(),
+                date = today,
+                status = status.name,
+                studentName = student.studentName,
+                matricNumber = student.matricNumber,
+                email = student.email
             )
 
             result.onSuccess {
@@ -278,8 +276,8 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     "Marked ${student.studentName} as ${status.name}",
                     Toast.LENGTH_SHORT
                 ).show()
-                // Reload the student list to show updated status
-                loadStudentList()
+                // Firebase 会自动通知所有监听者，无需手动刷新
+                // loadStudentList() - 不再需要，Flow 会自动更新
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),

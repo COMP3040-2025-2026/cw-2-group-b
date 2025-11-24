@@ -8,6 +8,8 @@ plugins {
     // Kotlin Symbol Processing API, used for code generation in libraries like Room and Glide.
     alias(libs.plugins.ksp)
     alias(libs.plugins.navigation.safeargs)
+    // Google Services plugin for Firebase
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -123,6 +125,14 @@ dependencies {
     // DATA PERSISTENCE (DATASTORE) //
     // A data storage solution that allows you to store key-value pairs or typed objects with protocol buffers.
     implementation(libs.androidx.datastore.preferences)
+
+    // FIREBASE //
+    // Firebase BOM - manages all Firebase library versions
+    implementation(platform(libs.firebase.bom))
+    // Firebase Realtime Database with Kotlin extensions
+    implementation(libs.firebase.database)
+    // Firebase Analytics (optional but recommended)
+    implementation(libs.firebase.analytics)
 
     // TESTING //
     // Standard unit testing framework.

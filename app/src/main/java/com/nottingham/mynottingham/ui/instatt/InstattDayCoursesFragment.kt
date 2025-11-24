@@ -1,8 +1,6 @@
 package com.nottingham.mynottingham.ui.instatt
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -35,8 +33,11 @@ class InstattDayCoursesFragment : Fragment() {
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
     private var studentId: Long = 0L
-    private val handler = Handler(Looper.getMainLooper())
-    private var isPolling = false
+    private var studentName: String = ""
+
+    // 移除轮询机制 - 改用 Firebase 实时监听
+    // private val handler = Handler(Looper.getMainLooper())
+    // private var isPolling = false
 
     // Server time cache - updated when fragment is created
     private var serverDate: String? = null
@@ -98,6 +99,7 @@ class InstattDayCoursesFragment : Fragment() {
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
             studentId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            studentName = tokenManager.getFullName().first() ?: "Student"
 
             if (studentId == 0L) {
                 Toast.makeText(
@@ -125,7 +127,8 @@ class InstattDayCoursesFragment : Fragment() {
 
                 // Now load courses with server date
                 loadCourses()
-                startPolling()
+                // 移除轮询 - Firebase 实时监听会自动更新
+                // startPolling()
             }.onFailure { error ->
                 // Fallback to local time if server time fails
                 Toast.makeText(
@@ -139,7 +142,7 @@ class InstattDayCoursesFragment : Fragment() {
                 serverDayOfWeek = null
                 serverTime = null
                 loadCourses()
-                startPolling()
+                // startPolling()
             }
         }
     }
@@ -161,6 +164,9 @@ class InstattDayCoursesFragment : Fragment() {
                 val filteredCourses = courses.filter { it.dayOfWeek == dayOfWeek }
 
                 displayCourses(filteredCourses)
+
+                // 为每个课程启动 Firebase 实时监听
+                startFirebaseListeners(filteredCourses, today)
             }.onFailure { error ->
                 // Fallback to mock data if API fails
                 Toast.makeText(
@@ -195,6 +201,37 @@ class InstattDayCoursesFragment : Fragment() {
         }
     }
 
+    /**
+     * 实时监听 Firebase 签到状态变化
+     * 当教师 unlock session 时，学生端按钮立即变亮
+     */
+    private fun startFirebaseListeners(courses: List<Course>, date: String) {
+        courses.forEach { course ->
+            lifecycleScope.launch {
+                repository.listenToSessionLockStatus(
+                    courseScheduleId = course.id.toLong(),
+                    date = date
+                ).collect { isLocked ->
+                    // 更新课程的签到状态
+                    course.signInStatus = if (isLocked) {
+                        SignInStatus.LOCKED
+                    } else {
+                        SignInStatus.UNLOCKED
+                    }
+
+                    // 刷新 UI
+                    binding.rvCourses.adapter?.notifyDataSetChanged()
+
+                    // 日志输出，便于调试
+                    android.util.Log.d(
+                        "InstattStudent",
+                        "Course ${course.courseCode}: isLocked=$isLocked"
+                    )
+                }
+            }
+        }
+    }
+
     private fun handleSignIn(course: Course) {
         // Use server date if available, otherwise fallback to local date
         val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -204,8 +241,23 @@ class InstattDayCoursesFragment : Fragment() {
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
+        // 显示 loading 提示
+        Toast.makeText(
+            context,
+            "Signing in...",
+            Toast.LENGTH_SHORT
+        ).show()
+
         lifecycleScope.launch {
-            val result = repository.signIn(studentId, course.id.toLong(), today)
+            // 使用 Firebase 签到 - 毫秒级响应
+            val result = repository.signIn(
+                studentId = studentId,
+                courseScheduleId = course.id.toLong(),
+                date = today,
+                studentName = studentName,
+                matricNumber = null, // 可以从 TokenManager 获取学号
+                email = null // 可以从 TokenManager 获取邮箱
+            )
 
             result.onSuccess {
                 Toast.makeText(
@@ -214,7 +266,8 @@ class InstattDayCoursesFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-                // Reload to update UI
+                // Firebase 会自动通知教师端，无需手动刷新
+                // 但为了更新本地 UI，仍然刷新一次
                 loadCourses()
             }.onFailure { error ->
                 Toast.makeText(
@@ -226,26 +279,9 @@ class InstattDayCoursesFragment : Fragment() {
         }
     }
 
-    private fun startPolling() {
-        if (isPolling) return
-        isPolling = true
-
-        val pollingRunnable = object : Runnable {
-            override fun run() {
-                if (isPolling && _binding != null) {
-                    loadCourses()
-                    handler.postDelayed(this, 3_000) // Poll every 3 seconds for real-time updates
-                }
-            }
-        }
-
-        handler.postDelayed(pollingRunnable, 3_000)
-    }
-
-    private fun stopPolling() {
-        isPolling = false
-        handler.removeCallbacksAndMessages(null)
-    }
+    // 移除轮询机制 - 已被 Firebase 实时监听取代
+    // 如果需要实时监听课程签到状态，可以在这里添加 Firebase Flow 监听
+    // 例如：监听所有今日课程的 isLocked 状态变化
 
     private fun getMockCourses(day: DayOfWeek): List<Course> {
         // Mock data - in real app, this would come from database or API
@@ -435,7 +471,9 @@ class InstattDayCoursesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopPolling()
+        // stopPolling() - 已移除轮询
+        // Firebase Flow 会在 lifecycleScope 结束时自动清理
         _binding = null
     }
 }
+
