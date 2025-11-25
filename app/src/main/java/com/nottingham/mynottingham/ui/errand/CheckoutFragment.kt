@@ -9,6 +9,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentCheckoutBinding
+import com.nottingham.mynottingham.ui.errand.ErrandViewModel
+import com.nottingham.mynottingham.ui.errand.ErrandViewModelFactory
+import com.nottingham.mynottingham.ui.errand.ErrandTask
+import java.util.UUID
 
 class CheckoutFragment : Fragment() {
 
@@ -16,6 +20,9 @@ class CheckoutFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: RestaurantMenuViewModel by activityViewModels()
+    private val errandViewModel: ErrandViewModel by activityViewModels {
+        ErrandViewModelFactory(requireActivity().application)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -30,7 +37,7 @@ class CheckoutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupToolbar()
-        setupDeliveryTimeSelection() // New: Setup delivery time selection
+        setupDeliveryTimeSelection()
         setupClickListeners()
         setupObservers()
     }
@@ -80,21 +87,37 @@ class CheckoutFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            val selectedPaymentId = binding.rgPaymentMethod.checkedRadioButtonId
-            val paymentMethod = view?.findViewById<RadioButton>(selectedPaymentId)?.text.toString()
-
             val selectedDeliveryTimeId = binding.rgDeliveryTime.checkedRadioButtonId
             val deliveryTime = view?.findViewById<RadioButton>(selectedDeliveryTimeId)?.text.toString()
 
-            // Call the updated placeOrder method
-            viewModel.placeOrder("user_123", address, phone, paymentMethod, deliveryTime)
+            // Construct description
+            val items = viewModel.cartItems.value ?: emptyList()
+            val description = items.joinToString(separator = "\n") {
+                "${it.menuItem.name} x${it.quantity}"
+            } + "\n\nPhone: $phone"
+
+            // Create ErrandTask
+            val restaurantName = viewModel.restaurantName.value ?: "a restaurant"
+            val newTask = ErrandTask(
+                taskId = UUID.randomUUID().toString(),
+                title = "Buy food from $restaurantName",
+                description = description,
+                location = address,
+                price = (viewModel.deliveryFee.value ?: 0.0).toString(),
+                deadline = deliveryTime,
+                requesterId = "", // Will be set by the ViewModel
+                requesterName = "", // Will be set by the ViewModel
+                requesterAvatar = "",
+                timestamp = System.currentTimeMillis()
+            )
+
+            // Add task via ErrandViewModel
+            errandViewModel.addTask(newTask)
 
             Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
             
             // Clear the back stack up to the main errand/restaurant list screen
-            // This will pop CheckoutFragment, CartFragment, and RestaurantMenuFragment
             parentFragmentManager.popBackStack("restaurant_list", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
-
         }
     }
 

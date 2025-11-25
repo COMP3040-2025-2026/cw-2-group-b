@@ -75,11 +75,18 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
     private val _totalCount = MutableLiveData(0)
     val totalCount: LiveData<Int> = _totalCount
 
+    private val _restaurantName = MutableLiveData<String>()
+    val restaurantName: LiveData<String> = _restaurantName
+
     private val _selectedDeliveryTime = MutableLiveData<String>()
     val selectedDeliveryTime: LiveData<String> = _selectedDeliveryTime
 
     private val _selectedDeliveryExtraFee = MutableLiveData(0.0)
     val selectedDeliveryExtraFee: LiveData<Double> = _selectedDeliveryExtraFee
+
+    fun setRestaurantName(name: String) {
+        _restaurantName.value = name
+    }
 
     fun setDeliveryOption(deliveryTime: String, extraFee: Double) {
         _selectedDeliveryTime.value = deliveryTime

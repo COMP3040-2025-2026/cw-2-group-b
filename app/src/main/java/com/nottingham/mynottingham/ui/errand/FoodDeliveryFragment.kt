@@ -122,8 +122,22 @@ class FoodDeliveryFragment : Fragment() {
     }
 
     private fun setupRestaurantClicks() {
-        // 现有的餐厅点击逻辑...
         binding.cardRestaurantChinese.setOnClickListener {
+            viewModel.setRestaurantName("Chinese Restaurant")
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+        binding.cardRestaurantWestern.setOnClickListener {
+            viewModel.setRestaurantName("Western Food")
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
+                .addToBackStack(null)
+                .commit()
+        }
+        binding.cardRestaurantCafe.setOnClickListener {
+            viewModel.setRestaurantName("Cafe")
             parentFragmentManager.beginTransaction()
                 .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
                 .addToBackStack(null)
