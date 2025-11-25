@@ -21,26 +21,22 @@ class BookingSuccessFragment : Fragment() {
     private var facilityName: String = ""
     private var bookingDate: String = ""
     private var timeSlot: Int = 0
-    private var fee: Double = 0.0
 
     companion object {
         private const val ARG_FACILITY = "facility"
         private const val ARG_DATE = "date"
         private const val ARG_TIME_SLOT = "time_slot"
-        private const val ARG_FEE = "fee"
 
         fun newInstance(
             facility: String,
             date: String,
-            timeSlot: Int,
-            fee: Double
+            timeSlot: Int
         ): BookingSuccessFragment {
             return BookingSuccessFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_FACILITY, facility)
                     putString(ARG_DATE, date)
                     putInt(ARG_TIME_SLOT, timeSlot)
-                    putDouble(ARG_FEE, fee)
                 }
             }
         }
@@ -52,7 +48,6 @@ class BookingSuccessFragment : Fragment() {
             facilityName = it.getString(ARG_FACILITY, "")
             bookingDate = it.getString(ARG_DATE, "")
             timeSlot = it.getInt(ARG_TIME_SLOT, 0)
-            fee = it.getDouble(ARG_FEE, 0.0)
         }
     }
 
@@ -75,7 +70,6 @@ class BookingSuccessFragment : Fragment() {
         binding.tvFacility.text = facilityName
         binding.tvDate.text = bookingDate
         binding.tvTime.text = String.format("%02d:00 - %02d:00", timeSlot, timeSlot + 1)
-        binding.tvFee.text = String.format("RM %.2f", fee)
     }
 
     private fun setupClickListeners() {

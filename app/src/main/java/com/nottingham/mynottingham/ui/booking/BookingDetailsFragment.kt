@@ -190,18 +190,10 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
      * Navigate to booking success page
      */
     private fun navigateToSuccessPage(timeSlot: Int) {
-        val fee = when {
-            currentFacilityName.contains("Basketball", ignoreCase = true) -> 10.0
-            currentFacilityName.contains("Badminton", ignoreCase = true) -> 15.0
-            currentFacilityName.contains("Tennis", ignoreCase = true) -> 20.0
-            else -> 10.0
-        }
-
         val successFragment = BookingSuccessFragment.newInstance(
             facility = currentFacilityName,
             date = selectedDate.toString(),
-            timeSlot = timeSlot,
-            fee = fee
+            timeSlot = timeSlot
         )
 
         parentFragmentManager.beginTransaction()

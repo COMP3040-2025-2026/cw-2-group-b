@@ -115,8 +115,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                     "facilityName" to facilityName,
                     "facilityType" to getFacilityType(facilityName),
                     "startTime" to startTime,
-                    "endTime" to endTime,
-                    "fee" to getFacilityFee(facilityName)
+                    "endTime" to endTime
                 )
 
                 val result = firebaseBookingRepo.createBooking(bookingData)
@@ -226,19 +225,10 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
             facilityName.contains("Basketball", ignoreCase = true) -> "Basketball Court"
             facilityName.contains("Badminton", ignoreCase = true) -> "Badminton Court"
             facilityName.contains("Tennis", ignoreCase = true) -> "Tennis Court"
+            facilityName.contains("Pitch", ignoreCase = true) -> "Football Pitch"
+            facilityName.contains("Squash", ignoreCase = true) -> "Squash Court"
+            facilityName.contains("Table Tennis", ignoreCase = true) -> "Table Tennis"
             else -> "Sports Facility"
-        }
-    }
-
-    /**
-     * 根据设施名称获取费用
-     */
-    private fun getFacilityFee(facilityName: String): Double {
-        return when {
-            facilityName.contains("Basketball", ignoreCase = true) -> 10.0
-            facilityName.contains("Badminton", ignoreCase = true) -> 15.0
-            facilityName.contains("Tennis", ignoreCase = true) -> 20.0
-            else -> 10.0
         }
     }
 }
