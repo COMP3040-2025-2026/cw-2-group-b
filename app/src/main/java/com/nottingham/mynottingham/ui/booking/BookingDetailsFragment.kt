@@ -141,6 +141,11 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
     }
 
     private fun observeData() {
+        // Observe loading state
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        }
+
         // Observe database query results
         viewModel.occupiedSlots.observe(viewLifecycleOwner) { bookings ->
             // Pass the latest booking list to the Adapter to handle display (grey out)
@@ -164,6 +169,10 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
             return
         }
 
+        // Disable button during booking
+        binding.btnConfirmBooking.isEnabled = false
+        binding.btnConfirmBooking.text = "Booking..."
+
         viewModel.saveBooking(
             facilityName = currentFacilityName,
             date = selectedDate.toString(),
@@ -171,11 +180,40 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
             userId = currentUserId,
             userName = currentUserName,
             onSuccess = {
-                Toast.makeText(context, "Booking Successful!", Toast.LENGTH_SHORT).show()
-                selectedTimeSlot = null
-                binding.btnConfirmBooking.isEnabled = false
+                // Navigate to success page
+                navigateToSuccessPage(timeSlot)
             }
         )
+    }
+
+    /**
+     * Navigate to booking success page
+     */
+    private fun navigateToSuccessPage(timeSlot: Int) {
+        val fee = when {
+            currentFacilityName.contains("Basketball", ignoreCase = true) -> 10.0
+            currentFacilityName.contains("Badminton", ignoreCase = true) -> 15.0
+            currentFacilityName.contains("Tennis", ignoreCase = true) -> 20.0
+            else -> 10.0
+        }
+
+        val successFragment = BookingSuccessFragment.newInstance(
+            facility = currentFacilityName,
+            date = selectedDate.toString(),
+            timeSlot = timeSlot,
+            fee = fee
+        )
+
+        parentFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                R.anim.slide_in_right,
+                R.anim.slide_out_left,
+                R.anim.slide_in_left,
+                R.anim.slide_out_right
+            )
+            .replace(R.id.booking_container, successFragment)
+            .addToBackStack(null)
+            .commit()
     }
 
     override fun onDestroyView() {

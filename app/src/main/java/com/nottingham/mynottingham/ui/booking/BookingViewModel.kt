@@ -37,20 +37,42 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     private val _userBookings = MutableLiveData<List<BookingEntity>>()
     val userBookings: LiveData<List<BookingEntity>> = _userBookings
 
+    // 加载状态
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
     /**
      * 加载某设施在某天的预定情况
-     * TODO: 需要从 Firebase 查询特定日期的预订
+     * 从 Firebase 查询特定日期的预订
      */
     fun loadOccupiedSlots(facilityName: String, date: String) {
         viewModelScope.launch {
             try {
+                _isLoading.value = true
                 Log.d("BookingViewModel", "📥 Loading occupied slots for $facilityName on $date")
-                // TODO: 实现 Firebase 查询逻辑
-                // 暂时返回空列表
-                _occupiedSlots.value = emptyList()
+
+                // 计算当天的时间范围
+                val bookingDate = LocalDate.parse(date)
+                val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
+                val dateStart = bookingDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
+                val dateEnd = bookingDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+                // 从 Firebase 查询
+                val result = firebaseBookingRepo.getBookingsByFacilityAndDate(facilityName, dateStart, dateEnd)
+
+                result.onSuccess { bookings ->
+                    val bookingEntities = bookings.mapNotNull { mapToBookingEntity(it) }
+                    Log.d("BookingViewModel", "✅ Found ${bookingEntities.size} occupied slots")
+                    _occupiedSlots.value = bookingEntities
+                }.onFailure { e ->
+                    Log.e("BookingViewModel", "❌ Error loading occupied slots: ${e.message}")
+                    _occupiedSlots.value = emptyList()
+                }
             } catch (e: Exception) {
                 Log.e("BookingViewModel", "❌ Error loading occupied slots", e)
                 _occupiedSlots.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
         }
     }

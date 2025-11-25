@@ -108,6 +108,45 @@ class FirebaseBookingRepository {
     }
 
     /**
+     * 获取特定设施在特定日期的所有预订
+     * @param facilityName 场地名称
+     * @param dateStart 日期开始时间戳 (当天00:00:00)
+     * @param dateEnd 日期结束时间戳 (当天23:59:59)
+     * @return Result<List<Map<String, Any>>> 预订列表
+     */
+    suspend fun getBookingsByFacilityAndDate(
+        facilityName: String,
+        dateStart: Long,
+        dateEnd: Long
+    ): Result<List<Map<String, Any>>> {
+        return try {
+            val snapshot = bookingsRef.orderByChild("facilityName").equalTo(facilityName).get().await()
+            val bookings = mutableListOf<Map<String, Any>>()
+
+            for (child in snapshot.children) {
+                val booking = child.value as? Map<String, Any> ?: continue
+                val startTime = (booking["startTime"] as? Long) ?: continue
+                val status = booking["status"] as? String ?: ""
+
+                // 跳过已取消的预订
+                if (status == "CANCELLED") continue
+
+                // 检查预订是否在指定日期内
+                if (startTime >= dateStart && startTime < dateEnd) {
+                    val bookingWithId = booking.toMutableMap()
+                    bookingWithId["id"] = child.key ?: ""
+                    bookings.add(bookingWithId)
+                }
+            }
+
+            Result.success(bookings)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseBookingRepo", "Error getting bookings by date: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 获取特定时间段的可用性
      * @param facilityName 场地名称
      * @param startTime 开始时间
