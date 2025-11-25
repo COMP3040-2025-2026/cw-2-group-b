@@ -116,8 +116,10 @@ class CheckoutFragment : Fragment() {
 
             Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
             
-            // Clear the back stack up to the main errand/restaurant list screen
-            parentFragmentManager.popBackStack("restaurant_list", androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            // Navigate to OrderSuccessFragment
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.errand_fragment_container, OrderSuccessFragment())
+                .commit()
         }
     }
 
