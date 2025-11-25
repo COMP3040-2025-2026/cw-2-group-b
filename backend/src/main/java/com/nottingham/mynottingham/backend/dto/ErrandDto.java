@@ -31,11 +31,11 @@ public class ErrandDto {
         ErrandDto dto = new ErrandDto();
         dto.setId(errand.getId().toString());
         dto.setRequesterId(errand.getRequester().getId().toString());
-        dto.setRequesterName(errand.getRequester().getUsername());
+        dto.setRequesterName(errand.getRequester().getFullName());
 
         if (errand.getProvider() != null) {
             dto.setProviderId(errand.getProvider().getId().toString());
-            dto.setProviderName(errand.getProvider().getUsername());
+            dto.setProviderName(errand.getProvider().getFullName());
         }
 
         dto.setTitle(errand.getTitle());
