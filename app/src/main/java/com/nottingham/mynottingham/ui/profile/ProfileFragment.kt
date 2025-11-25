@@ -16,9 +16,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
-import com.nottingham.mynottingham.data.remote.RetrofitInstance
-import com.nottingham.mynottingham.data.remote.dto.UserDto
-import com.nottingham.mynottingham.data.remote.dto.UserUpdateRequest
+import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.databinding.FragmentProfileBinding
 import com.nottingham.mynottingham.util.AvatarUtils // 导入刚才创建的工具类
 import kotlinx.coroutines.flow.first
@@ -197,47 +195,29 @@ class ProfileFragment : Fragment() {
         dialog.show()
     }
 
-    // 核心逻辑：更新头像到服务器
+    // 核心逻辑：更新头像到 Firebase
     private fun updateAvatar(avatarKey: String) {
         // 1. 乐观更新：先显示给用户看，不用等网络
         binding.ivProfileAvatar.setImageResource(AvatarUtils.getDrawableId(avatarKey))
 
         lifecycleScope.launch {
             try {
-                val token = "Bearer " + tokenManager.getToken().first()
                 val userIdString = tokenManager.getUserId().first()
 
                 if (userIdString == null) return@launch
-                val userId = userIdString.toLong()
 
-                // Retrieve all necessary user data from TokenManager
-                val username = tokenManager.getUsername().first() ?: ""
-                val email = tokenManager.getEmail().first() ?: ""
-                val fullName = tokenManager.getFullName().first() ?: ""
-                val userType = tokenManager.getUserType().first() ?: ""
-                val phone = tokenManager.getPhone().first() // Assuming getPhone exists in TokenManager
+                // 2. 使用 Firebase 更新头像
+                val firebaseUserRepo = FirebaseUserRepository()
+                val updates = mapOf("profileImageUrl" to avatarKey)
+                val result = firebaseUserRepo.updateUserProfile(userIdString, updates)
 
-                // Construct the update request object
-                val request = UserUpdateRequest(
-                    username = username,
-                    email = email,
-                    fullName = fullName,
-                    role = userType, // Map userType to role
-                    status = "ACTIVE", // Assume user is active
-                    avatarUrl = avatarKey,
-                    phone = phone
-                )
-
-                // 3. 发送请求
-                val response = RetrofitInstance.apiService.updateUser(token, userId, request)
-
-                if (response.isSuccessful) {
-                    // 4. 成功后保存到本地 TokenManager
+                if (result.isSuccess) {
+                    // 3. 成功后保存到本地 TokenManager
                     tokenManager.saveAvatar(avatarKey)
                     Toast.makeText(context, "Avatar updated!", Toast.LENGTH_SHORT).show()
                 } else {
                     // 失败回滚
-                    Toast.makeText(context, "Update failed: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Update failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                     // Revert the avatar change
                     val oldAvatar = tokenManager.getAvatar().first()
                     binding.ivProfileAvatar.setImageResource(AvatarUtils.getDrawableId(oldAvatar))

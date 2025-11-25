@@ -221,4 +221,66 @@ class FirebaseErrandRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * 获取单个跑腿任务详情
+     * @param errandId 任务ID
+     * @return Result<Map<String, Any>?> 任务数据或null
+     */
+    suspend fun getErrandById(errandId: String): Result<Map<String, Any>?> {
+        return try {
+            val snapshot = errandsRef.child(errandId).get().await()
+            if (snapshot.exists()) {
+                val errand = snapshot.value as? Map<String, Any>
+                if (errand != null) {
+                    val errandWithId = errand.toMutableMap()
+                    errandWithId["id"] = errandId
+                    Result.success(errandWithId)
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.success(null)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error getting errand: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 放弃任务（接单者放弃，任务回到可用池）
+     * @param errandId 任务ID
+     * @return Result<Unit>
+     */
+    suspend fun dropErrand(errandId: String): Result<Unit> {
+        return try {
+            val updates = mapOf<String, Any?>(
+                "providerId" to null,
+                "providerName" to null,
+                "status" to "PENDING",
+                "acceptedAt" to null
+            )
+            errandsRef.child(errandId).updateChildren(updates).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error dropping errand: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 删除跑腿任务（发布者永久删除）
+     * @param errandId 任务ID
+     * @return Result<Unit>
+     */
+    suspend fun deleteErrand(errandId: String): Result<Unit> {
+        return try {
+            errandsRef.child(errandId).removeValue().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error deleting errand: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }
