@@ -238,6 +238,21 @@
                         app:layout_constraintStart_toStartOf="@id/restaurant2_bg"
                         app:layout_constraintTop_toTopOf="@id/restaurant2_bg" />
 
+                    <!-- Coming Soon text for Western -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Coming Soon"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:padding="8dp"
+                        android:background="#80000000"
+                        app:layout_constraintTop_toTopOf="@id/restaurant2_bg"
+                        app:layout_constraintBottom_toBottomOf="@id/restaurant2_bg"
+                        app:layout_constraintStart_toStartOf="@id/restaurant2_bg"
+                        app:layout_constraintEnd_toEndOf="@id/restaurant2_bg" />
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -328,6 +343,21 @@
                         app:layout_constraintEnd_toEndOf="@id/restaurant3_bg"
                         app:layout_constraintStart_toStartOf="@id/restaurant3_bg"
                         app:layout_constraintTop_toTopOf="@id/restaurant3_bg" />
+
+                    <!-- Coming Soon text for Cafe -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Coming Soon"
+                        android:textColor="@android:color/white"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:padding="8dp"
+                        android:background="#80000000"
+                        app:layout_constraintTop_toTopOf="@id/restaurant3_bg"
+                        app:layout_constraintBottom_toBottomOf="@id/restaurant3_bg"
+                        app:layout_constraintStart_toStartOf="@id/restaurant3_bg"
+                        app:layout_constraintEnd_toEndOf="@id/restaurant3_bg" />
 
                     <LinearLayout
                         android:layout_width="0dp"

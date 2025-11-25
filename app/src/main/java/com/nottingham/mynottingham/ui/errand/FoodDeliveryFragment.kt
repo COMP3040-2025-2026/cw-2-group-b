@@ -129,19 +129,13 @@ class FoodDeliveryFragment : Fragment() {
                 .addToBackStack(null)
                 .commit()
         }
-        binding.cardRestaurantWestern.setOnClickListener {
-            viewModel.setRestaurantName("Western Food")
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
-                .addToBackStack(null)
-                .commit()
+        binding.cardRestaurantWestern.apply {
+            alpha = 0.5f
+            isClickable = false
         }
-        binding.cardRestaurantCafe.setOnClickListener {
-            viewModel.setRestaurantName("Cafe")
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
-                .addToBackStack(null)
-                .commit()
+        binding.cardRestaurantCafe.apply {
+            alpha = 0.5f
+            isClickable = false
         }
     }
 
