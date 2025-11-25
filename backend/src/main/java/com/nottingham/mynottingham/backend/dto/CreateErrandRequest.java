@@ -16,4 +16,5 @@ public class CreateErrandRequest {
     private String deliveryLocation;
     private Double fee;
     private String imageUrl;
+    private String deadline;
 }

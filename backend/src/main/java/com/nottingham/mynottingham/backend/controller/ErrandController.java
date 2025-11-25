@@ -65,6 +65,7 @@ public class ErrandController {
         errand.setLocation(request.getPickupLocation());
         errand.setReward(request.getFee());
         errand.setImageUrl(request.getImageUrl());
+        errand.setDeadline(request.getDeadline());
         errand.setStatus(Errand.ErrandStatus.PENDING);
 
         Errand savedErrand = errandRepository.save(errand);

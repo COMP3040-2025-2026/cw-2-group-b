@@ -12,7 +12,8 @@ data class CreateErrandRequest(
     val pickupLocation: String,
     val deliveryLocation: String,
     val fee: Double,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val deadline: String?
 )
 
 data class ErrandResponse(

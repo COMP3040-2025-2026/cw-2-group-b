@@ -65,7 +65,8 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                     pickupLocation = task.location,
                     deliveryLocation = task.location,
                     fee = task.price.toDoubleOrNull() ?: 0.0,
-                    imageUrl = null
+                    imageUrl = null,
+                    deadline = task.deadline
                 )
 
                 val response = RetrofitInstance.apiService.createErrand(token, request)
