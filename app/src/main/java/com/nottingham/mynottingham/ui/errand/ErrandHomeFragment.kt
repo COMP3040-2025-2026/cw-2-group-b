@@ -52,8 +52,8 @@ class ErrandHomeFragment : Fragment() {
 
     /**
      * Setup UI based on delivery mode
-     * - Rider mode: Show balance card, "Available Tasks" title
-     * - Normal user: Hide balance card, "My Recent Orders" title
+     * - Rider mode: Show balance card, hide categories, "Available Tasks" title
+     * - Normal user: Hide balance card, show categories, "My Recent Orders" title
      */
     private fun setupDeliveryModeUI() {
         viewLifecycleOwner.lifecycleScope.launch {
@@ -62,11 +62,13 @@ class ErrandHomeFragment : Fragment() {
             if (isDeliveryMode) {
                 // Rider mode
                 binding.cardBalance.visibility = View.VISIBLE
+                binding.layoutCategories.visibility = View.GONE  // Hide categories for riders
                 binding.tvAvailableTasks.text = "Available Tasks"
                 binding.tvSubtitle.text = "Accept tasks, earn rewards"
             } else {
                 // Normal user mode
                 binding.cardBalance.visibility = View.GONE
+                binding.layoutCategories.visibility = View.VISIBLE  // Show categories for users
                 binding.tvAvailableTasks.text = "My Recent Orders"
                 binding.tvSubtitle.text = "Post tasks, get things done"
             }
@@ -86,6 +88,7 @@ class ErrandHomeFragment : Fragment() {
                 putString("requesterAvatar", task.requesterAvatar)
                 putString("timeLimit", task.deadline) // Use "timeLimit" as the key
                 putLong("timestamp", task.timestamp)
+                putString("taskType", task.taskType)
             }
             val taskDetailFragment = TaskDetailFragment().apply {
                 arguments = bundle

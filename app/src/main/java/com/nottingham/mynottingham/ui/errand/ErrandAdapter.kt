@@ -15,7 +15,8 @@ data class ErrandTask(
     val requesterName: String,
     val requesterAvatar: String,
     val deadline: String?,
-    val timestamp: Long
+    val timestamp: Long,
+    val taskType: String = "Shopping"  // Shopping, Pickup, Food Delivery, Others
 )
 
 class ErrandAdapter(
@@ -46,12 +47,24 @@ class ErrandAdapter(
 
     class ErrandViewHolder(private val binding: ItemErrandTaskBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(task: ErrandTask) {
+            binding.tvTaskType.text = formatTaskType(task.taskType)
             binding.tvTitle.text = task.title
             binding.tvDescription.text = task.description
             binding.tvReward.text = "RM ${task.price}"
             binding.tvLocation.text = task.location
             binding.tvRequester.text = task.requesterName
             binding.tvDeadline.text = formatDeadline(task.deadline)
+        }
+
+        private fun formatTaskType(type: String?): String {
+            if (type.isNullOrEmpty()) return "Others"
+            return when (type.uppercase()) {
+                "SHOPPING" -> "Shopping"
+                "PICKUP" -> "Pickup"
+                "FOOD_DELIVERY" -> "Food Delivery"
+                "OTHERS" -> "Others"
+                else -> type.replaceFirstChar { it.uppercase() }
+            }
         }
 
         /**

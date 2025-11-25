@@ -187,6 +187,8 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 ?: firebaseData["deadline"] as? String
                 ?: ""
             val timestamp = firebaseData["timestamp"] as? Long ?: System.currentTimeMillis()
+            // Get task type (SHOPPING, PICKUP, FOOD_DELIVERY, OTHERS)
+            val taskType = firebaseData["type"] as? String ?: "SHOPPING"
 
             ErrandTask(
                 taskId = id,
@@ -198,7 +200,8 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 requesterName = requesterName,
                 requesterAvatar = requesterAvatar,
                 deadline = deadline,
-                timestamp = timestamp
+                timestamp = timestamp,
+                taskType = taskType
             )
         } catch (e: Exception) {
             Log.w("ErrandViewModel", "Failed to parse errand data: ${e.message}")

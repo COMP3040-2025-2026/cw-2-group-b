@@ -50,6 +50,7 @@ class AllTasksFragment : Fragment() {
                 putString("requesterAvatar", task.requesterAvatar)
                 putString("timeLimit", task.deadline) // Use "timeLimit" as the key
                 putLong("timestamp", task.timestamp)
+                putString("taskType", task.taskType)
             }
             val taskDetailFragment = TaskDetailFragment().apply {
                 arguments = bundle
