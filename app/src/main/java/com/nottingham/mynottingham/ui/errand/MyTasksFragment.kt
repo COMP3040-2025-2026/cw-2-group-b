@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
@@ -20,12 +21,16 @@ import kotlinx.coroutines.launch
 /**
  * My Tasks Fragment
  * ✅ Migrated to Firebase - no longer uses backend API
+ * ✅ Supports 3 tabs: Posted, Accepted, History
  */
 class MyTasksFragment : Fragment() {
 
     private var _binding: FragmentMyTasksBinding? = null
     private val binding get() = _binding!!
-    private var isPostedTabSelected = true
+
+    enum class TabType { POSTED, ACCEPTED, HISTORY }
+    private var currentTab = TabType.POSTED
+
     private lateinit var tokenManager: TokenManager
     private lateinit var myTasksAdapter: MyTasksAdapter
 
@@ -44,34 +49,42 @@ class MyTasksFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // 1. Force Layout Manager (Critical if missing in XML)
-        myTasksAdapter = MyTasksAdapter { task ->
-            val bundle = Bundle().apply {
-                putString("taskId", task.id)
-                putString("title", task.title)
-                putString("description", task.description)
-                putString("price", task.reward.toString())
-                putString("location", "") // MyTask does not have location, pass empty string
-                putString("requesterId", task.requesterId)
-                putString("requesterName", task.requesterName)
-                putString("providerName", task.providerName)
-                putString("requesterAvatar", task.requesterAvatar)
-                putString("timeLimit", task.deadline) // Use "timeLimit" as the key
-                putLong("timestamp", task.createdAt)
+        myTasksAdapter = MyTasksAdapter(
+            onItemClicked = { task ->
+                val bundle = Bundle().apply {
+                    putString("taskId", task.id)
+                    putString("title", task.title)
+                    putString("description", task.description)
+                    putString("price", task.reward.toString())
+                    putString("location", task.location)
+                    putString("requesterId", task.requesterId)
+                    putString("requesterName", task.requesterName)
+                    putString("providerId", task.providerId)
+                    putString("providerName", task.providerName)
+                    putString("requesterAvatar", task.requesterAvatar)
+                    putString("providerAvatar", task.providerAvatar)
+                    putString("status", task.status)
+                    putString("timeLimit", task.deadline) // Use "timeLimit" as the key
+                    putLong("timestamp", task.createdAt)
+                }
+                val taskDetailFragment = TaskDetailFragment().apply {
+                    arguments = bundle
+                }
+                parentFragmentManager.beginTransaction()
+                    .setCustomAnimations(
+                        R.anim.slide_in_right,
+                        R.anim.slide_out_left,
+                        R.anim.slide_in_left,
+                        R.anim.slide_out_right
+                    )
+                    .replace(R.id.errand_fragment_container, taskDetailFragment)
+                    .addToBackStack(null)
+                    .commit()
+            },
+            onDeleteClicked = { task ->
+                confirmDeleteTask(task)
             }
-            val taskDetailFragment = TaskDetailFragment().apply {
-                arguments = bundle
-            }
-            parentFragmentManager.beginTransaction()
-                .setCustomAnimations(
-                    R.anim.slide_in_right,
-                    R.anim.slide_out_left,
-                    R.anim.slide_in_left,
-                    R.anim.slide_out_right
-                )
-                .replace(R.id.errand_fragment_container, taskDetailFragment)
-                .addToBackStack(null)
-                .commit()
-        }
+        )
         binding.recyclerMyTasks.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = myTasksAdapter
@@ -88,30 +101,60 @@ class MyTasksFragment : Fragment() {
 
     private fun setupTabs() {
         binding.btnPosted.setOnClickListener {
-            isPostedTabSelected = true
-            updateTabStyles()
-            loadMyTasks()
+            if (currentTab != TabType.POSTED) {
+                currentTab = TabType.POSTED
+                updateTabStyles()
+                loadMyTasks()
+            }
         }
 
         binding.btnAccepted.setOnClickListener {
-            isPostedTabSelected = false
-            updateTabStyles()
-            loadMyTasks()
+            if (currentTab != TabType.ACCEPTED) {
+                currentTab = TabType.ACCEPTED
+                updateTabStyles()
+                loadMyTasks()
+            }
         }
+
+        binding.btnHistory.setOnClickListener {
+            if (currentTab != TabType.HISTORY) {
+                currentTab = TabType.HISTORY
+                updateTabStyles()
+                loadMyTasks()
+            }
+        }
+
         updateTabStyles() // Initial style
     }
 
     private fun updateTabStyles() {
-        if (isPostedTabSelected) {
-            binding.btnPosted.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.primary))
-            binding.btnPosted.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
-            binding.btnAccepted.setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.transparent))
-            binding.btnAccepted.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
-        } else {
-            binding.btnAccepted.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.primary))
-            binding.btnAccepted.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
-            binding.btnPosted.setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.transparent))
-            binding.btnPosted.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary))
+        val primaryColor = ContextCompat.getColor(requireContext(), R.color.primary)
+        val whiteColor = ContextCompat.getColor(requireContext(), R.color.white)
+        val transparentColor = ContextCompat.getColor(requireContext(), android.R.color.transparent)
+        val secondaryTextColor = ContextCompat.getColor(requireContext(), R.color.text_secondary)
+
+        // Reset all buttons to unselected state
+        binding.btnPosted.setBackgroundColor(transparentColor)
+        binding.btnPosted.setTextColor(secondaryTextColor)
+        binding.btnAccepted.setBackgroundColor(transparentColor)
+        binding.btnAccepted.setTextColor(secondaryTextColor)
+        binding.btnHistory.setBackgroundColor(transparentColor)
+        binding.btnHistory.setTextColor(secondaryTextColor)
+
+        // Highlight selected tab
+        when (currentTab) {
+            TabType.POSTED -> {
+                binding.btnPosted.setBackgroundColor(primaryColor)
+                binding.btnPosted.setTextColor(whiteColor)
+            }
+            TabType.ACCEPTED -> {
+                binding.btnAccepted.setBackgroundColor(primaryColor)
+                binding.btnAccepted.setTextColor(whiteColor)
+            }
+            TabType.HISTORY -> {
+                binding.btnHistory.setBackgroundColor(primaryColor)
+                binding.btnHistory.setTextColor(whiteColor)
+            }
         }
     }
 
@@ -120,7 +163,6 @@ class MyTasksFragment : Fragment() {
             try {
                 // 1. Get My IDs
                 val myIdStr = tokenManager.getUserId().first() ?: ""
-                val myName = tokenManager.getUsername().first() ?: ""
 
                 if (myIdStr.isEmpty()) {
                     if (_binding != null) {
@@ -132,44 +174,60 @@ class MyTasksFragment : Fragment() {
                 }
 
                 // 2. Collect from Firebase Flow based on tab
-                val flow = if (isPostedTabSelected) {
-                    repository.getUserRequestedErrands(myIdStr)
-                } else {
-                    repository.getUserProvidedErrands(myIdStr)
+                val flow = when (currentTab) {
+                    TabType.POSTED -> repository.getUserRequestedErrands(myIdStr)
+                    TabType.ACCEPTED -> repository.getUserProvidedErrands(myIdStr)
+                    TabType.HISTORY -> repository.getUserHistoryErrands(myIdStr)
                 }
 
                 flow.collect { errands ->
                     if (_binding == null) return@collect
 
-                    // Map Firebase data to MyTask
-                    val myTasks = errands.map { errand ->
+                    // Map Firebase data to MyTask and apply filtering
+                    val myTasks = errands.mapNotNull { errand ->
+                        val status = errand["status"] as? String ?: "PENDING"
+
+                        // For Posted/Accepted tabs, filter out completed/cancelled
+                        if (currentTab != TabType.HISTORY) {
+                            if (status == "COMPLETED" || status == "CANCELLED") {
+                                return@mapNotNull null
+                            }
+                        }
+
                         MyTask(
                             id = errand["id"] as? String ?: "",
                             title = errand["title"] as? String ?: "",
                             description = errand["description"] as? String ?: "",
-                            status = errand["status"] as? String ?: "PENDING",
+                            status = status,
                             reward = (errand["reward"] as? Number)?.toDouble() ?: 0.0,
+                            location = errand["location"] as? String
+                                ?: errand["deliveryLocation"] as? String
+                                ?: errand["pickupLocation"] as? String
+                                ?: "",
                             requesterId = errand["requesterId"] as? String ?: "",
                             providerId = errand["providerId"] as? String,
                             requesterName = errand["requesterName"] as? String ?: "Unknown",
                             providerName = errand["providerName"] as? String,
-                            requesterAvatar = errand["requesterAvatar"] as? String ?: "",
-                            deadline = errand["deadline"] as? String ?: "",
+                            requesterAvatar = errand["requesterAvatar"] as? String,
+                            providerAvatar = errand["providerAvatar"] as? String,
+                            deadline = errand["timeLimit"] as? String
+                                ?: errand["deadline"] as? String
+                                ?: "",
                             createdAt = (errand["timestamp"] as? Number)?.toLong() ?: 0L
                         )
                     }
 
                     // 3. DEBUG log
-                    Log.d("MyTasksFragment", "Loaded ${myTasks.size} tasks for tab: ${if (isPostedTabSelected) "Posted" else "Accepted"}")
+                    Log.d("MyTasksFragment", "Loaded ${myTasks.size} tasks for tab: $currentTab")
 
                     // 4. Update UI
                     if (myTasks.isEmpty()) {
                         binding.recyclerMyTasks.visibility = View.GONE
                         binding.layoutEmpty.visibility = View.VISIBLE
-                        binding.tvEmptyState.text = if (isPostedTabSelected) {
-                            "No tasks posted yet"
-                        } else {
-                            "No tasks accepted yet"
+                        binding.tvEmptyState.text = when (currentTab) {
+                            TabType.POSTED -> "No tasks posted yet"
+                            TabType.ACCEPTED -> "No tasks accepted yet"
+                            TabType.HISTORY -> "No history yet"
                         }
                     } else {
                         binding.recyclerMyTasks.visibility = View.VISIBLE
@@ -183,6 +241,41 @@ class MyTasksFragment : Fragment() {
                 e.printStackTrace()
                 if (_binding != null) {
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Show confirmation dialog and delete task from history
+     */
+    private fun confirmDeleteTask(task: MyTask) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Delete History")
+            .setMessage("Are you sure you want to delete \"${task.title}\" from history?")
+            .setPositiveButton("Delete") { _, _ ->
+                deleteTask(task)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteTask(task: MyTask) {
+        lifecycleScope.launch {
+            try {
+                val result = repository.deleteErrand(task.id)
+
+                if (_binding == null) return@launch
+
+                result.onSuccess {
+                    Toast.makeText(requireContext(), "Deleted from history", Toast.LENGTH_SHORT).show()
+                    // The list will auto-update via Firebase Flow
+                }.onFailure { e ->
+                    Toast.makeText(requireContext(), "Delete failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

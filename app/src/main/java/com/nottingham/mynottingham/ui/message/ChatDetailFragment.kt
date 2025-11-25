@@ -56,12 +56,18 @@ class ChatDetailFragment : Fragment() {
         // Get arguments from Safe Args
         val conversationId = args.conversationId
         val participantName = args.participantName
+        val participantId = args.participantId
         val participantAvatar = args.participantAvatar
         val isOnline = args.isOnline
 
         setupToolbar(participantName, participantAvatar, isOnline)
         setupInputField()
-        setupObservers(participantName, isOnline)
+        setupObservers(participantName)
+
+        // Observe participant's real-time presence status
+        if (participantId.isNotEmpty()) {
+            viewModel.observeParticipantPresence(participantId)
+        }
 
         // Get user credentials from DataStore and initialize chat
         lifecycleScope.launch {
@@ -139,7 +145,7 @@ class ChatDetailFragment : Fragment() {
         })
     }
 
-    private fun setupObservers(participantName: String, isOnline: Boolean) {
+    private fun setupObservers(participantName: String) {
         // Observe messages
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
             if (messages.isEmpty()) {
@@ -149,8 +155,12 @@ class ChatDetailFragment : Fragment() {
             } else {
                 binding.layoutEmpty.visibility = View.GONE
                 binding.recyclerMessages.visibility = View.VISIBLE
-                adapter.submitList(messages)
-                binding.recyclerMessages.scrollToPosition(adapter.itemCount - 1)
+                adapter.submitList(messages) {
+                    // Scroll to bottom after list is updated
+                    binding.recyclerMessages.post {
+                        binding.recyclerMessages.scrollToPosition(messages.size - 1)
+                    }
+                }
             }
         }
 
@@ -180,12 +190,19 @@ class ChatDetailFragment : Fragment() {
             }
         }
 
-        // Observe typing status
+        // Observe typing status - typing takes priority over presence status
         viewModel.typingStatus.observe(viewLifecycleOwner) { typingText ->
             if (typingText != null) {
                 binding.textStatus.text = typingText
-            } else {
-                binding.textStatus.text = if (isOnline) "Active now" else "Offline"
+            }
+            // If no typing, let participantStatus handle it
+        }
+
+        // Observe participant's real-time presence status (Telegram-style)
+        viewModel.participantStatus.observe(viewLifecycleOwner) { status ->
+            // Only update if not showing typing indicator
+            if (viewModel.typingStatus.value == null) {
+                binding.textStatus.text = status
             }
         }
     }

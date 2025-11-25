@@ -43,6 +43,7 @@ class ProfileFragment : Fragment() {
         setupUI()
         loadUserInfo()
         setupSwitchColors()   // ⭐ 新增：在这里调用颜色设置
+        setupDeliveryMode()   // 配送模式开关
     }
 
     private fun setupUI() {
@@ -257,15 +258,43 @@ class ProfileFragment : Fragment() {
             intArrayOf(greenLight, grayLight)
         )
 
-        // 设置两个 Switch 的颜色
-        binding.switchErrand.apply {
-            thumbTintList = thumbStateList
-            trackTintList = trackStateList
-        }
-
+        // 设置 Delivery Mode Switch 的颜色
         binding.switchDelivery.apply {
             thumbTintList = thumbStateList
             trackTintList = trackStateList
+        }
+    }
+
+    private fun setupDeliveryMode() {
+        // Load current delivery mode state
+        viewLifecycleOwner.lifecycleScope.launch {
+            tokenManager.getDeliveryMode().collect { isEnabled ->
+                binding.switchDelivery.isChecked = isEnabled
+            }
+        }
+
+        // Save delivery mode when switch changes - sync to both local and Firebase
+        binding.switchDelivery.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch {
+                try {
+                    val userId = tokenManager.getUserId().first()
+                    if (!userId.isNullOrEmpty()) {
+                        // Sync to Firebase
+                        val firebaseUserRepo = FirebaseUserRepository()
+                        val result = firebaseUserRepo.updateUserProfile(userId, mapOf("deliveryMode" to isChecked))
+
+                        if (result.isSuccess) {
+                            // Save locally only after Firebase sync succeeds
+                            tokenManager.setDeliveryMode(isChecked)
+                        } else {
+                            // Revert switch if Firebase sync failed
+                            binding.switchDelivery.isChecked = !isChecked
+                        }
+                    }
+                } catch (e: Exception) {
+                    binding.switchDelivery.isChecked = !isChecked
+                }
+            }
         }
     }
 

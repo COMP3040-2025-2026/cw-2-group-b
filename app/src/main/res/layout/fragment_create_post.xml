@@ -17,6 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
             app:title="Create Post"
             app:titleTextColor="@color/text_primary"
             app:menu="@menu/menu_create_post" />
@@ -143,66 +144,16 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Image Attachment (optional) -->
-            <TextView
+            <!-- Pin Post (Teachers only) -->
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/checkbox_pin"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Image (optional)"
+                android:text="Pin this post (show at top)"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_image"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:visibility="gone"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="8dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp">
-
-                    <ImageView
-                        android:id="@+id/image_preview"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="Image preview" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_remove_image"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:layout_gravity="top|end"
-                        android:layout_margin="8dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        app:icon="@android:drawable/ic_menu_close_clear_cancel"
-                        app:iconGravity="textStart"
-                        app:iconPadding="0dp"
-                        app:iconTint="@color/white"
-                        app:backgroundTint="@color/error"
-                        app:cornerRadius="18dp"
-                        style="@style/Widget.Material3.Button" />
-
-                </FrameLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_add_image"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Add Image"
-                app:icon="@android:drawable/ic_menu_gallery"
-                app:iconGravity="start"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
+                android:buttonTint="@color/primary" />
 
         </LinearLayout>
 

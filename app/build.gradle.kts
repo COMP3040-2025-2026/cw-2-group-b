@@ -135,6 +135,8 @@ dependencies {
     implementation(libs.firebase.database)
     // Firebase Analytics (optional but recommended)
     implementation(libs.firebase.analytics)
+    // Firebase Cloud Messaging for push notifications
+    implementation(libs.firebase.messaging)
 
     // TESTING //
     // Standard unit testing framework.

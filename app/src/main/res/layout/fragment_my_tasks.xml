@@ -19,7 +19,7 @@
             app:title="My Tasks"
             app:titleTextColor="@color/text_primary" />
 
-        <!-- Tab Layout for Posted/Accepted -->
+        <!-- Tab Layout for Posted/Accepted/History -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -31,21 +31,34 @@
                 android:id="@+id/btn_posted"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="8dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
-                android:text="Posted by Me"
-                app:cornerRadius="24dp" />
+                android:text="Posted"
+                android:textSize="12sp"
+                app:cornerRadius="22dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_accepted"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="8dp"
+                android:layout_height="44dp"
+                android:layout_marginHorizontal="4dp"
                 android:layout_weight="1"
-                android:text="Accepted by Me"
-                app:cornerRadius="24dp" />
+                android:text="Accepted"
+                android:textSize="12sp"
+                app:cornerRadius="22dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_history"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:text="History"
+                android:textSize="12sp"
+                app:cornerRadius="22dp" />
 
         </LinearLayout>
 

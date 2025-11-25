@@ -39,6 +39,7 @@ class ForumDetailFragment : Fragment() {
     // ⚠️ 修复：ID 类型改为 String
     private var postId: String = ""
     private var currentUserId: String = ""
+    private var currentPost: ForumPost? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -103,22 +104,29 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        lifecycleScope.launch {
+        // 使用 viewLifecycleOwner.lifecycleScope 确保在 View 销毁时取消协程
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.getPostFlow(0L) // 参数为了兼容保留，实际 ViewModel 内部用 StateFlow
                 .collect { post ->
-                    post?.let { bindPostData(it) }
+                    post?.let {
+                        if (_binding != null) {
+                            bindPostData(it)
+                        }
+                    }
                 }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.getCommentsFlow(0L) // 同上
                 .collect { comments ->
-                    commentAdapter.submitList(comments)
+                    if (_binding != null) {
+                        commentAdapter.submitList(comments)
+                    }
                 }
         }
 
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
+            _binding?.progressBar?.isVisible = isLoading
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->
@@ -151,7 +159,7 @@ class ForumDetailFragment : Fragment() {
         popupMenu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_edit_post -> {
-                    Toast.makeText(context, "Edit feature coming soon", Toast.LENGTH_SHORT).show()
+                    navigateToEditPost()
                     true
                 }
                 R.id.action_delete_post -> {
@@ -162,6 +170,21 @@ class ForumDetailFragment : Fragment() {
             }
         }
         popupMenu.show()
+    }
+
+    private fun navigateToEditPost() {
+        currentPost?.let { post ->
+            val bundle = Bundle().apply {
+                putBoolean("isEditMode", true)
+                putString("editPostId", post.id)
+                putString("editTitle", post.title)
+                putString("editContent", post.content)
+                putString("editCategory", post.category)
+                putString("editTags", post.tags?.joinToString(", "))
+                putBoolean("editIsPinned", post.isPinned)
+            }
+            findNavController().navigate(R.id.action_forumDetail_to_editPost, bundle)
+        }
     }
 
     private fun showDeleteConfirmationDialog() {
@@ -180,6 +203,7 @@ class ForumDetailFragment : Fragment() {
 
     // ⚠️ 修复：接收 ForumPost 数据模型，而非 Entity
     private fun bindPostData(post: ForumPost) {
+        currentPost = post
         binding.apply {
             tvAuthorName.text = post.authorName
             tvTimestamp.text = DateUtils.getRelativeTimeSpanString(
@@ -191,6 +215,9 @@ class ForumDetailFragment : Fragment() {
             tvViews.text = post.views.toString()
 
             chipCategory.text = post.category
+            // Set category chip background color to match forum list
+            chipCategory.setChipBackgroundColorResource(getCategoryColor(post.category))
+            chipCategory.setTextColor(requireContext().getColor(android.R.color.white))
 
             // Avatar
             if (!post.authorAvatar.isNullOrEmpty()) {
@@ -207,6 +234,24 @@ class ForumDetailFragment : Fragment() {
                     .into(ivPostImage)
             } else {
                 ivPostImage.isVisible = false
+            }
+
+            // Tags
+            if (!post.tags.isNullOrEmpty()) {
+                chipGroupTags.isVisible = true
+                chipGroupTags.removeAllViews()
+                post.tags.forEach { tag ->
+                    val chip = Chip(requireContext()).apply {
+                        text = tag
+                        textSize = 11f
+                        chipMinHeight = 24f * resources.displayMetrics.density
+                        isClickable = false
+                        setChipBackgroundColorResource(R.color.chip_background)
+                    }
+                    chipGroupTags.addView(chip)
+                }
+            } else {
+                chipGroupTags.isVisible = false
             }
 
             // Like Status
@@ -235,5 +280,19 @@ class ForumDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun getCategoryColor(category: String): Int {
+        return when (category.uppercase()) {
+            "ACADEMIC" -> R.color.category_academic
+            "EVENTS" -> R.color.category_events
+            "SPORTS" -> R.color.category_sports
+            "SOCIAL" -> R.color.category_social
+            "ANNOUNCEMENTS" -> R.color.category_announcements
+            "CAREER" -> R.color.category_career
+            "FOOD" -> R.color.category_food
+            "QUESTIONS" -> R.color.category_questions
+            else -> R.color.category_general
+        }
     }
 }

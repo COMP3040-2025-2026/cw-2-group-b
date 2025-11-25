@@ -136,6 +136,7 @@ class NewMessageFragment : Fragment() {
                 val action = NewMessageFragmentDirections.actionNewMessageToChatDetail(
                     conversationId = it.id,
                     participantName = it.participantName,
+                    participantId = it.participantId,
                     participantAvatar = it.participantAvatar,
                     isOnline = it.isOnline
                 )

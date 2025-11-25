@@ -138,6 +138,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 // ✅ 保存头像 URL (如果有)
                 user.profileImageUrl?.let { tokenManager.saveAvatar(it) }
 
+                // ✅ 保存骑手模式状态 (从 Firebase 同步)
+                val deliveryMode = user.deliveryMode ?: false
+                tokenManager.setDeliveryMode(deliveryMode)
+                Log.d(TAG, "🚴 Delivery mode loaded: $deliveryMode")
+
                 Log.d(TAG, "✅ Login successful: ${user.username} ($userType) | UID: $uid")
                 Log.d(TAG, "👤 User info: ${user.name} | Email: ${user.email}")
 
@@ -148,6 +153,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     // Ignore errors, not critical
                     Log.w(TAG, "Failed to create default conversations: ${e.message}")
                 }
+
+                // Step 6: Setup presence for online status tracking
+                firebaseUserRepo.setupPresence(uid)
+                Log.d(TAG, "🟢 Presence system initialized for user: $uid")
 
                 _loginSuccess.value = true
 
@@ -204,11 +213,17 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
      * Logout the current user
      */
     fun logout() {
-        firebaseAuth.signOut()
         viewModelScope.launch {
+            // Set offline status before signing out
+            val userId = firebaseAuth.currentUser?.uid
+            if (!userId.isNullOrEmpty()) {
+                firebaseUserRepo.setOffline(userId)
+                Log.d(TAG, "🔴 User set to offline: $userId")
+            }
+            firebaseAuth.signOut()
             tokenManager.clearToken()
+            Log.d(TAG, "🚪 User logged out successfully")
         }
-        Log.d(TAG, "🚪 User logged out successfully")
     }
 
     companion object {

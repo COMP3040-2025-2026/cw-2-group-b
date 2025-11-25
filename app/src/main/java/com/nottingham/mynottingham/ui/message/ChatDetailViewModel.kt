@@ -8,6 +8,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.ChatMessage
 import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
+import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.launch
 
@@ -18,9 +19,13 @@ import kotlinx.coroutines.launch
 class ChatDetailViewModel(application: Application) : AndroidViewModel(application) {
 
     private val firebaseRepo = FirebaseMessageRepository()
+    private val userRepo = FirebaseUserRepository()
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
+
+    private val _participantStatus = MutableLiveData<String>()
+    val participantStatus: LiveData<String> = _participantStatus
 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
@@ -110,6 +115,22 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearError() {
         _error.value = null
+    }
+
+    /**
+     * Observe participant's online status (Telegram-style)
+     */
+    fun observeParticipantPresence(participantId: String) {
+        viewModelScope.launch {
+            userRepo.observeUserPresence(participantId).collect { (isOnline, lastSeen) ->
+                val status = if (isOnline) {
+                    "Active now"
+                } else {
+                    userRepo.formatLastSeen(lastSeen)
+                }
+                _participantStatus.postValue(status)
+            }
+        }
     }
 
     override fun onCleared() {

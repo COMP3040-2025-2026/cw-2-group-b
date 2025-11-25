@@ -25,7 +25,9 @@ class ChatMessageAdapter(
         private const val VIEW_TYPE_RECEIVED = 2
 
         // Reuse SimpleDateFormat instance to avoid creating new objects on every bind
-        private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault()).apply {
+            timeZone = TimeZone.getDefault()
+        }
     }
 
     override fun getItemViewType(position: Int): Int {

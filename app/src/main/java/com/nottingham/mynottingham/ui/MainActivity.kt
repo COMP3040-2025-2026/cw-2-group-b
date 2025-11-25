@@ -1,14 +1,20 @@
 package com.nottingham.mynottingham.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.databinding.ActivityMainBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -33,6 +39,17 @@ class MainActivity : AppCompatActivity() {
         R.id.profileFragment
     )
 
+    // Permission request launcher for Android 13+ notification permission
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            android.util.Log.d("MainActivity", "Notification permission granted")
+        } else {
+            android.util.Log.d("MainActivity", "Notification permission denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Inflate the layout using View Binding and set it as the content view.
@@ -46,16 +63,45 @@ class MainActivity : AppCompatActivity() {
         setupNavigation()
         // Check the user's login status to determine the initial screen.
         checkLoginStatus()
+        // Request notification permission for Android 13+
+        requestNotificationPermission()
+    }
+
+    /**
+     * Request notification permission for Android 13 (API 33) and above.
+     * This is required to show notifications on these versions.
+     */
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                    android.util.Log.d("MainActivity", "Notification permission already granted")
+                }
+                else -> {
+                    // Request the permission
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
 
     /**
      * Checks for an authentication token to determine if the user is already logged in.
-     * If a token exists, it navigates to the home screen.
+     * If a token exists, it navigates to the home screen and sets up presence.
      */
     private fun checkLoginStatus() {
         lifecycleScope.launch {
             val token = tokenManager.getToken().first()
             if (!token.isNullOrEmpty()) {
+                // Setup presence for online status tracking
+                val userId = tokenManager.getUserId().first()
+                if (!userId.isNullOrEmpty()) {
+                    FirebaseUserRepository().setupPresence(userId)
+                }
                 // User is considered logged in, navigate to the home fragment.
                 navController.navigate(R.id.homeFragment)
             }

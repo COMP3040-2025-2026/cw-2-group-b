@@ -34,10 +34,12 @@ enum class ErrandType(val displayName: String, val color: String) {
 }
 
 enum class ErrandStatus {
-    PENDING,
-    IN_PROGRESS,
-    COMPLETED,
-    CANCELLED
+    PENDING,      // 待接取
+    ACCEPTED,     // 已接单（骑手已接但未开始配送）
+    DELIVERING,   // 配送中
+    IN_PROGRESS,  // 兼容旧状态，等同于 ACCEPTED
+    COMPLETED,    // 已完成
+    CANCELLED     // 已取消
 }
 
 /**

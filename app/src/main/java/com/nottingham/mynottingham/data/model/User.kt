@@ -18,5 +18,6 @@ data class User(
     val program: String,         // Program/Course name
     val title: String? = null,   // Academic title for teachers (e.g., "Dr.", "Prof.")
     val officeRoom: String? = null, // Office room number for teachers (e.g., "B3-14")
-    val profileImageUrl: String? = null // Profile picture URL (Firebase Storage)
+    val profileImageUrl: String? = null, // Profile picture URL (Firebase Storage)
+    val deliveryMode: Boolean? = false // Campus Errand delivery mode (rider mode)
 )

@@ -48,9 +48,30 @@ class ErrandAdapter(
         fun bind(task: ErrandTask) {
             binding.tvTitle.text = task.title
             binding.tvDescription.text = task.description
-            binding.tvReward.text = "RM${task.price}"
+            binding.tvReward.text = "RM ${task.price}"
             binding.tvLocation.text = task.location
             binding.tvRequester.text = task.requesterName
+            binding.tvDeadline.text = formatDeadline(task.deadline)
+        }
+
+        /**
+         * Format deadline to shorter display text
+         * "ASAP (within 30 mins) - RM 2.00 extra" → "30 mins"
+         * "Within 1 hour - RM 1.00 extra" → "1 hour"
+         * "Within 2 hours" → "2 hours"
+         */
+        private fun formatDeadline(deadline: String?): String {
+            if (deadline.isNullOrEmpty()) return ""
+
+            return when {
+                deadline.contains("30 mins", ignoreCase = true) -> "30 mins"
+                deadline.contains("1 hour", ignoreCase = true) -> "1 hour"
+                deadline.contains("2 hour", ignoreCase = true) -> "2 hours"
+                deadline.contains("3 hour", ignoreCase = true) -> "3 hours"
+                deadline.contains("Today", ignoreCase = true) -> "Today"
+                deadline.contains("ASAP", ignoreCase = true) -> "ASAP"
+                else -> deadline.take(15) + if (deadline.length > 15) "..." else ""
+            }
         }
     }
 }

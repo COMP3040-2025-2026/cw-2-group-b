@@ -5,19 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.nottingham.mynottingham.data.local.database.AppDatabase
-import com.nottingham.mynottingham.data.local.database.entities.ErrandEntity
 import com.nottingham.mynottingham.data.model.CartItem
 import com.nottingham.mynottingham.data.model.MenuItem
-import kotlinx.coroutines.Dispatchers
+import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 import com.nottingham.mynottingham.R
 
 class RestaurantMenuViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val errandDao = AppDatabase.getInstance(application).errandDao()
+    private val errandRepository = FirebaseErrandRepository()
 
     // 6个固定菜品数据
     val menuItems = listOf(
@@ -145,37 +142,47 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         _cartItems.value = itemsList
     }
 
-    fun placeOrder(userId: String, address: String, contact: String, paymentMethod: String, deliveryTime: String) {
+    fun placeOrder(
+        userId: String,
+        userName: String,
+        userAvatar: String?,
+        address: String,
+        contact: String,
+        paymentMethod: String,
+        deliveryTime: String
+    ) {
         val items = _cartItems.value ?: return
         if (items.isEmpty()) return
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
+            // Description only contains order items and contact
             val sb = StringBuilder()
-            sb.append("Order from Chinese Restaurant:\n")
-            items.forEach { 
-                sb.append("- ${it.menuItem.name} x${it.quantity}\n") 
+            items.forEach {
+                sb.append("${it.menuItem.name} x${it.quantity}\n")
             }
-            sb.append(String.format("\nDelivery Fee: RM %.2f", _deliveryFee.value ?: 0.0))
-            sb.append("\nDelivery Time: $deliveryTime")
-            sb.append("\nContact: $contact")
-            sb.append("\nPayment: $paymentMethod")
+            sb.append("\nPhone: $contact")
 
-            val errand = ErrandEntity(
-                id = UUID.randomUUID().toString(),
-                requesterId = userId,
-                title = "Food Delivery: Chinese Restaurant",
-                description = sb.toString(),
-                type = "Food Delivery",
-                priority = "Standard",
-                pickupLocation = "Golden Dragon Restaurant",
-                deliveryLocation = address,
-                fee = _totalPrice.value ?: 0.0,
-                status = "pending",
-                imageUrl = "android.resource://com.nottingham.mynottingham/drawable/food_beef_noodle", // 示例图片
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
+            val errandData = mapOf(
+                "requesterId" to userId,
+                "requesterName" to userName,
+                "requesterAvatar" to (userAvatar ?: "default"),
+                "title" to "Buy food from Chinese Restaurant",
+                "description" to sb.toString().trim(),
+                "type" to "FOOD_DELIVERY",
+                "location" to address,
+                "reward" to (_totalPrice.value ?: 0.0),
+                "timeLimit" to deliveryTime
             )
-            errandDao.insertErrand(errand)
+
+            errandRepository.createErrand(errandData)
+
+            // Clear cart after successful order
+            _cartQuantities.postValue(emptyMap())
+            _cartItems.postValue(emptyList())
+            _subtotal.postValue(0.0)
+            _deliveryFee.postValue(0.0)
+            _totalPrice.postValue(0.0)
+            _totalCount.postValue(0)
         }
     }
 }

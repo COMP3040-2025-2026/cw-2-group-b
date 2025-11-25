@@ -48,49 +48,57 @@ class FirebaseMessageRepository {
      * 获取当前用户的对话列表（实时监听）
      * @param userId 当前用户ID
      * @return Flow<List<Conversation>> 对话列表流
+     *
+     * 🔴 修复：实时获取对方用户的最新头像和在线状态
      */
     fun getConversationsFlow(userId: String): Flow<List<Conversation>> = callbackFlow {
+        val usersRef = database.getReference("users")
+        val presenceRef = database.getReference("presence")
+
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val conversations = mutableListOf<Conversation>()
-
                 if (!snapshot.exists()) {
                     trySend(emptyList())
                     return
                 }
+
+                // 🔴 每次数据变化都重新获取头像和在线状态
+                val avatarCache = mutableMapOf<String, String?>()
+                val presenceCache = mutableMapOf<String, Boolean>()
+
+                // Step 1: 解析所有对话，收集需要获取头像的用户ID
+                val rawConversations = mutableListOf<Map<String, Any?>>()
+                val participantIdsToFetch = mutableSetOf<String>()
 
                 snapshot.children.forEach { child ->
                     try {
                         val conversationId = child.key ?: return@forEach
                         val unreadCount = child.child("unreadCount").getValue(Int::class.java) ?: 0
                         val isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false
-                        val participantIds = child.child("participantIds").children.mapNotNull { it.getValue(String::class.java) }
+                        // 🔴 直接读取 participantId，数据库中没有 participantIds 数组
+                        val participantId = child.child("participantId").getValue(String::class.java) ?: ""
                         val participantName = child.child("participantName").getValue(String::class.java) ?: "Unknown"
                         val participantAvatar = child.child("participantAvatar").getValue(String::class.java)
                         val lastMessage = child.child("lastMessage").getValue(String::class.java) ?: ""
                         val lastMessageTime = child.child("lastMessageTime").getValue(Long::class.java) ?: 0L
                         val isGroup = child.child("isGroup").getValue(Boolean::class.java) ?: false
-                        val isOnline = child.child("isOnline").getValue(Boolean::class.java) ?: false
 
-                        // 获取对方用户ID（非群组情况）
-                        val participantId = if (!isGroup && participantIds.size >= 2) {
-                            participantIds.find { it != userId } ?: participantIds.first()
-                        } else {
-                            participantIds.firstOrNull() ?: ""
+                        // 🔴 获取对方的最新头像和在线状态（无论是否群组，都需要获取）
+                        if (participantId.isNotEmpty()) {
+                            participantIdsToFetch.add(participantId)
                         }
 
-                        conversations.add(
-                            Conversation(
-                                id = conversationId,
-                                participantId = participantId,
-                                participantName = participantName,
-                                participantAvatar = participantAvatar,
-                                lastMessage = lastMessage,
-                                lastMessageTime = lastMessageTime,
-                                unreadCount = unreadCount,
-                                isOnline = isOnline,
-                                isPinned = isPinned,
-                                isGroup = isGroup
+                        rawConversations.add(
+                            mapOf(
+                                "id" to conversationId,
+                                "participantId" to participantId,
+                                "participantName" to participantName,
+                                "participantAvatar" to participantAvatar,
+                                "lastMessage" to lastMessage,
+                                "lastMessageTime" to lastMessageTime,
+                                "unreadCount" to unreadCount,
+                                "isPinned" to isPinned,
+                                "isGroup" to isGroup
                             )
                         )
                     } catch (e: Exception) {
@@ -98,9 +106,56 @@ class FirebaseMessageRepository {
                     }
                 }
 
-                // 按置顶和最后消息时间排序
-                conversations.sortWith(compareByDescending<Conversation> { it.isPinned }.thenByDescending { it.lastMessageTime })
-                trySend(conversations)
+                // Step 2: 获取需要的头像和在线状态
+                if (participantIdsToFetch.isEmpty()) {
+                    // 没有需要获取头像的对话（全是群组）
+                    val conversations = buildConversations(rawConversations, avatarCache, presenceCache)
+                    trySend(conversations)
+                } else {
+                    // 需要获取的总数：头像 + 在线状态，每个 participant 需要 2 次请求
+                    val totalRequests = participantIdsToFetch.size * 2
+                    var fetchedCount = 0
+
+                    participantIdsToFetch.forEach { participantId ->
+                        // 获取头像
+                        usersRef.child(participantId).child("profileImageUrl").get()
+                            .addOnSuccessListener { avatarSnapshot ->
+                                avatarCache[participantId] = avatarSnapshot.getValue(String::class.java)
+                                fetchedCount++
+                                if (fetchedCount == totalRequests) {
+                                    val conversations = buildConversations(rawConversations, avatarCache, presenceCache)
+                                    trySend(conversations)
+                                }
+                            }
+                            .addOnFailureListener {
+                                avatarCache[participantId] = null
+                                fetchedCount++
+                                if (fetchedCount == totalRequests) {
+                                    val conversations = buildConversations(rawConversations, avatarCache, presenceCache)
+                                    trySend(conversations)
+                                }
+                            }
+
+                        // 🔴 获取在线状态 from presence node
+                        presenceRef.child(participantId).child("isOnline").get()
+                            .addOnSuccessListener { presenceSnapshot ->
+                                presenceCache[participantId] = presenceSnapshot.getValue(Boolean::class.java) ?: false
+                                fetchedCount++
+                                if (fetchedCount == totalRequests) {
+                                    val conversations = buildConversations(rawConversations, avatarCache, presenceCache)
+                                    trySend(conversations)
+                                }
+                            }
+                            .addOnFailureListener {
+                                presenceCache[participantId] = false
+                                fetchedCount++
+                                if (fetchedCount == totalRequests) {
+                                    val conversations = buildConversations(rawConversations, avatarCache, presenceCache)
+                                    trySend(conversations)
+                                }
+                            }
+                    }
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -117,11 +172,59 @@ class FirebaseMessageRepository {
     }
 
     /**
+     * 辅助方法：使用最新头像和在线状态构建对话列表
+     */
+    private fun buildConversations(
+        rawConversations: List<Map<String, Any?>>,
+        avatarCache: Map<String, String?>,
+        presenceCache: Map<String, Boolean> = emptyMap()
+    ): List<Conversation> {
+        val conversations = rawConversations.map { raw ->
+            val participantId = raw["participantId"] as String
+            val isGroup = raw["isGroup"] as Boolean
+            // 🔴 使用缓存的最新头像（从 users 表获取）
+            val currentAvatar = if (participantId.isNotEmpty()) {
+                avatarCache[participantId] ?: raw["participantAvatar"] as? String
+            } else {
+                raw["participantAvatar"] as? String
+            }
+            // 🔴 使用缓存的在线状态（从 presence 节点获取）
+            val isOnline = if (participantId.isNotEmpty()) {
+                presenceCache[participantId] ?: false
+            } else {
+                false
+            }
+
+            Conversation(
+                id = raw["id"] as String,
+                participantId = participantId,
+                participantName = raw["participantName"] as String,
+                participantAvatar = currentAvatar,
+                lastMessage = raw["lastMessage"] as String,
+                lastMessageTime = raw["lastMessageTime"] as Long,
+                unreadCount = raw["unreadCount"] as Int,
+                isOnline = isOnline,
+                isPinned = raw["isPinned"] as Boolean,
+                isGroup = isGroup
+            )
+        }
+
+        // 按置顶和最后消息时间排序
+        return conversations.sortedWith(
+            compareByDescending<Conversation> { it.isPinned }.thenByDescending { it.lastMessageTime }
+        )
+    }
+
+    /**
      * 获取指定对话的消息列表（实时监听）
      * @param conversationId 对话ID
      * @return Flow<List<ChatMessage>> 消息列表流
+     *
+     * 🔴 修复：实时获取发送者的最新头像，而不是使用消息中存储的旧头像
      */
     fun getMessagesFlow(conversationId: String): Flow<List<ChatMessage>> = callbackFlow {
+        val usersRef = database.getReference("users")
+
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val messages = mutableListOf<ChatMessage>()
@@ -130,6 +233,13 @@ class FirebaseMessageRepository {
                     trySend(emptyList())
                     return
                 }
+
+                // 🔴 每次数据变化都重新获取头像，确保头像是最新的
+                val avatarCache = mutableMapOf<String, String?>()
+
+                // Step 1: 解析所有消息，收集唯一的 senderId
+                val uniqueSenderIds = mutableSetOf<String>()
+                val rawMessages = mutableListOf<Map<String, Any?>>()
 
                 snapshot.children.forEach { child ->
                     try {
@@ -142,17 +252,19 @@ class FirebaseMessageRepository {
                         val isRead = child.child("isRead").getValue(Boolean::class.java) ?: false
                         val messageType = child.child("messageType").getValue(String::class.java) ?: "TEXT"
 
-                        messages.add(
-                            ChatMessage(
-                                id = messageId,
-                                conversationId = conversationId,
-                                senderId = senderId,
-                                senderName = senderName,
-                                senderAvatar = senderAvatar,
-                                message = message,
-                                timestamp = timestamp,
-                                isRead = isRead,
-                                messageType = messageType
+                        if (senderId.isNotEmpty()) {
+                            uniqueSenderIds.add(senderId)
+                        }
+                        rawMessages.add(
+                            mapOf(
+                                "id" to messageId,
+                                "senderId" to senderId,
+                                "senderName" to senderName,
+                                "senderAvatar" to senderAvatar,
+                                "message" to message,
+                                "timestamp" to timestamp,
+                                "isRead" to isRead,
+                                "messageType" to messageType
                             )
                         )
                     } catch (e: Exception) {
@@ -160,9 +272,42 @@ class FirebaseMessageRepository {
                     }
                 }
 
-                // 按时间顺序排列
-                messages.sortBy { it.timestamp }
-                trySend(messages)
+                // Step 2: 获取所有发送者的最新头像（异步）
+                if (uniqueSenderIds.isEmpty()) {
+                    // 没有需要获取头像的消息
+                    buildAndSendMessages(rawMessages, avatarCache, conversationId, messages)
+                    messages.sortBy { it.timestamp }
+                    trySend(messages)
+                } else {
+                    // 需要获取头像
+                    var fetchedCount = 0
+                    uniqueSenderIds.forEach { senderId ->
+                        usersRef.child(senderId).child("profileImageUrl").get()
+                            .addOnSuccessListener { avatarSnapshot ->
+                                val currentAvatar = avatarSnapshot.getValue(String::class.java)
+                                avatarCache[senderId] = currentAvatar
+                                fetchedCount++
+
+                                // 所有头像都获取完成后，构建消息列表
+                                if (fetchedCount == uniqueSenderIds.size) {
+                                    buildAndSendMessages(rawMessages, avatarCache, conversationId, messages)
+                                    messages.sortBy { it.timestamp }
+                                    trySend(messages)
+                                }
+                            }
+                            .addOnFailureListener {
+                                // 获取失败时使用消息中存储的头像
+                                avatarCache[senderId] = null
+                                fetchedCount++
+
+                                if (fetchedCount == uniqueSenderIds.size) {
+                                    buildAndSendMessages(rawMessages, avatarCache, conversationId, messages)
+                                    messages.sortBy { it.timestamp }
+                                    trySend(messages)
+                                }
+                            }
+                    }
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -175,6 +320,37 @@ class FirebaseMessageRepository {
 
         awaitClose {
             conversationsRef.child(conversationId).child("messages").removeEventListener(listener)
+        }
+    }
+
+    /**
+     * 辅助方法：使用最新头像构建消息列表
+     */
+    private fun buildAndSendMessages(
+        rawMessages: List<Map<String, Any?>>,
+        avatarCache: Map<String, String?>,
+        conversationId: String,
+        messages: MutableList<ChatMessage>
+    ) {
+        messages.clear()
+        rawMessages.forEach { raw ->
+            val senderId = raw["senderId"] as String
+            // 🔴 优先使用缓存中的最新头像，如果没有则使用消息中存储的头像
+            val currentAvatar = avatarCache[senderId] ?: raw["senderAvatar"] as? String
+
+            messages.add(
+                ChatMessage(
+                    id = raw["id"] as String,
+                    conversationId = conversationId,
+                    senderId = senderId,
+                    senderName = raw["senderName"] as String,
+                    senderAvatar = currentAvatar,
+                    message = raw["message"] as String,
+                    timestamp = raw["timestamp"] as Long,
+                    isRead = raw["isRead"] as Boolean,
+                    messageType = raw["messageType"] as String
+                )
+            )
         }
     }
 
@@ -538,6 +714,25 @@ class FirebaseMessageRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseMessageRepo", "Error updating participant info: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 更新用户对话中的参与者ID
+     * 用于确保 participantId 字段正确设置
+     */
+    suspend fun updateConversationParticipantId(
+        userId: String,
+        conversationId: String,
+        participantId: String
+    ): Result<Unit> {
+        return try {
+            userConversationsRef.child(userId).child(conversationId)
+                .child("participantId").setValue(participantId).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error updating participant id: ${e.message}")
             Result.failure(e)
         }
     }

@@ -209,39 +209,89 @@
             android:id="@+id/layout_owner_actions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <!-- Chat with Rider button (shown when task is accepted) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_chat_rider"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp"
+                android:text="Chat with Rider"
+                android:visibility="gone"
+                app:cornerRadius="24dp"
+                app:icon="@android:drawable/stat_notify_chat"
+                app:iconGravity="textStart" />
+
+            <!-- Edit and Delete buttons row -->
+            <LinearLayout
+                android:id="@+id/layout_edit_delete"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_edit"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:text="Edit"
+                    app:cornerRadius="24dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_delete"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Delete"
+                    android:textColor="@color/error"
+                    app:cornerRadius="24dp"
+                    app:rippleColor="@color/error_light" />
+            </LinearLayout>
+
+            <!-- Complete button (separate row, shown when task is accepted) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_complete"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:text="Complete"
+                android:visibility="gone"
+                app:cornerRadius="24dp" />
+        </LinearLayout>
+
+        <!-- Provider (rider) actions: Drop + Primary Action -->
+        <LinearLayout
+            android:id="@+id/layout_provider_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
-            android:weightSum="3"
             android:visibility="gone">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_edit"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:text="Edit"
-                app:cornerRadius="20dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_delete"
+                android:id="@+id/btn_drop_task"
                 style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:text="Delete"
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:text="Drop Task"
                 android:textColor="@color/error"
-                app:cornerRadius="20dp" />
+                app:cornerRadius="28dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_complete"
+                android:id="@+id/btn_provider_action"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
+                android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:text="Complete"
-                app:cornerRadius="20dp" />
+                android:text="Start Delivering"
+                app:cornerRadius="28dp" />
         </LinearLayout>
     </FrameLayout>
 

@@ -125,6 +125,11 @@
             app:argType="string" />
 
         <argument
+            android:name="participantId"
+            app:argType="string"
+            android:defaultValue="" />
+
+        <argument
             android:name="participantAvatar"
             app:argType="string"
             app:nullable="true"
@@ -218,7 +223,44 @@
         android:id="@+id/createPostFragment"
         android:name="com.nottingham.mynottingham.ui.forum.CreatePostFragment"
         android:label="Create Post"
-        tools:layout="@layout/fragment_create_post" />
+        tools:layout="@layout/fragment_create_post">
+
+        <!-- Edit mode arguments -->
+        <argument
+            android:name="isEditMode"
+            app:argType="boolean"
+            android:defaultValue="false" />
+        <argument
+            android:name="editPostId"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="editTitle"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="editContent"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="editCategory"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="editTags"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="editIsPinned"
+            app:argType="boolean"
+            android:defaultValue="false" />
+
+    </fragment>
 
     <!-- Forum Detail Fragment -->
     <fragment
@@ -230,6 +272,11 @@
         <argument
             android:name="postId"
             app:argType="string" />
+
+        <!-- Navigate to Edit Post -->
+        <action
+            android:id="@+id/action_forumDetail_to_editPost"
+            app:destination="@id/createPostFragment" />
 
     </fragment>
 

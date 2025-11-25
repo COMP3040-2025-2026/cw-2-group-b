@@ -56,8 +56,12 @@ class FirebaseForumRepository {
      * 获取所有帖子（实时监听）
      * @param category 分类筛选（可选）
      * @return Flow<List<ForumPost>> 帖子列表流
+     *
+     * 🔴 修复：从 users 表动态获取作者头像
      */
     fun getPostsFlow(category: String? = null, currentUserId: String): Flow<List<ForumPost>> = callbackFlow {
+        val usersRef = database.getReference("users")
+
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
@@ -65,7 +69,7 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态
+                // 使用协程来异步查询点赞状态和头像
                 launch {
                     val posts = mutableListOf<ForumPost>()
 
@@ -74,16 +78,35 @@ class FirebaseForumRepository {
                             val postId = child.key ?: return@forEach
                             val authorId = child.child("authorId").getValue(String::class.java) ?: ""
                             val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                            val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
+                            // 优先从帖子读取头像，如果没有则从 users 表获取
+                            var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val postCategory = child.child("category").getValue(String::class.java) ?: "GENERAL"
                             val title = child.child("title").getValue(String::class.java) ?: ""
                             val content = child.child("content").getValue(String::class.java) ?: ""
                             val imageUrl = child.child("imageUrl").getValue(String::class.java)
+                            // 读取 tags 数组
+                            val tags = child.child("tags").children.mapNotNull {
+                                it.getValue(String::class.java)
+                            }.takeIf { it.isNotEmpty() }
+                            // 读取置顶状态
+                            val isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false
+                            val pinnedAt = child.child("pinnedAt").getValue(Long::class.java)
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
                             val comments = child.child("comments").getValue(Int::class.java) ?: 0
                             val views = child.child("views").getValue(Int::class.java) ?: 0
-                            val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
+                            val createdAt = child.child("createdAt").getValue(Long::class.java)
+                                ?: child.child("timestamp").getValue(Long::class.java) ?: 0L
                             val updatedAt = child.child("updatedAt").getValue(Long::class.java) ?: 0L
+
+                            // 🔴 如果帖子没有头像字段，从 users 表获取
+                            if (authorAvatar == null && authorId.isNotEmpty()) {
+                                try {
+                                    val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
+                                    authorAvatar = userSnapshot.getValue(String::class.java)
+                                } catch (e: Exception) {
+                                    android.util.Log.w("FirebaseForumRepo", "Failed to fetch avatar for $authorId")
+                                }
+                            }
 
                             // 检查当前用户是否点赞（异步查询）
                             val isLiked = if (currentUserId.isNotEmpty()) {
@@ -104,6 +127,9 @@ class FirebaseForumRepository {
                                         title = title,
                                         content = content,
                                         imageUrl = imageUrl,
+                                        tags = tags,
+                                        isPinned = isPinned,
+                                        pinnedAt = pinnedAt,
                                         likes = likes,
                                         comments = comments,
                                         views = views,
@@ -118,9 +144,12 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // 按创建时间倒序排列（最新的在前）
-                    posts.sortByDescending { it.createdAt }
-                    trySend(posts)
+                    // 排序：置顶帖子优先（按置顶时间倒序），然后是普通帖子（按创建时间倒序）
+                    val sortedPosts = posts.sortedWith(
+                        compareByDescending<ForumPost> { it.isPinned }
+                            .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
+                    )
+                    trySend(sortedPosts)
                 }
             }
 
@@ -142,8 +171,12 @@ class FirebaseForumRepository {
      * @param postId 帖子ID
      * @param currentUserId 当前用户ID
      * @return Flow<ForumPost?> 帖子详情流
+     *
+     * 🔴 修复：从 users 表动态获取作者头像
      */
     fun getPostDetailFlow(postId: String, currentUserId: String): Flow<ForumPost?> = callbackFlow {
+        val usersRef = database.getReference("users")
+
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
@@ -151,21 +184,39 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态
+                // 使用协程来异步查询点赞状态和头像
                 launch {
                     try {
                         val authorId = snapshot.child("authorId").getValue(String::class.java) ?: ""
                         val authorName = snapshot.child("authorName").getValue(String::class.java) ?: "Unknown"
-                        val authorAvatar = snapshot.child("authorAvatar").getValue(String::class.java)
+                        var authorAvatar = snapshot.child("authorAvatar").getValue(String::class.java)
                         val category = snapshot.child("category").getValue(String::class.java) ?: "GENERAL"
                         val title = snapshot.child("title").getValue(String::class.java) ?: ""
                         val content = snapshot.child("content").getValue(String::class.java) ?: ""
                         val imageUrl = snapshot.child("imageUrl").getValue(String::class.java)
+                        // 读取 tags 数组
+                        val tags = snapshot.child("tags").children.mapNotNull {
+                            it.getValue(String::class.java)
+                        }.takeIf { it.isNotEmpty() }
+                        // 读取置顶状态
+                        val isPinned = snapshot.child("isPinned").getValue(Boolean::class.java) ?: false
+                        val pinnedAt = snapshot.child("pinnedAt").getValue(Long::class.java)
                         val likes = snapshot.child("likes").getValue(Int::class.java) ?: 0
                         val comments = snapshot.child("comments").getValue(Int::class.java) ?: 0
                         val views = snapshot.child("views").getValue(Int::class.java) ?: 0
-                        val createdAt = snapshot.child("createdAt").getValue(Long::class.java) ?: 0L
+                        val createdAt = snapshot.child("createdAt").getValue(Long::class.java)
+                            ?: snapshot.child("timestamp").getValue(Long::class.java) ?: 0L
                         val updatedAt = snapshot.child("updatedAt").getValue(Long::class.java) ?: 0L
+
+                        // 🔴 如果帖子没有头像字段，从 users 表获取
+                        if (authorAvatar == null && authorId.isNotEmpty()) {
+                            try {
+                                val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
+                                authorAvatar = userSnapshot.getValue(String::class.java)
+                            } catch (e: Exception) {
+                                android.util.Log.w("FirebaseForumRepo", "Failed to fetch avatar for $authorId")
+                            }
+                        }
 
                         // 检查当前用户是否点赞（异步查询）
                         val isLiked = if (currentUserId.isNotEmpty()) {
@@ -184,6 +235,9 @@ class FirebaseForumRepository {
                                 title = title,
                                 content = content,
                                 imageUrl = imageUrl,
+                                tags = tags,
+                                isPinned = isPinned,
+                                pinnedAt = pinnedAt,
                                 likes = likes,
                                 comments = comments,
                                 views = views,
@@ -217,8 +271,12 @@ class FirebaseForumRepository {
      * @param postId 帖子ID
      * @param currentUserId 当前用户ID
      * @return Flow<List<ForumComment>> 评论列表流
+     *
+     * 🔴 修复：从 users 表动态获取作者头像
      */
     fun getCommentsFlow(postId: String, currentUserId: String): Flow<List<ForumComment>> = callbackFlow {
+        val usersRef = database.getReference("users")
+
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
@@ -226,7 +284,7 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态
+                // 使用协程来异步查询点赞状态和头像
                 launch {
                     val comments = mutableListOf<ForumComment>()
 
@@ -235,10 +293,20 @@ class FirebaseForumRepository {
                             val commentId = child.key ?: return@forEach
                             val authorId = child.child("authorId").getValue(String::class.java) ?: ""
                             val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                            val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
+                            var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val content = child.child("content").getValue(String::class.java) ?: ""
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
                             val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
+
+                            // 🔴 如果评论没有头像字段，从 users 表获取
+                            if (authorAvatar == null && authorId.isNotEmpty()) {
+                                try {
+                                    val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
+                                    authorAvatar = userSnapshot.getValue(String::class.java)
+                                } catch (e: Exception) {
+                                    android.util.Log.w("FirebaseForumRepo", "Failed to fetch avatar for $authorId")
+                                }
+                            }
 
                             // 检查当前用户是否点赞了该评论（异步查询）
                             val isLiked = if (currentUserId.isNotEmpty()) {
@@ -302,7 +370,9 @@ class FirebaseForumRepository {
         category: String,
         title: String,
         content: String,
-        imageUrl: String? = null
+        imageUrl: String? = null,
+        tags: List<String>? = null,
+        isPinned: Boolean = false
     ): Result<String> {
         return try {
             val newPostRef = postsRef.push()
@@ -319,7 +389,8 @@ class FirebaseForumRepository {
                 "comments" to 0,
                 "views" to 0,
                 "createdAt" to timestamp,
-                "updatedAt" to timestamp
+                "updatedAt" to timestamp,
+                "isPinned" to isPinned
             )
 
             if (authorAvatar != null) {
@@ -328,6 +399,14 @@ class FirebaseForumRepository {
 
             if (imageUrl != null) {
                 postData["imageUrl"] = imageUrl
+            }
+
+            if (!tags.isNullOrEmpty()) {
+                postData["tags"] = tags
+            }
+
+            if (isPinned) {
+                postData["pinnedAt"] = timestamp
             }
 
             newPostRef.setValue(postData).await()
@@ -349,14 +428,33 @@ class FirebaseForumRepository {
     suspend fun updatePost(
         postId: String,
         title: String,
-        content: String
+        content: String,
+        category: String? = null,
+        tags: List<String>? = null,
+        isPinned: Boolean? = null
     ): Result<Unit> {
         return try {
-            val updates = mapOf(
+            val updates = mutableMapOf<String, Any>(
                 "title" to title,
                 "content" to content,
                 "updatedAt" to System.currentTimeMillis()
             )
+
+            if (category != null) {
+                updates["category"] = category
+            }
+
+            if (tags != null) {
+                updates["tags"] = tags
+            }
+
+            if (isPinned != null) {
+                updates["isPinned"] = isPinned
+                if (isPinned) {
+                    // 设置置顶时间（如果之前没有置顶时间，则设置为当前时间）
+                    updates["pinnedAt"] = System.currentTimeMillis()
+                }
+            }
 
             postsRef.child(postId).updateChildren(updates).await()
             Result.success(Unit)

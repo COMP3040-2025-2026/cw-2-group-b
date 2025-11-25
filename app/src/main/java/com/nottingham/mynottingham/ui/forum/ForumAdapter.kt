@@ -1,5 +1,6 @@
 package com.nottingham.mynottingham.ui.forum
 
+import android.content.Context
 import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -14,6 +15,11 @@ import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.ItemForumPostBinding
 import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
+
+// Extension function to convert dp to pixels
+private fun Float.dpToPx(context: Context): Float {
+    return this * context.resources.displayMetrics.density
+}
 
 /**
  * RecyclerView Adapter for displaying forum posts
@@ -77,8 +83,23 @@ class ForumAdapter(
                     ivPostImage.isVisible = false
                 }
 
-                // Tags - Currently not in ForumPost model, hidden for now
-                chipGroupTags.isVisible = false
+                // Tags
+                if (!post.tags.isNullOrEmpty()) {
+                    chipGroupTags.isVisible = true
+                    chipGroupTags.removeAllViews()
+                    post.tags.forEach { tag ->
+                        val chip = Chip(itemView.context).apply {
+                            text = tag
+                            textSize = 11f
+                            chipMinHeight = 24f.dpToPx(itemView.context)
+                            isClickable = false
+                            setChipBackgroundColorResource(R.color.chip_background)
+                        }
+                        chipGroupTags.addView(chip)
+                    }
+                } else {
+                    chipGroupTags.isVisible = false
+                }
 
                 // Stats
                 tvLikes.text = post.likes.toString()
@@ -92,8 +113,8 @@ class ForumAdapter(
                     tvLikes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_favorite_border, 0, 0, 0)
                 }
 
-                // Pinned and locked indicators - Not in current model
-                ivPinned.isVisible = false
+                // Pinned indicator
+                ivPinned.isVisible = post.isPinned
                 ivLocked.isVisible = false
 
                 // Click listeners

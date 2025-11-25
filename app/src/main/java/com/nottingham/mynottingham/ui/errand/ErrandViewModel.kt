@@ -37,19 +37,35 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
 
     /**
      * 实时加载可用任务 (PENDING 状态)
+     *
+     * 根据配送模式过滤：
+     * - 配送模式 OFF (普通用户): 只看自己发布的订单
+     * - 配送模式 ON (骑手): 看别人发布的订单 (可接单)
      */
     fun loadTasks() {
         viewModelScope.launch {
             try {
-                Log.d("ErrandViewModel", "📥 Loading tasks from Firebase...")
+                val currentUserId = tokenManager.getUserId().first() ?: ""
+                val isDeliveryMode = tokenManager.getDeliveryMode().first()
+
+                Log.d("ErrandViewModel", "📥 Loading tasks from Firebase... (deliveryMode=$isDeliveryMode, userId=$currentUserId)")
 
                 // 使用 Firebase Flow 实时监听
                 firebaseErrandRepo.getAvailableErrands().collect { firebaseErrands ->
                     // 转换 Firebase 数据为 ErrandTask
-                    val taskList = firebaseErrands.mapNotNull { mapToErrandTask(it) }
+                    val allTasks = firebaseErrands.mapNotNull { mapToErrandTask(it) }
 
-                    Log.d("ErrandViewModel", "✅ Loaded ${taskList.size} tasks from Firebase")
-                    _tasks.postValue(taskList)
+                    // 根据配送模式过滤任务
+                    val filteredTasks = if (isDeliveryMode) {
+                        // 骑手模式：显示别人发布的订单（排除自己的）
+                        allTasks.filter { it.requesterId != currentUserId }
+                    } else {
+                        // 普通用户模式：只显示自己发布的订单
+                        allTasks.filter { it.requesterId == currentUserId }
+                    }
+
+                    Log.d("ErrandViewModel", "✅ Loaded ${filteredTasks.size} tasks (filtered from ${allTasks.size})")
+                    _tasks.postValue(filteredTasks)
                 }
             } catch (e: Exception) {
                 Log.e("ErrandViewModel", "❌ Error loading tasks", e)
@@ -67,18 +83,21 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val userId = tokenManager.getUserId().first() ?: ""
                 val userName = tokenManager.getFullName().first() ?: "Unknown User"
+                val userAvatar = tokenManager.getAvatar().first() ?: ""
 
                 Log.d("ErrandViewModel", "📤 Creating new task: ${task.title}")
 
-                val errandData = mapOf(
+                val errandData = mapOf<String, Any>(
                     "title" to task.title,
                     "description" to task.description,
                     "requesterId" to userId,
                     "requesterName" to userName,
-                    "type" to "SHOPPING", // TODO: 从 UI 获取类型
+                    "requesterAvatar" to userAvatar,
+                    "type" to "SHOPPING",
                     "reward" to (task.price.toDoubleOrNull() ?: 0.0),
                     "pickupLocation" to task.location,
-                    "deliveryLocation" to task.location, // TODO: 添加独立的 deliveryLocation 字段
+                    "deliveryLocation" to task.location,
+                    "deadline" to (task.deadline ?: "")
                 )
 
                 val result = firebaseErrandRepo.createErrand(errandData)
@@ -86,7 +105,6 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 if (result.isSuccess) {
                     val errandId = result.getOrNull()
                     Log.d("ErrandViewModel", "✅ Task created successfully: $errandId")
-                    // Firebase Flow 会自动更新任务列表，不需要手动 reload
                 } else {
                     Log.e("ErrandViewModel", "❌ Failed to create task: ${result.exceptionOrNull()?.message}")
                 }
@@ -149,22 +167,37 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
             val id = firebaseData["id"] as? String ?: ""
             val title = firebaseData["title"] as? String ?: "Untitled"
             val description = firebaseData["description"] as? String ?: ""
-            val reward = firebaseData["reward"] as? Double ?: 0.0
-            val pickupLocation = firebaseData["pickupLocation"] as? String ?: ""
+            // Handle reward as both Double and Long (Firebase may return Long for whole numbers)
+            val reward = when (val r = firebaseData["reward"]) {
+                is Double -> r
+                is Long -> r.toDouble()
+                is Number -> r.toDouble()
+                else -> 0.0
+            }
+            // Support both "location" and legacy "pickupLocation"/"deliveryLocation" keys
+            val location = firebaseData["location"] as? String
+                ?: firebaseData["deliveryLocation"] as? String
+                ?: firebaseData["pickupLocation"] as? String
+                ?: ""
             val requesterId = firebaseData["requesterId"] as? String ?: ""
             val requesterName = firebaseData["requesterName"] as? String ?: "Unknown"
+            val requesterAvatar = firebaseData["requesterAvatar"] as? String ?: ""
+            // Support both "timeLimit" and legacy "deadline" keys
+            val deadline = firebaseData["timeLimit"] as? String
+                ?: firebaseData["deadline"] as? String
+                ?: ""
             val timestamp = firebaseData["timestamp"] as? Long ?: System.currentTimeMillis()
 
             ErrandTask(
                 taskId = id,
                 title = title,
                 description = description,
-                price = reward.toString(),
-                location = pickupLocation,
+                price = String.format("%.2f", reward),
+                location = location,
                 requesterId = requesterId,
                 requesterName = requesterName,
-                requesterAvatar = "", // TODO: 支持头像
-                deadline = "", // TODO: 添加 deadline 字段
+                requesterAvatar = requesterAvatar,
+                deadline = deadline,
                 timestamp = timestamp
             )
         } catch (e: Exception) {

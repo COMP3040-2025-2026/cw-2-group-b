@@ -45,8 +45,15 @@ class ForumFragment : Fragment() {
 
         setupRecyclerView()
         setupHeader()
+        setupFab()
         observeViewModel()
         loadPosts()
+    }
+
+    private fun setupFab() {
+        binding.fabCreatePost.setOnClickListener {
+            findNavController().navigate(R.id.action_forum_to_create_post)
+        }
     }
 
     private fun setupRecyclerView() {
