@@ -1,19 +1,15 @@
 package com.nottingham.mynottingham.data.repository
 
+import com.google.firebase.database.FirebaseDatabase
 import com.nottingham.mynottingham.data.firebase.FirebaseInstattManager
-import com.nottingham.mynottingham.data.mapper.CourseMapper
 import com.nottingham.mynottingham.data.model.AttendanceStatus
 import com.nottingham.mynottingham.data.model.Course
 import com.nottingham.mynottingham.data.model.StudentAttendance
-import com.nottingham.mynottingham.data.model.SystemTime
-import com.nottingham.mynottingham.data.remote.RetrofitInstance
-import com.nottingham.mynottingham.data.remote.dto.MarkAttendanceRequest
-import com.nottingham.mynottingham.data.remote.dto.SignInRequest
-import com.nottingham.mynottingham.data.remote.dto.UnlockSessionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 /**
@@ -26,27 +22,24 @@ import kotlinx.coroutines.withContext
  */
 class InstattRepository {
 
-    private val apiService = RetrofitInstance.apiService
+    private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val firebaseManager = FirebaseInstattManager()
-    // ✅ 新增：引入 Firebase 课程仓库
     private val firebaseCourseRepo = FirebaseCourseRepository()
 
-    suspend fun getSystemTime(): Result<SystemTime> {
+    /**
+     * 获取服务器时间 - 使用 Firebase 服务器时间偏移量
+     * Firebase 提供 .info/serverTimeOffset 来计算服务器与本地时间的差值
+     */
+    suspend fun getSystemTime(): Long {
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.getSystemTime()
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val dto = response.body()?.data
-                    if (dto != null) {
-                        Result.success(SystemTime.fromDto(dto))
-                    } else {
-                        Result.failure(Exception("System time data is null"))
-                    }
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to get system time"))
-                }
+                val offsetRef = database.getReference(".info/serverTimeOffset")
+                val offset = offsetRef.get().await().getValue(Long::class.java) ?: 0L
+                System.currentTimeMillis() + offset
             } catch (e: Exception) {
-                Result.failure(e)
+                // 如果无法获取服务器时间，降级使用本地时间
+                android.util.Log.w("InstattRepository", "Failed to get server time offset, using local time", e)
+                System.currentTimeMillis()
             }
         }
     }
