@@ -1,94 +1,108 @@
 package com.nottingham.mynottingham.data.repository
 
 import android.content.Context
-import com.nottingham.mynottingham.data.local.database.AppDatabase
-import com.nottingham.mynottingham.data.local.database.entities.ConversationEntity
-import com.nottingham.mynottingham.data.local.database.entities.ConversationParticipantEntity
-import com.nottingham.mynottingham.data.local.database.entities.MessageEntity
+import android.util.Log
+import com.google.firebase.database.*
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.ChatMessage
 import com.nottingham.mynottingham.data.model.Conversation
-import com.nottingham.mynottingham.data.remote.RetrofitInstance
-import com.nottingham.mynottingham.data.remote.dto.*
-import com.nottingham.mynottingham.util.Constants
-import kotlinx.coroutines.Dispatchers
+import com.nottingham.mynottingham.data.remote.dto.ContactSuggestionDto
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 
 /**
  * Repository for Message operations
- * Coordinates between local database and remote API
+ *
+ * ✅ FIREBASE ONLY - No backend API dependencies
+ * All messaging operations use Firebase Realtime Database
+ *
+ * Data structure:
+ * - conversations/{conversationId}: Global conversation metadata
+ * - messages/{conversationId}/{messageId}: Messages
+ * - user_conversations/{userId}/{conversationId}: User's conversation list with denormalized data
  */
 class MessageRepository(private val context: Context) {
 
-    private val database = AppDatabase.getInstance(context)
-    private val messageDao = database.messageDao()
-    private val conversationDao = database.conversationDao()
-    private val participantDao = database.conversationParticipantDao()
-    private val apiService = RetrofitInstance.apiService
+    companion object {
+        private const val TAG = "MessageRepository"
+    }
+
+    private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
+    private val conversationsRef = database.getReference("conversations")
+    private val messagesRef = database.getReference("messages")
+    private val userConversationsRef = database.getReference("user_conversations")
+    private val usersRef = database.getReference("users")
+    private val firebaseUserRepo = FirebaseUserRepository()
 
     // ========== Conversation Operations ==========
 
     /**
-     * Get all conversations from local database as Flow
-     * Ordered by pinned status and last message time
+     * Get all conversations for a user (real-time from Firebase)
      */
-    fun getConversationsFlow(currentUserId: String): Flow<List<Conversation>> {
-        return conversationDao.getAllConversations().map { entities ->
-            entities.map { entity ->
-                val participants = participantDao.getParticipantsForConversationSync(entity.id)
-                entityToConversation(entity, participants, currentUserId)
+    fun getConversationsFlow(currentUserId: String): Flow<List<Conversation>> = callbackFlow {
+        Log.d(TAG, "Getting conversations for user: $currentUserId")
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val conversations = mutableListOf<Conversation>()
+
+                for (child in snapshot.children) {
+                    try {
+                        val conversationId = child.key ?: continue
+                        conversations.add(
+                            Conversation(
+                                id = conversationId,
+                                participantId = child.child("participantId").getValue(String::class.java) ?: "",
+                                participantName = child.child("participantName").getValue(String::class.java) ?: "Unknown",
+                                participantAvatar = child.child("participantAvatar").getValue(String::class.java),
+                                lastMessage = child.child("lastMessage").getValue(String::class.java) ?: "",
+                                lastMessageTime = child.child("lastMessageTime").getValue(Long::class.java) ?: 0L,
+                                unreadCount = child.child("unreadCount").getValue(Int::class.java) ?: 0,
+                                isOnline = child.child("isOnline").getValue(Boolean::class.java) ?: false,
+                                isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false,
+                                isGroup = child.child("isGroup").getValue(Boolean::class.java) ?: false
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing conversation: ${e.message}")
+                    }
+                }
+
+                // Sort: pinned first, then by last message time
+                val sorted = conversations.sortedWith(
+                    compareByDescending<Conversation> { it.isPinned }
+                        .thenByDescending { it.lastMessageTime }
+                )
+                Log.d(TAG, "Loaded ${sorted.size} conversations")
+                trySend(sorted)
             }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to read conversations: ${error.message}")
+                close(error.toException())
+            }
+        }
+
+        userConversationsRef.child(currentUserId).addValueEventListener(listener)
+
+        awaitClose {
+            userConversationsRef.child(currentUserId).removeEventListener(listener)
         }
     }
 
     /**
-     * Sync conversations from API and save to local database
+     * Sync conversations - For Firebase, this is a no-op since we use real-time listeners
      */
     suspend fun syncConversations(token: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getConversations("Bearer $token")
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val conversations = response.body()?.data ?: emptyList()
-
-                    // Clear all local conversations first to prevent showing other users' conversations
-                    // This ensures we only show the current user's conversations
-                    conversationDao.deleteAllConversations()
-                    participantDao.deleteAllParticipants()
-
-                    // Save conversations to database
-                    conversations.forEach { dto ->
-                        val entity = dtoToConversationEntity(dto)
-                        conversationDao.insertConversation(entity)
-
-                        // Save participants
-                        val participantEntities = dto.participants.map { participantDto ->
-                            ConversationParticipantEntity(
-                                conversationId = dto.id,
-                                userId = participantDto.userId,
-                                userName = participantDto.userName,
-                                userAvatar = participantDto.userAvatar,
-                                isOnline = participantDto.isOnline,
-                                isTyping = participantDto.isTyping,
-                                lastSeenAt = participantDto.lastSeenAt
-                            )
-                        }
-                        participantDao.insertParticipants(participantEntities)
-                    }
-
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to sync conversations"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        // Firebase uses real-time sync, no manual sync needed
+        return Result.success(Unit)
     }
 
     /**
-     * Create new conversation
+     * Create new conversation using Firebase
      */
     suspend fun createConversation(
         token: String,
@@ -96,171 +110,334 @@ class MessageRepository(private val context: Context) {
         isGroup: Boolean = false,
         groupName: String? = null
     ): Result<Conversation> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val request = CreateConversationRequest(participantIds, isGroup, groupName)
-                val response = apiService.createConversation("Bearer $token", request)
+        return try {
+            // Get current user info
+            val tokenManager = TokenManager(context)
+            val currentUserId = tokenManager.getUserId().first() ?: return Result.failure(Exception("User not logged in"))
+            val currentUserName = tokenManager.getFullName().first() ?: "Unknown"
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val dto = response.body()?.data
-                    if (dto != null) {
-                        // Save to local database
-                        val entity = dtoToConversationEntity(dto)
-                        conversationDao.insertConversation(entity)
-
-                        val participantEntities = dto.participants.map { p ->
-                            ConversationParticipantEntity(
-                                conversationId = dto.id,
-                                userId = p.userId,
-                                userName = p.userName,
-                                userAvatar = p.userAvatar,
-                                isOnline = p.isOnline,
-                                isTyping = p.isTyping,
-                                lastSeenAt = p.lastSeenAt
-                            )
-                        }
-                        participantDao.insertParticipants(participantEntities)
-
-                        // Get current user ID from TokenManager
-                        val currentUserId = getCurrentUserId()
-                        val conversation = entityToConversation(entity, participantEntities, currentUserId)
-                        Result.success(conversation)
-                    } else {
-                        Result.failure(Exception("Conversation data is null"))
-                    }
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to create conversation"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+            if (participantIds.isEmpty()) {
+                return Result.failure(Exception("No participants specified"))
             }
+
+            val participantId = participantIds.first()
+
+            // Get participant info from Firebase
+            val participantSnapshot = usersRef.child(participantId).get().await()
+            val participantName = participantSnapshot.child("fullName").getValue(String::class.java) ?: "Unknown"
+            val participantAvatar = participantSnapshot.child("profileImageUrl").getValue(String::class.java)
+
+            // For one-on-one, check if conversation already exists
+            if (!isGroup) {
+                val existingConversation = findExistingConversation(currentUserId, participantId)
+                if (existingConversation != null) {
+                    Log.d(TAG, "Found existing conversation: ${existingConversation.id}")
+                    return Result.success(existingConversation)
+                }
+            }
+
+            // Generate conversation ID
+            val conversationId = if (isGroup) {
+                conversationsRef.push().key ?: return Result.failure(Exception("Failed to generate ID"))
+            } else {
+                generateConversationId(currentUserId, participantId)
+            }
+
+            val now = System.currentTimeMillis()
+
+            // Save global conversation data
+            val conversationData = mapOf(
+                "id" to conversationId,
+                "isGroup" to isGroup,
+                "groupName" to groupName,
+                "createdAt" to now,
+                "updatedAt" to now,
+                "participants" to mapOf(
+                    currentUserId to true,
+                    participantId to true
+                )
+            )
+            conversationsRef.child(conversationId).setValue(conversationData).await()
+
+            // Save to current user's conversations
+            val currentUserData = mapOf(
+                "participantId" to participantId,
+                "participantName" to participantName,
+                "participantAvatar" to participantAvatar,
+                "lastMessage" to "",
+                "lastMessageTime" to now,
+                "unreadCount" to 0,
+                "isPinned" to false,
+                "isGroup" to isGroup,
+                "isOnline" to false
+            )
+            userConversationsRef.child(currentUserId).child(conversationId).setValue(currentUserData).await()
+
+            // Save to participant's conversations
+            val participantData = mapOf(
+                "participantId" to currentUserId,
+                "participantName" to currentUserName,
+                "participantAvatar" to null,
+                "lastMessage" to "",
+                "lastMessageTime" to now,
+                "unreadCount" to 0,
+                "isPinned" to false,
+                "isGroup" to isGroup,
+                "isOnline" to false
+            )
+            userConversationsRef.child(participantId).child(conversationId).setValue(participantData).await()
+
+            Log.d(TAG, "Created conversation: $conversationId")
+
+            Result.success(
+                Conversation(
+                    id = conversationId,
+                    participantId = participantId,
+                    participantName = participantName,
+                    participantAvatar = participantAvatar,
+                    lastMessage = "",
+                    lastMessageTime = now,
+                    unreadCount = 0,
+                    isOnline = false,
+                    isPinned = false,
+                    isGroup = isGroup
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating conversation: ${e.message}")
+            Result.failure(e)
         }
     }
 
     /**
-     * Get current user ID from DataStore
+     * Find existing one-on-one conversation
      */
-    private suspend fun getCurrentUserId(): String {
-        val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(Constants.KEY_USER_ID, "") ?: ""
+    private suspend fun findExistingConversation(userId1: String, userId2: String): Conversation? {
+        return try {
+            val conversationId = generateConversationId(userId1, userId2)
+            val snapshot = userConversationsRef.child(userId1).child(conversationId).get().await()
+
+            if (snapshot.exists()) {
+                Conversation(
+                    id = conversationId,
+                    participantId = snapshot.child("participantId").getValue(String::class.java) ?: "",
+                    participantName = snapshot.child("participantName").getValue(String::class.java) ?: "Unknown",
+                    participantAvatar = snapshot.child("participantAvatar").getValue(String::class.java),
+                    lastMessage = snapshot.child("lastMessage").getValue(String::class.java) ?: "",
+                    lastMessageTime = snapshot.child("lastMessageTime").getValue(Long::class.java) ?: 0L,
+                    unreadCount = snapshot.child("unreadCount").getValue(Int::class.java) ?: 0,
+                    isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false,
+                    isPinned = snapshot.child("isPinned").getValue(Boolean::class.java) ?: false,
+                    isGroup = snapshot.child("isGroup").getValue(Boolean::class.java) ?: false
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error finding existing conversation: ${e.message}")
+            null
+        }
     }
 
     /**
-     * Update conversation pinned status
+     * Generate deterministic conversation ID for one-on-one chats
+     */
+    private fun generateConversationId(userId1: String, userId2: String): String {
+        return if (userId1 < userId2) "${userId1}_${userId2}" else "${userId2}_${userId1}"
+    }
+
+    /**
+     * Update pinned status
      */
     suspend fun updatePinnedStatus(token: String, conversationId: String, isPinned: Boolean): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val request = UpdatePinnedStatusRequest(isPinned)
-                val response = apiService.updatePinnedStatus("Bearer $token", conversationId, request)
+        return try {
+            val tokenManager = TokenManager(context)
+            val currentUserId = tokenManager.getUserId().first() ?: return Result.failure(Exception("User not logged in"))
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    // Update local database
-                    conversationDao.updatePinnedStatus(conversationId, isPinned)
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to update pinned status"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+            userConversationsRef.child(currentUserId).child(conversationId)
+                .child("isPinned").setValue(isPinned).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating pinned status: ${e.message}")
+            Result.failure(e)
         }
     }
 
     /**
-     * Search conversations locally
-     * Only searches in other participants' names (excludes current user), group names, and messages
+     * Search conversations (local search in memory)
      */
     fun searchConversations(query: String, currentUserId: String): Flow<List<Conversation>> {
-        return conversationDao.searchConversations(query, currentUserId).map { entities ->
-            entities.map { entity ->
-                val participants = participantDao.getParticipantsForConversationSync(entity.id)
-                entityToConversation(entity, participants, currentUserId)
+        return callbackFlow {
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val conversations = mutableListOf<Conversation>()
+
+                    for (child in snapshot.children) {
+                        val conversationId = child.key ?: continue
+                        val participantName = child.child("participantName").getValue(String::class.java) ?: ""
+                        val lastMessage = child.child("lastMessage").getValue(String::class.java) ?: ""
+
+                        // Filter by query
+                        if (participantName.contains(query, ignoreCase = true) ||
+                            lastMessage.contains(query, ignoreCase = true)) {
+                            conversations.add(
+                                Conversation(
+                                    id = conversationId,
+                                    participantId = child.child("participantId").getValue(String::class.java) ?: "",
+                                    participantName = participantName,
+                                    participantAvatar = child.child("participantAvatar").getValue(String::class.java),
+                                    lastMessage = lastMessage,
+                                    lastMessageTime = child.child("lastMessageTime").getValue(Long::class.java) ?: 0L,
+                                    unreadCount = child.child("unreadCount").getValue(Int::class.java) ?: 0,
+                                    isOnline = child.child("isOnline").getValue(Boolean::class.java) ?: false,
+                                    isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false,
+                                    isGroup = child.child("isGroup").getValue(Boolean::class.java) ?: false
+                                )
+                            )
+                        }
+                    }
+                    trySend(conversations)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    close(error.toException())
+                }
             }
+
+            userConversationsRef.child(currentUserId).addValueEventListener(listener)
+            awaitClose { userConversationsRef.child(currentUserId).removeEventListener(listener) }
         }
     }
 
     // ========== Message Operations ==========
 
     /**
-     * Get messages for a conversation from local database
+     * Get messages for a conversation (real-time from Firebase)
      */
-    fun getMessagesFlow(conversationId: String): Flow<List<ChatMessage>> {
-        return messageDao.getMessagesForConversation(conversationId).map { entities ->
-            entities.map { entityToChatMessage(it) }
+    fun getMessagesFlow(conversationId: String): Flow<List<ChatMessage>> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val messages = mutableListOf<ChatMessage>()
+
+                for (child in snapshot.children) {
+                    try {
+                        val messageId = child.key ?: continue
+                        messages.add(
+                            ChatMessage(
+                                id = messageId,
+                                conversationId = conversationId,
+                                senderId = child.child("senderId").getValue(String::class.java) ?: "",
+                                senderName = child.child("senderName").getValue(String::class.java) ?: "",
+                                senderAvatar = child.child("senderAvatar").getValue(String::class.java),
+                                message = child.child("content").getValue(String::class.java) ?: "",
+                                timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L,
+                                isRead = child.child("isRead").getValue(Boolean::class.java) ?: false,
+                                messageType = child.child("messageType").getValue(String::class.java) ?: "TEXT"
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing message: ${e.message}")
+                    }
+                }
+
+                trySend(messages.sortedBy { it.timestamp })
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to read messages: ${error.message}")
+                close(error.toException())
+            }
+        }
+
+        messagesRef.child(conversationId).addValueEventListener(listener)
+
+        awaitClose {
+            messagesRef.child(conversationId).removeEventListener(listener)
         }
     }
 
     /**
-     * Sync messages from API and save to local database
+     * Sync messages - For Firebase, this is a no-op
      */
     suspend fun syncMessages(
         token: String,
         conversationId: String,
         page: Int = 0,
-        size: Int = Constants.MESSAGE_PAGE_SIZE
+        size: Int = 50
     ): Result<List<ChatMessage>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getMessages("Bearer $token", conversationId, page, size)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val messages = response.body()?.data?.messages ?: emptyList()
-
-                    // Save messages to database
-                    val entities = messages.map { dtoToMessageEntity(it) }
-                    messageDao.insertMessages(entities)
-
-                    val chatMessages = entities.map { entityToChatMessage(it) }
-                    Result.success(chatMessages)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to sync messages"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        // Firebase uses real-time sync
+        return Result.success(emptyList())
     }
 
     /**
-     * Send a message
+     * Send a message using Firebase
      */
     suspend fun sendMessage(
         token: String,
         conversationId: String,
         content: String,
-        messageType: String = Constants.MessageTypes.TEXT
+        messageType: String = "TEXT"
     ): Result<ChatMessage> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val request = SendMessageRequest(content, messageType, null)
-                val response = apiService.sendMessage("Bearer $token", conversationId, request)
+        return try {
+            val tokenManager = TokenManager(context)
+            val senderId = tokenManager.getUserId().first() ?: return Result.failure(Exception("User not logged in"))
+            val senderName = tokenManager.getFullName().first() ?: "Unknown"
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val dto = response.body()?.data
-                    if (dto != null) {
-                        // Save to local database
-                        val entity = dtoToMessageEntity(dto)
-                        messageDao.insertMessage(entity)
+            val messageId = messagesRef.child(conversationId).push().key
+                ?: return Result.failure(Exception("Failed to generate message ID"))
 
-                        // Update conversation's last message
-                        conversationDao.updateLastMessage(
-                            conversationId = conversationId,
-                            lastMessage = content,
-                            timestamp = dto.timestamp,
-                            senderId = dto.senderId
-                        )
+            val now = System.currentTimeMillis()
 
-                        val chatMessage = entityToChatMessage(entity)
-                        Result.success(chatMessage)
-                    } else {
-                        Result.failure(Exception("Message data is null"))
-                    }
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to send message"))
+            val messageData = mapOf(
+                "senderId" to senderId,
+                "senderName" to senderName,
+                "content" to content,
+                "timestamp" to now,
+                "isRead" to false,
+                "messageType" to messageType
+            )
+
+            // Save message
+            messagesRef.child(conversationId).child(messageId).setValue(messageData).await()
+
+            // Update last message for all participants
+            val conversationSnapshot = conversationsRef.child(conversationId).child("participants").get().await()
+            for (participant in conversationSnapshot.children) {
+                val participantId = participant.key ?: continue
+
+                val updates = mutableMapOf<String, Any>(
+                    "lastMessage" to content,
+                    "lastMessageTime" to now
+                )
+
+                // Increment unread count for other participants
+                if (participantId != senderId) {
+                    val currentUnread = userConversationsRef.child(participantId).child(conversationId)
+                        .child("unreadCount").get().await().getValue(Int::class.java) ?: 0
+                    updates["unreadCount"] = currentUnread + 1
                 }
-            } catch (e: Exception) {
-                Result.failure(e)
+
+                userConversationsRef.child(participantId).child(conversationId).updateChildren(updates).await()
             }
+
+            Log.d(TAG, "Message sent: $messageId")
+
+            Result.success(
+                ChatMessage(
+                    id = messageId,
+                    conversationId = conversationId,
+                    senderId = senderId,
+                    senderName = senderName,
+                    senderAvatar = null,
+                    message = content,
+                    timestamp = now,
+                    isRead = false,
+                    messageType = messageType
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending message: ${e.message}")
+            Result.failure(e)
         }
     }
 
@@ -268,20 +445,13 @@ class MessageRepository(private val context: Context) {
      * Mark messages as read
      */
     suspend fun markMessagesAsRead(token: String, conversationId: String, currentUserId: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.markAsRead("Bearer $token", conversationId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    // Update local database
-                    messageDao.markMessagesAsRead(conversationId, currentUserId)
-                    conversationDao.updateUnreadCount(conversationId, 0)
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to mark as read"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+        return try {
+            userConversationsRef.child(currentUserId).child(conversationId)
+                .child("unreadCount").setValue(0).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking as read: ${e.message}")
+            Result.failure(e)
         }
     }
 
@@ -289,9 +459,13 @@ class MessageRepository(private val context: Context) {
      * Mark conversation as unread
      */
     suspend fun markConversationAsUnread(conversationId: String) {
-        withContext(Dispatchers.IO) {
-            // Set unread count to 1
-            conversationDao.updateUnreadCount(conversationId, 1)
+        try {
+            val tokenManager = TokenManager(context)
+            val currentUserId = tokenManager.getUserId().first() ?: return
+            userConversationsRef.child(currentUserId).child(conversationId)
+                .child("unreadCount").setValue(1).await()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking as unread: ${e.message}")
         }
     }
 
@@ -299,212 +473,79 @@ class MessageRepository(private val context: Context) {
      * Delete conversation
      */
     suspend fun deleteConversation(token: String, conversationId: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                // Call backend API to delete conversation
-                val response = apiService.deleteConversation("Bearer $token", conversationId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    // Delete from local database only after successful API call
-                    conversationDao.deleteConversationById(conversationId)
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to delete conversation"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
+        return try {
+            val tokenManager = TokenManager(context)
+            val currentUserId = tokenManager.getUserId().first() ?: return Result.failure(Exception("User not logged in"))
+
+            userConversationsRef.child(currentUserId).child(conversationId).removeValue().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting conversation: ${e.message}")
+            Result.failure(e)
         }
     }
 
     /**
-     * Update typing status
+     * Update typing status (no-op for now, can implement with Firebase presence)
      */
     suspend fun updateTypingStatus(token: String, conversationId: String, isTyping: Boolean): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val request = TypingStatusRequest(conversationId, isTyping)
-                val response = apiService.updateTypingStatus("Bearer $token", request)
-
-                if (response.isSuccessful) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(Exception("Failed to update typing status"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        // TODO: Implement with Firebase presence if needed
+        return Result.success(Unit)
     }
 
     /**
-     * Get contact suggestions
+     * Get contact suggestions from Firebase
      */
     suspend fun getContactSuggestions(token: String): Result<List<ContactSuggestionDto>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getContactSuggestions("Bearer $token")
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val contacts = response.body()?.data ?: emptyList()
-                    Result.success(contacts)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to get contact suggestions"))
+        return try {
+            val tokenManager = TokenManager(context)
+            val currentUserId = tokenManager.getUserId().first()
+
+            val result = firebaseUserRepo.getAllUsers(currentUserId)
+            if (result.isSuccess) {
+                val users = result.getOrNull() ?: emptyList()
+                val contacts = users.map { user ->
+                    ContactSuggestionDto(
+                        userId = user.id,
+                        userName = user.name,
+                        userAvatar = user.profileImageUrl,
+                        program = if (user.role == "STUDENT") user.program else user.faculty,
+                        year = if (user.role == "STUDENT") user.year else null,
+                        isOnline = false
+                    )
                 }
-            } catch (e: Exception) {
-                Result.failure(e)
+                Log.d(TAG, "Loaded ${contacts.size} contacts from Firebase")
+                Result.success(contacts)
+            } else {
+                Result.failure(result.exceptionOrNull() ?: Exception("Failed to load contacts"))
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting contacts: ${e.message}")
+            Result.failure(e)
         }
     }
 
     /**
-     * Get default contacts for a user (teachers for students, students for teachers)
+     * Get default contacts - Now uses Firebase
      */
     suspend fun getDefaultContacts(userId: String): Result<List<ContactSuggestionDto>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = apiService.getDefaultContacts(userId)
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val contacts = response.body()?.data ?: emptyList()
-                    Result.success(contacts)
-                } else {
-                    Result.failure(Exception(response.body()?.message ?: "Failed to get default contacts"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        return getContactSuggestions("")
     }
 
     /**
-     * Create default conversations for a user
-     * Returns the list of created conversations
+     * Create default conversations - Simplified for Firebase
      */
     suspend fun createDefaultConversations(token: String, userId: String): Result<List<Conversation>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val defaultContactsResult = getDefaultContacts(userId)
-                if (defaultContactsResult.isFailure) {
-                    return@withContext defaultContactsResult.exceptionOrNull()?.let { Result.failure<List<Conversation>>(it) }
-                        ?: Result.failure(Exception("Failed to get default contacts"))
-                }
-
-                val contacts = defaultContactsResult.getOrNull() ?: emptyList()
-                val createdConversations = mutableListOf<Conversation>()
-
-                // Create conversation with each default contact
-                for (contact in contacts) {
-                    val createResult = createConversation(
-                        token = token,
-                        participantIds = listOf(contact.userId),
-                        isGroup = false
-                    )
-
-                    if (createResult.isSuccess) {
-                        createResult.getOrNull()?.let { createdConversations.add(it) }
-                    }
-                }
-
-                Result.success(createdConversations)
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
+        // No default conversations needed with Firebase
+        return Result.success(emptyList())
     }
-
-    // ========== Data Retention ==========
 
     /**
-     * Delete messages older than 7 days
+     * Delete messages older than 7 days - Firebase handles this differently
      */
     suspend fun cleanupOldMessages(): Result<Int> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val cutoffTime = System.currentTimeMillis() - Constants.MESSAGE_RETENTION_MILLIS
-                val deletedCount = messageDao.deleteOldMessages(cutoffTime)
-                Result.success(deletedCount)
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
-    }
-
-    // ========== Mapper Functions ==========
-
-    private fun dtoToConversationEntity(dto: ConversationDto): ConversationEntity {
-        return ConversationEntity(
-            id = dto.id,
-            isGroup = dto.isGroup,
-            groupName = dto.groupName,
-            groupAvatar = dto.groupAvatar,
-            lastMessage = dto.lastMessage,
-            lastMessageTime = dto.lastMessageTime,
-            lastMessageSenderId = dto.lastMessageSenderId,
-            unreadCount = dto.unreadCount,
-            isPinned = dto.isPinned,
-            createdAt = dto.createdAt,
-            updatedAt = dto.updatedAt
-        )
-    }
-
-    private fun entityToConversation(
-        entity: ConversationEntity,
-        participants: List<ConversationParticipantEntity>,
-        currentUserId: String
-    ): Conversation {
-        // For one-on-one chats, get the other participant's info
-        val otherParticipant = if (!entity.isGroup && participants.isNotEmpty()) {
-            participants.firstOrNull { it.userId != currentUserId } ?: participants.first()
-        } else {
-            null
-        }
-
-        return Conversation(
-            id = entity.id,
-            participantId = otherParticipant?.userId ?: "",
-            participantName = if (entity.isGroup) {
-                entity.groupName ?: "Group Chat"
-            } else {
-                otherParticipant?.userName ?: "Unknown"
-            },
-            participantAvatar = if (entity.isGroup) {
-                entity.groupAvatar
-            } else {
-                otherParticipant?.userAvatar
-            },
-            lastMessage = entity.lastMessage ?: "",
-            lastMessageTime = entity.lastMessageTime,
-            unreadCount = entity.unreadCount,
-            isOnline = otherParticipant?.isOnline ?: false,
-            isPinned = entity.isPinned,
-            isGroup = entity.isGroup
-        )
-    }
-
-    private fun dtoToMessageEntity(dto: MessageDto): MessageEntity {
-        return MessageEntity(
-            id = dto.id,
-            conversationId = dto.conversationId,
-            senderId = dto.senderId,
-            senderName = dto.senderName,
-            senderAvatar = dto.senderAvatar,
-            content = dto.content,
-            timestamp = dto.timestamp,
-            isRead = dto.isRead,
-            messageType = dto.messageType,
-            createdAt = dto.createdAt
-        )
-    }
-
-    private fun entityToChatMessage(entity: MessageEntity): ChatMessage {
-        return ChatMessage(
-            id = entity.id,
-            conversationId = entity.conversationId,
-            senderId = entity.senderId,
-            senderName = entity.senderName,
-            senderAvatar = entity.senderAvatar,
-            message = entity.content,
-            timestamp = entity.timestamp,
-            isRead = entity.isRead,
-            messageType = entity.messageType
-        )
+        // Firebase can use Cloud Functions for cleanup
+        // For now, return success
+        return Result.success(0)
     }
 }

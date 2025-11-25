@@ -70,6 +70,12 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
     fun loadPostDetail(postId: String) {
         viewModelScope.launch {
             _loading.value = true
+
+            // 确保 currentUserId 已获取（等待 init 完成或重新获取）
+            if (currentUserId.isEmpty()) {
+                currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
+            }
+
             // 1. 监听帖子详情
             repository.getPostDetailFlow(postId, currentUserId).collect {
                 _post.value = it
@@ -78,15 +84,25 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         viewModelScope.launch {
+            // 确保 currentUserId 已获取
+            if (currentUserId.isEmpty()) {
+                currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
+            }
+
             // 2. 监听评论
             repository.getCommentsFlow(postId, currentUserId).collect {
                 _comments.value = it
             }
         }
 
-        // 3. 增加浏览量 (一次性)
+        // 3. 增加浏览量 (每个用户只计算一次)
         viewModelScope.launch {
-             repository.incrementViews(postId)
+            // 确保 currentUserId 已获取
+            if (currentUserId.isEmpty()) {
+                currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
+            }
+
+            repository.incrementViews(postId, currentUserId)
         }
     }
 

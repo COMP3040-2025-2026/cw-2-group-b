@@ -68,6 +68,9 @@ class FirebaseUserRepository {
                     // 教师特有字段
                     val employeeId = snapshot.child("employeeId").getValue(String::class.java)
                     val department = snapshot.child("department").getValue(String::class.java)
+                    val title = snapshot.child("title").getValue(String::class.java)
+                    val officeRoom = snapshot.child("officeRoom").getValue(String::class.java)
+                    val profileImageUrl = snapshot.child("profileImageUrl").getValue(String::class.java)
 
                     // 映射到 User 模型
                     val user = User(
@@ -80,7 +83,9 @@ class FirebaseUserRepository {
                         faculty = if (role == "STUDENT") faculty else (department ?: ""),
                         year = 2, // TODO: 从 Firebase 添加 year 字段，或从 matricNumber 解析
                         program = "Computer Science", // TODO: 从 Firebase 添加 program 字段
-                        profileImageUrl = null // TODO: 支持头像上传到 Firebase Storage
+                        title = title,
+                        officeRoom = officeRoom,
+                        profileImageUrl = profileImageUrl
                     )
 
                     trySend(user)
@@ -126,6 +131,11 @@ class FirebaseUserRepository {
             val employeeId = snapshot.child("employeeId").getValue(String::class.java)
             val department = snapshot.child("department").getValue(String::class.java)
 
+            // Teacher-specific fields
+            val title = snapshot.child("title").getValue(String::class.java)
+            val officeRoom = snapshot.child("officeRoom").getValue(String::class.java)
+            val profileImageUrl = snapshot.child("profileImageUrl").getValue(String::class.java)
+
             val user = User(
                 id = userId,
                 username = username,
@@ -136,7 +146,9 @@ class FirebaseUserRepository {
                 faculty = if (role == "STUDENT") faculty else (department ?: ""),
                 year = 2,
                 program = "Computer Science",
-                profileImageUrl = null
+                title = title,
+                officeRoom = officeRoom,
+                profileImageUrl = profileImageUrl
             )
 
             Result.success(user)
@@ -172,6 +184,64 @@ class FirebaseUserRepository {
             usersRef.child(userId).get().await().exists()
         } catch (e: Exception) {
             false
+        }
+    }
+
+    /**
+     * 获取所有用户 (用于联系人列表)
+     * @param excludeUserId 排除的用户ID (通常是当前用户)
+     * @return Result<List<User>> 用户列表
+     */
+    suspend fun getAllUsers(excludeUserId: String? = null): Result<List<User>> {
+        return try {
+            val snapshot = usersRef.get().await()
+            val users = mutableListOf<User>()
+
+            for (child in snapshot.children) {
+                val uid = child.key ?: continue
+
+                // Skip the current user
+                if (uid == excludeUserId) continue
+
+                val username = child.child("username").getValue(String::class.java) ?: ""
+                val fullName = child.child("fullName").getValue(String::class.java) ?: ""
+                val email = child.child("email").getValue(String::class.java) ?: ""
+                val role = child.child("role").getValue(String::class.java) ?: "STUDENT"
+
+                // Skip admin users from contact list
+                if (role == "ADMIN") continue
+
+                val studentId = child.child("studentId").getValue(Long::class.java)?.toString() ?: ""
+                val matricNumber = child.child("matricNumber").getValue(String::class.java) ?: ""
+                val faculty = child.child("faculty").getValue(String::class.java) ?: ""
+                val employeeId = child.child("employeeId").getValue(String::class.java)
+                val department = child.child("department").getValue(String::class.java)
+                val title = child.child("title").getValue(String::class.java)
+                val officeRoom = child.child("officeRoom").getValue(String::class.java)
+                val profileImageUrl = child.child("profileImageUrl").getValue(String::class.java)
+
+                val user = User(
+                    id = uid,
+                    username = username,
+                    name = fullName,
+                    email = email,
+                    role = role,
+                    studentId = if (role == "STUDENT") studentId else (employeeId ?: ""),
+                    faculty = if (role == "STUDENT") faculty else (department ?: ""),
+                    year = 2,
+                    program = if (role == "STUDENT") "Computer Science" else (department ?: ""),
+                    title = title,
+                    officeRoom = officeRoom,
+                    profileImageUrl = profileImageUrl
+                )
+                users.add(user)
+            }
+
+            android.util.Log.d("FirebaseUserRepo", "Loaded ${users.size} users from Firebase")
+            Result.success(users)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseUserRepo", "Error fetching all users: ${e.message}")
+            Result.failure(e)
         }
     }
 

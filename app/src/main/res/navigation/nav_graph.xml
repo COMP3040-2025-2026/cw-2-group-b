@@ -229,7 +229,7 @@
 
         <argument
             android:name="postId"
-            app:argType="long" />
+            app:argType="string" />
 
     </fragment>
 

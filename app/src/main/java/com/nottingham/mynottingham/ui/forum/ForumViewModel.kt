@@ -33,12 +33,13 @@ class ForumViewModel(application: Application) : BaseViewModel(application) {
 
     // ✅ 核心修改：组合 currentCategory 和 currentUserId 来生成帖子流
     // Firebase 返回 ForumPost 模型（不再使用 Room 的 ForumPostEntity）
+    // 注意：论坛帖子是公开的，即使 userId 为空也应该能加载（userId 只用于检查点赞状态）
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val posts: Flow<List<ForumPost>> = combine(_currentCategory, _currentUserId) { category, userId ->
         Pair(category, userId)
     }.flatMapLatest { (category, userId) ->
-        if (userId.isEmpty()) flowOf(emptyList())
-        else repository.getPostsFlow(category, userId)
+        // 即使 userId 为空也加载帖子（公开内容），userId 只用于点赞状态检查
+        repository.getPostsFlow(category, userId)
     }
 
     /**

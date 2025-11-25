@@ -6,6 +6,7 @@ import com.nottingham.mynottingham.data.model.ForumPost
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -44,10 +45,12 @@ import kotlinx.coroutines.tasks.await
 class FirebaseForumRepository {
 
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
-    private val postsRef: DatabaseReference = database.getReference("posts")
-    private val postLikesRef: DatabaseReference = database.getReference("post_likes")
-    private val postCommentsRef: DatabaseReference = database.getReference("post_comments")
-    private val commentLikesRef: DatabaseReference = database.getReference("comment_likes")
+    // 修正路径：数据库中实际使用 forum_posts 和 forum_comments
+    private val postsRef: DatabaseReference = database.getReference("forum_posts")
+    private val postLikesRef: DatabaseReference = database.getReference("forum_post_likes")
+    private val postCommentsRef: DatabaseReference = database.getReference("forum_comments")
+    private val commentLikesRef: DatabaseReference = database.getReference("forum_comment_likes")
+    private val postViewsRef: DatabaseReference = database.getReference("forum_post_views")
 
     /**
      * 获取所有帖子（实时监听）
@@ -57,62 +60,68 @@ class FirebaseForumRepository {
     fun getPostsFlow(category: String? = null, currentUserId: String): Flow<List<ForumPost>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val posts = mutableListOf<ForumPost>()
-
                 if (!snapshot.exists()) {
                     trySend(emptyList())
                     return
                 }
 
-                snapshot.children.forEach { child ->
-                    try {
-                        val postId = child.key ?: return@forEach
-                        val authorId = child.child("authorId").getValue(String::class.java) ?: ""
-                        val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                        val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
-                        val postCategory = child.child("category").getValue(String::class.java) ?: "GENERAL"
-                        val title = child.child("title").getValue(String::class.java) ?: ""
-                        val content = child.child("content").getValue(String::class.java) ?: ""
-                        val imageUrl = child.child("imageUrl").getValue(String::class.java)
-                        val likes = child.child("likes").getValue(Int::class.java) ?: 0
-                        val comments = child.child("comments").getValue(Int::class.java) ?: 0
-                        val views = child.child("views").getValue(Int::class.java) ?: 0
-                        val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
-                        val updatedAt = child.child("updatedAt").getValue(Long::class.java) ?: 0L
+                // 使用协程来异步查询点赞状态
+                launch {
+                    val posts = mutableListOf<ForumPost>()
 
-                        // 检查当前用户是否点赞
-                        // 注意：这是异步操作，在实际使用中可能需要优化
-                        val isLiked = false // 暂时设为 false，后续通过单独查询优化
+                    snapshot.children.forEach { child ->
+                        try {
+                            val postId = child.key ?: return@forEach
+                            val authorId = child.child("authorId").getValue(String::class.java) ?: ""
+                            val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
+                            val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
+                            val postCategory = child.child("category").getValue(String::class.java) ?: "GENERAL"
+                            val title = child.child("title").getValue(String::class.java) ?: ""
+                            val content = child.child("content").getValue(String::class.java) ?: ""
+                            val imageUrl = child.child("imageUrl").getValue(String::class.java)
+                            val likes = child.child("likes").getValue(Int::class.java) ?: 0
+                            val comments = child.child("comments").getValue(Int::class.java) ?: 0
+                            val views = child.child("views").getValue(Int::class.java) ?: 0
+                            val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
+                            val updatedAt = child.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                        // 分类过滤
-                        if (category == null || postCategory == category) {
-                            posts.add(
-                                ForumPost(
-                                    id = postId,
-                                    authorId = authorId,
-                                    authorName = authorName,
-                                    authorAvatar = authorAvatar,
-                                    category = postCategory,
-                                    title = title,
-                                    content = content,
-                                    imageUrl = imageUrl,
-                                    likes = likes,
-                                    comments = comments,
-                                    views = views,
-                                    isLiked = isLiked,
-                                    createdAt = createdAt,
-                                    updatedAt = updatedAt
+                            // 检查当前用户是否点赞（异步查询）
+                            val isLiked = if (currentUserId.isNotEmpty()) {
+                                isPostLiked(postId, currentUserId)
+                            } else {
+                                false
+                            }
+
+                            // 分类过滤
+                            if (category == null || postCategory == category) {
+                                posts.add(
+                                    ForumPost(
+                                        id = postId,
+                                        authorId = authorId,
+                                        authorName = authorName,
+                                        authorAvatar = authorAvatar,
+                                        category = postCategory,
+                                        title = title,
+                                        content = content,
+                                        imageUrl = imageUrl,
+                                        likes = likes,
+                                        comments = comments,
+                                        views = views,
+                                        isLiked = isLiked,
+                                        createdAt = createdAt,
+                                        updatedAt = updatedAt
+                                    )
                                 )
-                            )
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("FirebaseForumRepo", "Error parsing post: ${e.message}")
                         }
-                    } catch (e: Exception) {
-                        android.util.Log.e("FirebaseForumRepo", "Error parsing post: ${e.message}")
                     }
-                }
 
-                // 按创建时间倒序排列（最新的在前）
-                posts.sortByDescending { it.createdAt }
-                trySend(posts)
+                    // 按创建时间倒序排列（最新的在前）
+                    posts.sortByDescending { it.createdAt }
+                    trySend(posts)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -142,44 +151,51 @@ class FirebaseForumRepository {
                     return
                 }
 
-                try {
-                    val authorId = snapshot.child("authorId").getValue(String::class.java) ?: ""
-                    val authorName = snapshot.child("authorName").getValue(String::class.java) ?: "Unknown"
-                    val authorAvatar = snapshot.child("authorAvatar").getValue(String::class.java)
-                    val category = snapshot.child("category").getValue(String::class.java) ?: "GENERAL"
-                    val title = snapshot.child("title").getValue(String::class.java) ?: ""
-                    val content = snapshot.child("content").getValue(String::class.java) ?: ""
-                    val imageUrl = snapshot.child("imageUrl").getValue(String::class.java)
-                    val likes = snapshot.child("likes").getValue(Int::class.java) ?: 0
-                    val comments = snapshot.child("comments").getValue(Int::class.java) ?: 0
-                    val views = snapshot.child("views").getValue(Int::class.java) ?: 0
-                    val createdAt = snapshot.child("createdAt").getValue(Long::class.java) ?: 0L
-                    val updatedAt = snapshot.child("updatedAt").getValue(Long::class.java) ?: 0L
+                // 使用协程来异步查询点赞状态
+                launch {
+                    try {
+                        val authorId = snapshot.child("authorId").getValue(String::class.java) ?: ""
+                        val authorName = snapshot.child("authorName").getValue(String::class.java) ?: "Unknown"
+                        val authorAvatar = snapshot.child("authorAvatar").getValue(String::class.java)
+                        val category = snapshot.child("category").getValue(String::class.java) ?: "GENERAL"
+                        val title = snapshot.child("title").getValue(String::class.java) ?: ""
+                        val content = snapshot.child("content").getValue(String::class.java) ?: ""
+                        val imageUrl = snapshot.child("imageUrl").getValue(String::class.java)
+                        val likes = snapshot.child("likes").getValue(Int::class.java) ?: 0
+                        val comments = snapshot.child("comments").getValue(Int::class.java) ?: 0
+                        val views = snapshot.child("views").getValue(Int::class.java) ?: 0
+                        val createdAt = snapshot.child("createdAt").getValue(Long::class.java) ?: 0L
+                        val updatedAt = snapshot.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                    // 检查是否点赞
-                    val isLiked = false // 后续优化
+                        // 检查当前用户是否点赞（异步查询）
+                        val isLiked = if (currentUserId.isNotEmpty()) {
+                            isPostLiked(postId, currentUserId)
+                        } else {
+                            false
+                        }
 
-                    trySend(
-                        ForumPost(
-                            id = postId,
-                            authorId = authorId,
-                            authorName = authorName,
-                            authorAvatar = authorAvatar,
-                            category = category,
-                            title = title,
-                            content = content,
-                            imageUrl = imageUrl,
-                            likes = likes,
-                            comments = comments,
-                            views = views,
-                            isLiked = isLiked,
-                            createdAt = createdAt,
-                            updatedAt = updatedAt
+                        trySend(
+                            ForumPost(
+                                id = postId,
+                                authorId = authorId,
+                                authorName = authorName,
+                                authorAvatar = authorAvatar,
+                                category = category,
+                                title = title,
+                                content = content,
+                                imageUrl = imageUrl,
+                                likes = likes,
+                                comments = comments,
+                                views = views,
+                                isLiked = isLiked,
+                                createdAt = createdAt,
+                                updatedAt = updatedAt
+                            )
                         )
-                    )
-                } catch (e: Exception) {
-                    android.util.Log.e("FirebaseForumRepo", "Error parsing post detail: ${e.message}")
-                    trySend(null)
+                    } catch (e: Exception) {
+                        android.util.Log.e("FirebaseForumRepo", "Error parsing post detail: ${e.message}")
+                        trySend(null)
+                    }
                 }
             }
 
@@ -205,47 +221,54 @@ class FirebaseForumRepository {
     fun getCommentsFlow(postId: String, currentUserId: String): Flow<List<ForumComment>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val comments = mutableListOf<ForumComment>()
-
                 if (!snapshot.exists()) {
                     trySend(emptyList())
                     return
                 }
 
-                snapshot.children.forEach { child ->
-                    try {
-                        val commentId = child.key ?: return@forEach
-                        val authorId = child.child("authorId").getValue(String::class.java) ?: ""
-                        val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                        val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
-                        val content = child.child("content").getValue(String::class.java) ?: ""
-                        val likes = child.child("likes").getValue(Int::class.java) ?: 0
-                        val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
+                // 使用协程来异步查询点赞状态
+                launch {
+                    val comments = mutableListOf<ForumComment>()
 
-                        // 检查是否点赞
-                        val isLiked = false // 后续优化
+                    snapshot.children.forEach { child ->
+                        try {
+                            val commentId = child.key ?: return@forEach
+                            val authorId = child.child("authorId").getValue(String::class.java) ?: ""
+                            val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
+                            val authorAvatar = child.child("authorAvatar").getValue(String::class.java)
+                            val content = child.child("content").getValue(String::class.java) ?: ""
+                            val likes = child.child("likes").getValue(Int::class.java) ?: 0
+                            val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
 
-                        comments.add(
-                            ForumComment(
-                                id = commentId,
-                                postId = postId,
-                                authorId = authorId,
-                                authorName = authorName,
-                                authorAvatar = authorAvatar,
-                                content = content,
-                                likes = likes,
-                                isLiked = isLiked,
-                                createdAt = createdAt
+                            // 检查当前用户是否点赞了该评论（异步查询）
+                            val isLiked = if (currentUserId.isNotEmpty()) {
+                                isCommentLiked(commentId, currentUserId)
+                            } else {
+                                false
+                            }
+
+                            comments.add(
+                                ForumComment(
+                                    id = commentId,
+                                    postId = postId,
+                                    authorId = authorId,
+                                    authorName = authorName,
+                                    authorAvatar = authorAvatar,
+                                    content = content,
+                                    likes = likes,
+                                    isLiked = isLiked,
+                                    createdAt = createdAt
+                                )
                             )
-                        )
-                    } catch (e: Exception) {
-                        android.util.Log.e("FirebaseForumRepo", "Error parsing comment: ${e.message}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("FirebaseForumRepo", "Error parsing comment: ${e.message}")
+                        }
                     }
-                }
 
-                // 按时间正序排列（旧的在前）
-                comments.sortBy { it.createdAt }
-                trySend(comments)
+                    // 按时间正序排列（旧的在前）
+                    comments.sortBy { it.createdAt }
+                    trySend(comments)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -491,14 +514,29 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 增加帖子浏览量
+     * 增加帖子浏览量（每个用户只计算一次）
      * @param postId 帖子ID
+     * @param userId 用户ID
      */
-    suspend fun incrementViews(postId: String): Result<Unit> {
+    suspend fun incrementViews(postId: String, userId: String): Result<Unit> {
+        if (userId.isEmpty()) {
+            return Result.success(Unit) // 未登录用户不计算浏览量
+        }
+
         return try {
-            val viewsRef = postsRef.child(postId).child("views")
-            val currentViews = viewsRef.get().await().getValue(Int::class.java) ?: 0
-            viewsRef.setValue(currentViews + 1).await()
+            val userViewRef = postViewsRef.child(postId).child(userId)
+            val hasViewed = userViewRef.get().await().exists()
+
+            // 只有首次访问才增加浏览量
+            if (!hasViewed) {
+                // 标记该用户已访问
+                userViewRef.setValue(true).await()
+
+                // 增加浏览量计数
+                val viewsRef = postsRef.child(postId).child("views")
+                val currentViews = viewsRef.get().await().getValue(Int::class.java) ?: 0
+                viewsRef.setValue(currentViews + 1).await()
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {

@@ -214,15 +214,15 @@ class FirebaseMessageRepository {
             // 保存消息
             newMessageRef.setValue(messageData).await()
 
-            // 更新对话的最后消息信息
+            // 更新对话的最后消息信息 (metadata)
             val metadataUpdates = mapOf(
                 "lastMessage" to message,
                 "lastMessageTime" to timestamp
             )
             conversationsRef.child(conversationId).child("metadata").updateChildren(metadataUpdates).await()
 
-            // 更新所有参与者的未读计数（除了发送者自己）
-            updateUnreadCountForParticipants(conversationId, senderId)
+            // 更新所有参与者的 user_conversations 中的 lastMessage 和 lastMessageTime
+            updateLastMessageForAllParticipants(conversationId, message, timestamp, senderId)
 
             Result.success(messageId)
         } catch (e: Exception) {
@@ -449,20 +449,70 @@ class FirebaseMessageRepository {
     }
 
     /**
-     * 更新所有参与者的未读计数（除了发送者）
+     * 更新所有参与者的 user_conversations 中的 lastMessage, lastMessageTime 和 unreadCount
      */
-    private suspend fun updateUnreadCountForParticipants(conversationId: String, senderId: String) {
+    private suspend fun updateLastMessageForAllParticipants(
+        conversationId: String,
+        message: String,
+        timestamp: Long,
+        senderId: String
+    ) {
         try {
-            val metadataSnapshot = conversationsRef.child(conversationId).child("metadata").get().await()
-            val participants = metadataSnapshot.child("participants").children.mapNotNull { it.key }
+            // 尝试从多种可能的路径读取 participants
+            var participants: List<String> = emptyList()
 
-            participants.filter { it != senderId }.forEach { participantId ->
-                val userConvRef = userConversationsRef.child(participantId).child(conversationId).child("unreadCount")
-                val currentCount = userConvRef.get().await().getValue(Int::class.java) ?: 0
-                userConvRef.setValue(currentCount + 1)
+            // 方法1: conversations/{id}/participants (新结构)
+            val directSnapshot = conversationsRef.child(conversationId).child("participants").get().await()
+            if (directSnapshot.exists() && directSnapshot.childrenCount > 0) {
+                participants = directSnapshot.children.mapNotNull { it.key }
+                android.util.Log.d("FirebaseMessageRepo", "Found participants in conversations/{id}/participants: $participants")
+            }
+
+            // 方法2: conversations/{id}/metadata/participants (旧结构)
+            if (participants.isEmpty()) {
+                val metadataSnapshot = conversationsRef.child(conversationId).child("metadata").child("participants").get().await()
+                if (metadataSnapshot.exists() && metadataSnapshot.childrenCount > 0) {
+                    participants = metadataSnapshot.children.mapNotNull { it.key }
+                    android.util.Log.d("FirebaseMessageRepo", "Found participants in metadata: $participants")
+                }
+            }
+
+            // 方法3: 从 conversationId 解析 (格式: {userId1}_{userId2})
+            if (participants.isEmpty() && conversationId.contains("_")) {
+                participants = conversationId.split("_")
+                android.util.Log.d("FirebaseMessageRepo", "Parsed participants from conversationId: $participants")
+            }
+
+            android.util.Log.d("FirebaseMessageRepo", "Updating lastMessage for ${participants.size} participants")
+
+            participants.forEach { participantId ->
+                val userConvRef = userConversationsRef.child(participantId).child(conversationId)
+
+                // 检查用户会话是否存在
+                val exists = userConvRef.get().await().exists()
+                if (!exists) {
+                    android.util.Log.w("FirebaseMessageRepo", "User conversation not found for $participantId, skipping")
+                    return@forEach
+                }
+
+                // 更新 lastMessage 和 lastMessageTime
+                val updates = mutableMapOf<String, Any>(
+                    "lastMessage" to message,
+                    "lastMessageTime" to timestamp
+                )
+
+                // 如果不是发送者，增加未读计数
+                if (participantId != senderId) {
+                    val currentCount = userConvRef.child("unreadCount").get().await().getValue(Int::class.java) ?: 0
+                    updates["unreadCount"] = currentCount + 1
+                    android.util.Log.d("FirebaseMessageRepo", "Incrementing unread for $participantId: ${currentCount + 1}")
+                }
+
+                userConvRef.updateChildren(updates).await()
+                android.util.Log.d("FirebaseMessageRepo", "Updated user_conversations for $participantId")
             }
         } catch (e: Exception) {
-            android.util.Log.e("FirebaseMessageRepo", "Error updating unread counts: ${e.message}")
+            android.util.Log.e("FirebaseMessageRepo", "Error updating last message for participants: ${e.message}", e)
         }
     }
 

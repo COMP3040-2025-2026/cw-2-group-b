@@ -1,6 +1,5 @@
 package com.nottingham.mynottingham.ui.message
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,7 +12,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentNewMessageBinding
-import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -134,9 +132,14 @@ class NewMessageFragment : Fragment() {
         // Observe conversation created
         viewModel.conversationCreated.observe(viewLifecycleOwner) { conversation ->
             conversation?.let {
-                // TODO: Navigate to chat detail screen when Safe Args is available
-                Toast.makeText(context, "Conversation created with ${it.participantName}", Toast.LENGTH_SHORT).show()
-                findNavController().navigateUp()
+                // Navigate to chat detail screen
+                val action = NewMessageFragmentDirections.actionNewMessageToChatDetail(
+                    conversationId = it.id,
+                    participantName = it.participantName,
+                    participantAvatar = it.participantAvatar,
+                    isOnline = it.isOnline
+                )
+                findNavController().navigate(action)
                 viewModel.resetConversationCreated()
             }
         }
