@@ -29,6 +29,14 @@
     <color name="error_light">#FFEBEE</color>
     <color name="info">#2196F3</color>
 
+    <!-- Green variants -->
+    <color name="green_light">#E8F5E9</color>
+    <color name="green_dark">#2E7D32</color>
+
+    <!-- Orange variants -->
+    <color name="orange_light">#FFF3E0</color>
+    <color name="orange_dark">#E65100</color>
+
     <!-- Common colors -->
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>

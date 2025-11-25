@@ -20,7 +20,7 @@ coroutines = "1.9.0"
 glide = "4.16.0"
 datastore = "1.1.1"
 circleimageview = "3.1.0"
-firebaseBom = "33.7.0"
+firebaseBom = "34.6.0"
 googleServices = "4.4.2"
 
 [libraries]
@@ -69,12 +69,13 @@ circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.re
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# Firebase
+# Firebase (BOM 34.x uses main modules instead of -ktx)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
-firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
-firebase-database = { group = "com.google.firebase", name = "firebase-database-ktx" }
-firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
-firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

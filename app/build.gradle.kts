@@ -137,6 +137,8 @@ dependencies {
     implementation(libs.firebase.analytics)
     // Firebase Cloud Messaging for push notifications
     implementation(libs.firebase.messaging)
+    // Firebase AI Logic (Gemini) for Notti AI Assistant
+    implementation(libs.firebase.ai)
 
     // TESTING //
     // Standard unit testing framework.

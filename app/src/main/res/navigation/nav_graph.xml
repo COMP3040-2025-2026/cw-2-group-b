@@ -197,7 +197,14 @@
         android:id="@+id/nottiFragment"
         android:name="com.nottingham.mynottingham.ui.notti.NottiFragment"
         android:label="@string/nav_notti"
-        tools:layout="@layout/fragment_notti" />
+        tools:layout="@layout/fragment_notti">
+
+        <!-- Navigate to Booking from Book Now button -->
+        <action
+            android:id="@+id/action_notti_to_booking"
+            app:destination="@id/bookingFragment" />
+
+    </fragment>
 
     <!-- Forum Fragment - can be accessed from Home -->
     <fragment

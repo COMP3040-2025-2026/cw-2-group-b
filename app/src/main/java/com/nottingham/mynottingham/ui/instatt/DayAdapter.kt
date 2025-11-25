@@ -1,8 +1,10 @@
 package com.nottingham.mynottingham.ui.instatt
 
+import android.animation.ValueAnimator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.data.model.Course
@@ -24,10 +26,14 @@ class DayAdapter(
     private val onToggleExpand: (Int) -> Unit
 ) : RecyclerView.Adapter<DayAdapter.DayViewHolder>() {
 
+    // 记录每个位置的上一次展开状态
+    private val previousExpandStates = mutableMapOf<Int, Boolean>()
+
     inner class DayViewHolder(private val binding: ItemDayBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         private var coursesAdapter: DayCoursesAdapter? = null
+        private var currentAnimator: ValueAnimator? = null
 
         fun bind(dayWithCourses: DayWithCourses, position: Int) {
             binding.apply {
@@ -42,34 +48,121 @@ class DayAdapter(
                     "No classes"
                 }
 
-                // Setup expand/collapse icon rotation
-                ivExpandIcon.rotation = if (dayWithCourses.isExpanded) 180f else 0f
-
                 // Setup click listener for header
                 layoutDayHeader.setOnClickListener {
                     onToggleExpand(position)
                 }
 
-                // Show/hide courses list based on expansion state
-                if (dayWithCourses.isExpanded) {
-                    if (dayWithCourses.courses.isEmpty()) {
-                        // Show empty state
-                        rvCourses.isVisible = false
-                        tvNoCourses.isVisible = true
-                    } else {
-                        // Show courses list
-                        rvCourses.isVisible = true
-                        tvNoCourses.isVisible = false
+                // 获取需要动画的内容视图
+                val contentView = if (dayWithCourses.courses.isEmpty()) tvNoCourses else rvCourses
 
-                        // Use TodayClassAdapter to display courses (no sign-in click handler for calendar view)
-                        coursesAdapter = DayCoursesAdapter(dayWithCourses.courses)
-                        rvCourses.adapter = coursesAdapter
+                // 每次绑定时都更新 adapter（因为 ViewHolder 会被复用）
+                if (dayWithCourses.courses.isNotEmpty()) {
+                    coursesAdapter = DayCoursesAdapter(dayWithCourses.courses)
+                    rvCourses.adapter = coursesAdapter
+                }
+
+                // 检查是否需要动画（状态变化时）- 使用 adapter 级别的状态跟踪
+                val previousState = previousExpandStates[position]
+                val shouldAnimate = previousState != null && previousState != dayWithCourses.isExpanded
+                previousExpandStates[position] = dayWithCourses.isExpanded
+
+                if (shouldAnimate) {
+                    // 取消之前的动画
+                    currentAnimator?.cancel()
+
+                    // 箭头旋转动画
+                    val targetRotation = if (dayWithCourses.isExpanded) 180f else 0f
+                    ivExpandIcon.animate()
+                        .rotation(targetRotation)
+                        .setDuration(250)
+                        .setInterpolator(AccelerateDecelerateInterpolator())
+                        .start()
+
+                    // 展开/收起动画
+                    if (dayWithCourses.isExpanded) {
+                        expandView(contentView)
+                    } else {
+                        collapseView(contentView)
                     }
                 } else {
-                    // Hide courses list
-                    rvCourses.isVisible = false
-                    tvNoCourses.isVisible = false
+                    // 初始状态，不需要动画
+                    ivExpandIcon.rotation = if (dayWithCourses.isExpanded) 180f else 0f
+
+                    if (dayWithCourses.isExpanded) {
+                        if (dayWithCourses.courses.isEmpty()) {
+                            rvCourses.isVisible = false
+                            tvNoCourses.isVisible = true
+                        } else {
+                            rvCourses.isVisible = true
+                            tvNoCourses.isVisible = false
+                        }
+                    } else {
+                        rvCourses.isVisible = false
+                        tvNoCourses.isVisible = false
+                    }
                 }
+            }
+        }
+
+        /**
+         * 平滑展开视图
+         */
+        private fun expandView(view: View) {
+            view.visibility = View.VISIBLE
+            view.alpha = 0f
+
+            // 测量视图高度
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(binding.root.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            val targetHeight = view.measuredHeight
+
+            // 设置初始高度为 0
+            view.layoutParams.height = 0
+            view.requestLayout()
+
+            currentAnimator = ValueAnimator.ofInt(0, targetHeight).apply {
+                duration = 250
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val value = animation.animatedValue as Int
+                    view.layoutParams.height = value
+                    view.alpha = animation.animatedFraction
+                    view.requestLayout()
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                })
+                start()
+            }
+        }
+
+        /**
+         * 平滑收起视图
+         */
+        private fun collapseView(view: View) {
+            val initialHeight = view.height
+
+            currentAnimator = ValueAnimator.ofInt(initialHeight, 0).apply {
+                duration = 250
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val value = animation.animatedValue as Int
+                    view.layoutParams.height = value
+                    view.alpha = 1f - animation.animatedFraction
+                    view.requestLayout()
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        view.visibility = View.GONE
+                        view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                })
+                start()
             }
         }
     }
@@ -93,6 +186,7 @@ class DayAdapter(
      * Update the entire dataset
      */
     fun updateData(newData: List<DayWithCourses>) {
+        previousExpandStates.clear()
         daysWithCourses.clear()
         daysWithCourses.addAll(newData)
         notifyDataSetChanged()

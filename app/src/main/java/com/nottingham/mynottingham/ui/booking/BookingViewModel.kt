@@ -160,14 +160,14 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 取消预定
+     * 取消预定（将状态改为 CANCELLED）
      */
     fun cancelBooking(booking: BookingEntity) {
         viewModelScope.launch {
             try {
-                Log.d("BookingViewModel", "🗑️ Cancelling booking: ${booking.id}")
+                Log.d("BookingViewModel", "🚫 Cancelling booking: ${booking.id}")
 
-                val result = firebaseBookingRepo.cancelBooking(booking.id.toString())
+                val result = firebaseBookingRepo.cancelBooking(booking.id)
 
                 if (result.isSuccess) {
                     Log.d("BookingViewModel", "✅ Booking cancelled successfully")
@@ -177,6 +177,28 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (e: Exception) {
                 Log.e("BookingViewModel", "❌ Error cancelling booking", e)
+            }
+        }
+    }
+
+    /**
+     * 删除预定记录（从数据库完全删除）
+     */
+    fun deleteBooking(booking: BookingEntity) {
+        viewModelScope.launch {
+            try {
+                Log.d("BookingViewModel", "🗑️ Deleting booking: ${booking.id}")
+
+                val result = firebaseBookingRepo.deleteBooking(booking.id)
+
+                if (result.isSuccess) {
+                    Log.d("BookingViewModel", "✅ Booking deleted successfully")
+                    // Firebase Flow 会自动更新列表
+                } else {
+                    Log.e("BookingViewModel", "❌ Failed to delete booking: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("BookingViewModel", "❌ Error deleting booking", e)
             }
         }
     }

@@ -108,6 +108,22 @@ class FirebaseBookingRepository {
     }
 
     /**
+     * 删除预订记录（从数据库中完全删除）
+     * @param bookingId 预订ID
+     * @return Result<Unit>
+     */
+    suspend fun deleteBooking(bookingId: String): Result<Unit> {
+        return try {
+            bookingsRef.child(bookingId).removeValue().await()
+            android.util.Log.d("FirebaseBookingRepo", "Booking deleted: $bookingId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseBookingRepo", "Error deleting booking: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 获取特定设施在特定日期的所有预订
      * 使用客户端过滤避免需要 Firebase 索引
      *
