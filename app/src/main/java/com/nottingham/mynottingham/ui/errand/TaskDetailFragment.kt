@@ -15,6 +15,8 @@ import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.remote.dto.UpdateStatusRequest
 import com.nottingham.mynottingham.databinding.FragmentTaskDetailsBinding
+import androidx.core.os.bundleOf
+import androidx.fragment.app.setFragmentResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -191,6 +193,7 @@ class TaskDetailFragment : Fragment() {
                     Toast.makeText(requireContext(), "Task Accepted!", Toast.LENGTH_SHORT).show()
                     isAcceptedByMe = true
                     showRunnerView()
+                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
                     binding.btnComplete.setOnClickListener { markAsComplete(token, taskId) }
                     binding.btnRunnerDrop.setOnClickListener { performDrop(token, taskId) }
                 } else {
@@ -216,6 +219,7 @@ class TaskDetailFragment : Fragment() {
                 val response = RetrofitInstance.apiService.dropErrand(token, taskId, emptyMap())
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Task Dropped", Toast.LENGTH_SHORT).show()
+                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
                     parentFragmentManager.popBackStack()
                 } else {
                     Toast.makeText(requireContext(), "Drop Failed: ${response.code()}", Toast.LENGTH_SHORT).show()
@@ -234,6 +238,7 @@ class TaskDetailFragment : Fragment() {
                 val response = RetrofitInstance.apiService.deleteErrand(token, taskId)
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Deleted", Toast.LENGTH_SHORT).show()
+                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
                     parentFragmentManager.popBackStack()
                 } else {
                     Toast.makeText(requireContext(), "Delete Failed", Toast.LENGTH_SHORT).show()
@@ -251,6 +256,7 @@ class TaskDetailFragment : Fragment() {
                 val response = RetrofitInstance.apiService.updateErrandStatus(token, taskId, request)
                 if (response.isSuccessful) {
                     Toast.makeText(requireContext(), "Task Completed!", Toast.LENGTH_SHORT).show()
+                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
                     // [Fix] 成功后立即更新界面为完成状态
                     showCompletedView()
                 } else {

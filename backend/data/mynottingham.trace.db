@@ -3176,3 +3176,9 @@ Caused by: org.h2.mvstore.MVStoreException: File is corrupted - unable to recove
 	... 62 more
 2025-11-25 13:21:26.094650+08:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]
+2025-11-25 13:39:48.564076+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]
+2025-11-25 13:45:56.962964+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]
+2025-11-25 13:46:59.159246+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLNonTransientException: The object is already closed [90007-224]

@@ -22,7 +22,6 @@
             android:paddingHorizontal="12dp"
             android:paddingVertical="6dp"
             android:text="In Progress"
-            android:textColor="@color/info"
             android:textSize="12sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -56,6 +55,42 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_title" />
 
+        <!-- Location Icon + Text -->
+        <TextView
+            android:id="@+id/tv_location"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:drawablePadding="6dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Library"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:drawableStartCompat="@android:drawable/ic_menu_mylocation"
+            app:drawableTint="@color/text_secondary"
+            app:layout_constraintEnd_toStartOf="@id/tv_deadline"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_description" />
+
+        <!-- Deadline Icon + Text -->
+        <TextView
+            android:id="@+id/tv_deadline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:drawablePadding="6dp"
+            android:text="30 mins"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:drawableStartCompat="@android:drawable/ic_menu_recent_history"
+            app:drawableTint="@color/text_secondary"
+            app:layout_constraintBottom_toBottomOf="@id/tv_location"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_location"
+            app:layout_constraintTop_toTopOf="@id/tv_location" />
+
         <!-- Info Row (Reward + Additional Info) -->
         <LinearLayout
             android:id="@+id/layout_info"
@@ -66,7 +101,7 @@
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_description">
+            app:layout_constraintTop_toBottomOf="@id/tv_location">
 
             <TextView
                 android:id="@+id/tv_reward_icon"
@@ -74,7 +109,7 @@
                 android:layout_height="wrap_content"
                 android:text="💰"
                 android:textSize="16sp" />
-
+ 
             <TextView
                 android:id="@+id/tv_reward"
                 android:layout_width="wrap_content"

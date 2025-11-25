@@ -14,6 +14,7 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.databinding.FragmentMyTasksBinding
+import androidx.fragment.app.setFragmentResultListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,7 +47,7 @@ class MyTasksFragment : Fragment() {
                 putString("title", task.title)
                 putString("description", task.description)
                 putString("price", task.reward.toString())
-                putString("location", "") // MyTask does not have location, pass empty string
+                putString("location", task.location) // MyTask does not have location, pass empty string
                 putString("requesterId", task.requesterId)
                 putString("requesterName", task.requesterName)
                 putString("providerName", task.providerName)
@@ -75,6 +76,14 @@ class MyTasksFragment : Fragment() {
         
         // 2. Setup Tabs
         setupTabs()
+
+        // 3. Listen for task updates
+        setFragmentResultListener("taskUpdated") { requestKey, bundle ->
+            val refresh = bundle.getBoolean("refresh")
+            if (refresh) {
+                loadMyTasks()
+            }
+        }
     }
 
     override fun onResume() {
@@ -139,7 +148,8 @@ class MyTasksFragment : Fragment() {
                             requesterName = errand.requesterName,
                             providerName = errand.providerName,
                             requesterAvatar = "", // Not available in ErrandResponse
-                            deadline = "", // Not available in ErrandResponse
+                            location = errand.location,
+                            deadline = errand.deadline ?: "", // Not available in ErrandResponse
                             createdAt = errand.createdAt
                         )
                     }
