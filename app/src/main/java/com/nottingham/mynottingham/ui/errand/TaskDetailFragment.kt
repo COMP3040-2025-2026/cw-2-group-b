@@ -402,7 +402,7 @@ class TaskDetailFragment : Fragment() {
 
     private fun completeTask() {
         if (_binding == null) return
-        binding.btnAcceptTask.isEnabled = false
+        binding.btnProviderAction.isEnabled = false
 
         lifecycleScope.launch {
             val result = repository.completeErrand(currentTaskId)
@@ -411,13 +411,13 @@ class TaskDetailFragment : Fragment() {
 
             result.onSuccess {
                 Toast.makeText(requireContext(), "Task completed!", Toast.LENGTH_SHORT).show()
-                currentStatus = "COMPLETED"
-                binding.btnAcceptTask.visibility = View.GONE
-                binding.layoutOwnerActions.visibility = View.GONE
-                showStatusMessage("Task completed")
+                // Navigate back after completing
+                parentFragmentManager.popBackStack()
             }.onFailure { e ->
                 Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                binding.btnAcceptTask.isEnabled = true
+                if (_binding != null) {
+                    binding.btnProviderAction.isEnabled = true
+                }
             }
         }
     }
