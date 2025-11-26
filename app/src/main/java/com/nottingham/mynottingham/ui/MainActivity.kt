@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -16,6 +17,7 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.databinding.ActivityMainBinding
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -29,6 +31,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
     private lateinit var tokenManager: TokenManager
+
+    // 🔥 1. 初始化 MainViewModel
+    private val mainViewModel: MainViewModel by viewModels()
 
     // Defines a set of top-level destinations. When the user is on these screens,
     // pressing the back button will exit the application instead of navigating up.
@@ -65,6 +70,48 @@ class MainActivity : AppCompatActivity() {
         checkLoginStatus()
         // Request notification permission for Android 13+
         requestNotificationPermission()
+
+        // 🔥 2. 在 onCreate 最后调用监听方法
+        observeUnreadCount()
+    }
+
+    // 🔥 3. 添加观察未读数量的方法
+    private fun observeUnreadCount() {
+        // 观察 ViewModel 的未读数量数据，一旦变化就更新 UI
+        mainViewModel.unreadMessageCount.observe(this) { count ->
+            updateMessageBadge(count)
+        }
+
+        // 获取当前登录用户的 ID，并开启监听
+        lifecycleScope.launch {
+            tokenManager.getUserId().collect { userId ->
+                if (!userId.isNullOrEmpty()) {
+                    mainViewModel.startListeningToUnreadCount(userId)
+                }
+            }
+        }
+    }
+
+    // 🔥 4. 添加更新底部导航栏角标的方法
+    private fun updateMessageBadge(count: Int) {
+        try {
+            val navView = binding.bottomNavigation
+            // 这里的 ID 必须与 bottom_navigation_menu.xml 中的 Message item ID 一致
+            val messageMenuId = R.id.messageFragment
+
+            // 获取或创建 BadgeDrawable
+            val badge = navView.getOrCreateBadge(messageMenuId)
+
+            if (count > 0) {
+                badge.isVisible = true
+                badge.number = count // 显示具体数字
+                // 如果数字太大，可以考虑限制显示，例如 "99+" (Material Badge 默认会自动处理多位数)
+            } else {
+                badge.isVisible = false // 没有未读消息时隐藏
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     /**
@@ -149,3 +196,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+

@@ -172,6 +172,38 @@ class FirebaseMessageRepository {
     }
 
     /**
+     * 🔥 新增功能：实时监听当前用户的【总未读消息数量】
+     * 遍历 user_conversations 下的所有会话，累加 unreadCount
+     */
+    fun getTotalUnreadCountFlow(userId: String): Flow<Int> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                var totalUnread = 0
+                // 遍历用户的所有会话
+                for (conversationSnapshot in snapshot.children) {
+                    val count = conversationSnapshot.child("unreadCount").getValue(Int::class.java) ?: 0
+                    totalUnread += count
+                }
+                // 发送最新的总数
+                trySend(totalUnread)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("FirebaseMessageRepo", "计算未读数量失败: ${error.message}")
+                trySend(0)
+            }
+        }
+
+        // 监听 user_conversations/{userId} 节点的变化
+        userConversationsRef.child(userId).addValueEventListener(listener)
+
+        // 当 Flow 停止收集时（例如页面销毁），移除监听器
+        awaitClose {
+            userConversationsRef.child(userId).removeEventListener(listener)
+        }
+    }
+
+    /**
      * 辅助方法：使用最新头像和在线状态构建对话列表
      */
     private fun buildConversations(
