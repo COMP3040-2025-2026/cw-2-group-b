@@ -31,23 +31,18 @@ class FirebaseCourseRepository {
     private val studentCoursesRef: DatabaseReference = database.getReference("student_courses")
 
     /**
-     * 获取学生的所有课程（包含今日排课）
-     * @param studentId 学生用户名 (如 "student1")
+     * 获取学生的所有课程（包含今日排课和签到状态）
+     * @param studentId 学生Firebase UID
      * @param date 日期 (格式: yyyy-MM-dd)
-     * @return Result<List<Course>> 课程列表
+     * @return Result<List<Course>> 课程列表（包含签到状态和统计数据）
      */
     suspend fun getStudentCourses(studentId: String, date: String): Result<List<Course>> {
         return try {
             android.util.Log.d("FirebaseCourseRepo", "🔍 Fetching courses for studentId: $studentId")
             android.util.Log.d("FirebaseCourseRepo", "📅 Date: $date")
-            android.util.Log.d("FirebaseCourseRepo", "🔗 Database URL: ${database.reference.database.app.name}")
 
             // 1. 获取学生选修的课程ID列表
             val studentCoursesSnapshot = studentCoursesRef.child(studentId).get().await()
-
-            android.util.Log.d("FirebaseCourseRepo", "📊 Snapshot exists: ${studentCoursesSnapshot.exists()}")
-            android.util.Log.d("FirebaseCourseRepo", "📊 Snapshot value: ${studentCoursesSnapshot.value}")
-            android.util.Log.d("FirebaseCourseRepo", "📊 Children count: ${studentCoursesSnapshot.childrenCount}")
 
             val courseIds = studentCoursesSnapshot.children.mapNotNull { it.key }
 
@@ -58,13 +53,13 @@ class FirebaseCourseRepository {
                 return Result.success(emptyList())
             }
 
-            // 2. 获取每门课程的详细信息
+            // 2. 获取每门课程的详细信息（包含签到状态）
             val courses = mutableListOf<Course>()
 
             for (courseId in courseIds) {
                 try {
                     android.util.Log.d("FirebaseCourseRepo", "📖 Loading course: $courseId")
-                    val course = getCourseWithSchedules(courseId, date)
+                    val course = getCourseWithSchedulesAndAttendance(courseId, date, studentId)
                     android.util.Log.d("FirebaseCourseRepo", "✅ Loaded ${course.size} schedules for $courseId")
                     courses.addAll(course)
                 } catch (e: Exception) {
@@ -111,7 +106,184 @@ class FirebaseCourseRepository {
     }
 
     /**
-     * 获取课程及其所有排课
+     * 获取课程及其所有排课（包含学生签到状态和统计数据）
+     * @param courseId 课程ID (如 "comp3040")
+     * @param date 日期 (用于判断今日状态和过滤星期几)
+     * @param studentId 学生Firebase UID（用于检查签到状态）
+     * @return List<Course> 一门课程在指定日期的排课
+     */
+    private suspend fun getCourseWithSchedulesAndAttendance(
+        courseId: String,
+        date: String,
+        studentId: String
+    ): List<Course> {
+        // 1. 获取课程基本信息
+        val courseSnapshot = coursesRef.child(courseId).get().await()
+        if (!courseSnapshot.exists()) {
+            return emptyList()
+        }
+
+        val code = courseSnapshot.child("code").getValue(String::class.java) ?: ""
+        val name = courseSnapshot.child("name").getValue(String::class.java) ?: ""
+        val semester = courseSnapshot.child("semester").getValue(String::class.java) ?: "25-26"
+
+        // 2. 从日期解析出星期几
+        val targetDayOfWeek = getDayOfWeekFromDate(date)
+
+        // 3. 查询该课程的所有排课
+        val schedulesSnapshot = schedulesRef.orderByChild("courseId").equalTo(courseId).get().await()
+
+        val courses = mutableListOf<Course>()
+
+        for (scheduleSnapshot in schedulesSnapshot.children) {
+            val scheduleId = scheduleSnapshot.key ?: continue
+
+            val dayOfWeek = scheduleSnapshot.child("dayOfWeek").getValue(String::class.java) ?: continue
+
+            // ✅ 只添加匹配当天星期的课程
+            if (dayOfWeek.uppercase() != targetDayOfWeek.name) {
+                continue
+            }
+
+            val startTime = scheduleSnapshot.child("startTime").getValue(String::class.java) ?: "00:00"
+            val endTime = scheduleSnapshot.child("endTime").getValue(String::class.java) ?: "00:00"
+            val room = scheduleSnapshot.child("room").getValue(String::class.java) ?: ""
+            val type = scheduleSnapshot.child("type").getValue(String::class.java) ?: "LECTURE"
+
+            // ✅ 从 Firebase sessions 查询真实的签到状态
+            val sessionKey = "${scheduleId}_$date"
+            val sessionSnapshot = database.getReference("sessions").child(sessionKey).get().await()
+            val isLocked = sessionSnapshot.child("isLocked").getValue(Boolean::class.java) ?: true
+
+            // ✅ 检查学生在此 session 中的状态
+            val studentRecord = sessionSnapshot.child("students").child(studentId)
+            val hasStudentRecord = studentRecord.exists()
+            val studentStatus = if (hasStudentRecord) {
+                studentRecord.child("status").getValue(String::class.java) ?: "NOT_MARKED"
+            } else {
+                "NOT_MARKED"  // 学生初始状态为"未标记"
+            }
+
+            // ✅ 检查 session 是否曾经开放过签到
+            val hasFirstUnlock = sessionSnapshot.hasChild("firstUnlockTime")
+
+            // ✅ 确定签到状态和今日状态
+            val signInStatus: SignInStatus
+            val todayStatus: TodayClassStatus
+            val hasStudentSigned: Boolean
+
+            when {
+                studentStatus == "PRESENT" -> {
+                    // 学生已签到或被标记为出席 - 显示绿色勾
+                    signInStatus = SignInStatus.SIGNED
+                    todayStatus = TodayClassStatus.ATTENDED
+                    hasStudentSigned = true
+                    android.util.Log.d("FirebaseCourseRepo", "✅ Student PRESENT for $scheduleId")
+                }
+                studentStatus == "ABSENT" || studentStatus == "LATE" || studentStatus == "EXCUSED" -> {
+                    // 学生被标记为缺席/迟到/请假 - 显示红色叉叉
+                    signInStatus = SignInStatus.CLOSED
+                    todayStatus = TodayClassStatus.MISSED
+                    hasStudentSigned = false
+                    android.util.Log.d("FirebaseCourseRepo", "❌ Student $studentStatus for $scheduleId")
+                }
+                !isLocked -> {
+                    // Session 解锁但未签到 - 显示可签到（铅笔图标）
+                    signInStatus = SignInStatus.UNLOCKED
+                    todayStatus = TodayClassStatus.IN_PROGRESS
+                    hasStudentSigned = false
+                }
+                isLocked && hasFirstUnlock -> {
+                    // Session 已锁定且曾经开放过 - 学生可能错过了签到
+                    // 如果学生没有任何记录，显示灰色锁（等待系统标记为缺席）
+                    signInStatus = SignInStatus.CLOSED
+                    todayStatus = TodayClassStatus.UPCOMING
+                    hasStudentSigned = false
+                }
+                else -> {
+                    // Session 从未开放过签到 - 显示灰色锁
+                    signInStatus = SignInStatus.LOCKED
+                    todayStatus = TodayClassStatus.UPCOMING
+                    hasStudentSigned = false
+                }
+            }
+
+            // ✅ 计算签到统计数据
+            val (attendedCount, totalCount) = calculateAttendanceStats(scheduleId, studentId)
+
+            val course = Course(
+                id = scheduleId,
+                courseName = name,
+                courseCode = code,
+                semester = semester,
+                attendedClasses = attendedCount,
+                totalClasses = totalCount,
+                dayOfWeek = parseDayOfWeek(dayOfWeek),
+                startTime = startTime,
+                endTime = endTime,
+                location = room,
+                courseType = parseCourseType(type),
+                todayStatus = todayStatus,
+                signInStatus = signInStatus,
+                signInUnlockedAt = null,
+                hasStudentSigned = hasStudentSigned
+            )
+
+            courses.add(course)
+        }
+
+        return courses
+    }
+
+    /**
+     * 计算学生的签到统计数据
+     * @param scheduleId 排课ID (如 "comp3040_1")
+     * @param studentId 学生Firebase UID
+     * @return Pair<Int, Int> (已签到次数, 总课程数)
+     */
+    private suspend fun calculateAttendanceStats(scheduleId: String, studentId: String): Pair<Int, Int> {
+        return try {
+            val sessionsRef = database.getReference("sessions")
+            val sessionsSnapshot = sessionsRef.get().await()
+
+            var attendedCount = 0
+            var totalCount = 0
+
+            // 遍历所有 session，找出与该 scheduleId 相关的
+            for (sessionSnapshot in sessionsSnapshot.children) {
+                val sessionKey = sessionSnapshot.key ?: continue
+
+                // 检查 session key 是否以 scheduleId 开头 (格式: scheduleId_date)
+                if (!sessionKey.startsWith("${scheduleId}_")) {
+                    continue
+                }
+
+                // 检查是否有 firstUnlockTime（只有首次解锁才计入总数）
+                val hasFirstUnlock = sessionSnapshot.hasChild("firstUnlockTime")
+                if (hasFirstUnlock) {
+                    totalCount++
+
+                    // 检查学生是否签到
+                    val studentRecord = sessionSnapshot.child("students").child(studentId)
+                    if (studentRecord.exists()) {
+                        val status = studentRecord.child("status").getValue(String::class.java)
+                        if (status == "PRESENT") {
+                            attendedCount++
+                        }
+                    }
+                }
+            }
+
+            android.util.Log.d("FirebaseCourseRepo", "📊 Attendance for $scheduleId: $attendedCount / $totalCount")
+            Pair(attendedCount, totalCount)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseCourseRepo", "Error calculating attendance: ${e.message}")
+            Pair(0, 0)
+        }
+    }
+
+    /**
+     * 获取课程及其所有排课（教师端使用，不检查学生签到状态）
      * @param courseId 课程ID (如 "comp3040")
      * @param date 日期 (用于判断今日状态和过滤星期几)
      * @return List<Course> 一门课程在指定日期的排课
@@ -156,20 +328,23 @@ class FirebaseCourseRepository {
             val isLocked = sessionSnapshot.child("isLocked").getValue(Boolean::class.java) ?: true
             val signInStatus = if (isLocked) SignInStatus.LOCKED else SignInStatus.UNLOCKED
 
+            // 计算总课程数（用于教师端显示）
+            val totalCount = calculateTotalSessions(scheduleId)
+
             val course = Course(
-                id = scheduleId,  // 使用 scheduleId 作为唯一标识
+                id = scheduleId,
                 courseName = name,
                 courseCode = code,
                 semester = semester,
-                attendedClasses = 0,  // TODO: 从 attendance records 计算
-                totalClasses = 15,    // TODO: 从 Firebase 添加字段
+                attendedClasses = 0,
+                totalClasses = totalCount,
                 dayOfWeek = parseDayOfWeek(dayOfWeek),
                 startTime = startTime,
                 endTime = endTime,
                 location = room,
                 courseType = parseCourseType(type),
-                todayStatus = TodayClassStatus.UPCOMING, // TODO: 根据时间判断
-                signInStatus = signInStatus,  // ✅ 使用从session读取的真实状态
+                todayStatus = TodayClassStatus.UPCOMING,
+                signInStatus = signInStatus,
                 signInUnlockedAt = null,
                 hasStudentSigned = false
             )
@@ -178,6 +353,27 @@ class FirebaseCourseRepository {
         }
 
         return courses
+    }
+
+    /**
+     * 计算排课的总课程数（首次解锁次数）
+     */
+    private suspend fun calculateTotalSessions(scheduleId: String): Int {
+        return try {
+            val sessionsRef = database.getReference("sessions")
+            val sessionsSnapshot = sessionsRef.get().await()
+
+            var count = 0
+            for (sessionSnapshot in sessionsSnapshot.children) {
+                val sessionKey = sessionSnapshot.key ?: continue
+                if (sessionKey.startsWith("${scheduleId}_") && sessionSnapshot.hasChild("firstUnlockTime")) {
+                    count++
+                }
+            }
+            count
+        } catch (e: Exception) {
+            0
+        }
     }
 
     /**

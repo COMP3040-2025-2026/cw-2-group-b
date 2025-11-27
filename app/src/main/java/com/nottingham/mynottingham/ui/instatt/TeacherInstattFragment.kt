@@ -202,7 +202,8 @@ class TeacherInstattFragment : Fragment() {
                     }
                 }
             }
-            SignInStatus.UNLOCKED -> {
+            SignInStatus.UNLOCKED, SignInStatus.SIGNED -> {
+                // SIGNED is student-specific, teacher treats it as UNLOCKED
                 // Lock sign-in via Firebase - 实时生效
                 lifecycleScope.launch {
                     val result = repository.lockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID

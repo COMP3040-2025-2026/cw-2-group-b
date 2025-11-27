@@ -86,6 +86,7 @@ enum class TodayClassStatus : Parcelable {
 enum class SignInStatus : Parcelable {
     LOCKED,        // Not yet available for sign-in (show lock icon)
     UNLOCKED,      // Available for sign-in (show pencil icon for students)
+    SIGNED,        // Student has already signed in (show green check)
     CLOSED         // Sign-in period ended (lock again)
 }
 

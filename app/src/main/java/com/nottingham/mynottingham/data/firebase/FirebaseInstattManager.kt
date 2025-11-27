@@ -102,18 +102,66 @@ class FirebaseInstattManager {
     /**
      * 教师关闭签到：将 session 标记为 locked
      * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * ✅ 新增：自动将所有未签到学生标记为 ABSENT
+     *
+     * @param enrolledStudents 所有选课学生列表，用于标记未签到学生为缺席
      */
-    suspend fun lockSession(courseScheduleId: String, date: String): Result<Unit> {
+    suspend fun lockSession(
+        courseScheduleId: String,
+        date: String,
+        enrolledStudents: List<Pair<String, String>> = emptyList()  // (studentUid, studentName)
+    ): Result<Unit> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
+            val sessionRef = sessionsRef.child(sessionKey)
+
+            // 检查 session 是否有 firstUnlockTime（是否曾经开放过签到）
+            val sessionSnapshot = sessionRef.get().await()
+            val hasFirstUnlock = sessionSnapshot.hasChild("firstUnlockTime")
+
+            // 只有开放过签到的 session 才需要标记未签到学生为缺席
+            if (hasFirstUnlock && enrolledStudents.isNotEmpty()) {
+                // 获取已签到学生列表
+                val studentsSnapshot = sessionRef.child("students").get().await()
+                val signedStudentUids = studentsSnapshot.children.mapNotNull {
+                    it.child("studentUid").getValue(String::class.java) ?: it.key
+                }.toSet()
+
+                val currentTime = System.currentTimeMillis()
+
+                // 标记所有未签到学生为 ABSENT
+                for ((studentUid, studentName) in enrolledStudents) {
+                    if (studentUid !in signedStudentUids) {
+                        val absentData = mapOf(
+                            "studentUid" to studentUid,
+                            "studentName" to studentName,
+                            "status" to AttendanceStatus.ABSENT.name,
+                            "markedAt" to currentTime,
+                            "autoMarked" to true  // 标记这是系统自动标记的缺席
+                        )
+                        sessionRef.child("students").child(studentUid)
+                            .setValue(absentData).await()
+
+                        android.util.Log.d(
+                            "FirebaseInstatt",
+                            "🔴 Auto-marked student $studentName ($studentUid) as ABSENT"
+                        )
+                    }
+                }
+            }
+
+            // 锁定 session
             val updates = mapOf(
                 "isLocked" to true,
                 "isActive" to false,
                 "endTime" to System.currentTimeMillis()
             )
-            sessionsRef.child(sessionKey).updateChildren(updates).await()
+            sessionRef.updateChildren(updates).await()
+
+            android.util.Log.d("FirebaseInstatt", "🔒 Session $sessionKey locked")
             Result.success(Unit)
         } catch (e: Exception) {
+            android.util.Log.e("FirebaseInstatt", "❌ Failed to lock session: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -121,6 +169,9 @@ class FirebaseInstattManager {
     /**
      * 教师手动标记学生出勤状态
      * 🔴 修复：使用 String UID（Firebase UID）作为唯一标识符
+     * ✅ 新增：如果是首次标记（session 没有 firstUnlockTime），则设置 firstUnlockTime 以增加 totalClasses
+     *
+     * @return Result<Boolean> - true 表示首次标记（totalClasses +1），false 表示非首次
      */
     suspend fun markStudentAttendance(
         courseScheduleId: String,
@@ -130,28 +181,51 @@ class FirebaseInstattManager {
         studentName: String,
         matricNumber: String? = null,
         email: String? = null
-    ): Result<Unit> {
+    ): Result<Boolean> {
         return try {
             val sessionKey = getSessionKey(courseScheduleId, date)
+            val sessionRef = sessionsRef.child(sessionKey)
+
+            // 检查是否是首次标记（session 没有 firstUnlockTime）
+            val sessionSnapshot = sessionRef.get().await()
+            val isFirstMark = !sessionSnapshot.hasChild("firstUnlockTime")
+
+            val currentTime = System.currentTimeMillis()
+
+            // 如果是首次标记，设置 firstUnlockTime（这样 totalClasses 会 +1）
+            if (isFirstMark) {
+                val sessionUpdates = mapOf(
+                    "firstUnlockTime" to currentTime,
+                    "startTime" to currentTime,
+                    "manualMarkSession" to true  // 标记这是通过手动标记创建的 session
+                )
+                sessionRef.updateChildren(sessionUpdates).await()
+                android.util.Log.d(
+                    "FirebaseInstatt",
+                    "📊 First mark for session $sessionKey - totalClasses will increase"
+                )
+            }
+
+            // 保存学生出勤数据
             val studentData = mapOf(
-                "studentUid" to studentUid,  // 🔴 保存 Firebase UID
+                "studentUid" to studentUid,
                 "studentName" to studentName,
                 "matricNumber" to matricNumber,
                 "email" to email,
                 "status" to status.name,
                 "checkInTime" to java.time.Instant.now().toString(),
-                "timestamp" to System.currentTimeMillis()
+                "timestamp" to currentTime,
+                "manuallyMarked" to true  // 标记这是教师手动标记的
             )
-            // 🔴 使用 Firebase UID 作为 key
-            sessionsRef.child(sessionKey).child("students").child(studentUid)
+            sessionRef.child("students").child(studentUid)
                 .setValue(studentData).await()
 
             android.util.Log.d(
                 "FirebaseInstatt",
-                "✅ Teacher marked $studentName ($studentUid) as ${status.name}"
+                "✅ Teacher marked $studentName ($studentUid) as ${status.name} (firstMark=$isFirstMark)"
             )
 
-            Result.success(Unit)
+            Result.success(isFirstMark)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseInstatt", "❌ Failed to mark attendance: ${e.message}", e)
             Result.failure(e)

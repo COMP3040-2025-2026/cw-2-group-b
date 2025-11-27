@@ -125,7 +125,8 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     btnUnlockSession.isEnabled = true
                     btnLockSession.isEnabled = false
                 }
-                SignInStatus.UNLOCKED -> {
+                SignInStatus.UNLOCKED, SignInStatus.SIGNED -> {
+                    // SIGNED is student-specific, teacher sees UNLOCKED state
                     tvSessionStatus.text = "Session is UNLOCKED"
                     tvSessionStatus.setTextColor(
                         ContextCompat.getColor(requireContext(), R.color.success)
@@ -297,14 +298,18 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 email = student.email
             )
 
-            result.onSuccess {
+            result.onSuccess { isFirstMark ->
+                val message = if (isFirstMark) {
+                    "Marked ${student.studentName} as ${status.name}\n📊 Session #${course.totalClasses + 1} started"
+                } else {
+                    "Marked ${student.studentName} as ${status.name}"
+                }
                 Toast.makeText(
                     requireContext(),
-                    "Marked ${student.studentName} as ${status.name}",
+                    message,
                     Toast.LENGTH_SHORT
                 ).show()
                 // Firebase 会自动通知所有监听者，无需手动刷新
-                // loadStudentList() - 不再需要，Flow 会自动更新
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),

@@ -49,6 +49,12 @@ class TeacherClassAdapter(
                     binding.btnToggleSignin.text = "Lock"
                     binding.btnToggleSignin.isEnabled = true
                 }
+                SignInStatus.SIGNED -> {
+                    // SIGNED is student-specific, teacher sees UNLOCKED state
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
+                    binding.btnToggleSignin.text = "Lock"
+                    binding.btnToggleSignin.isEnabled = true
+                }
                 SignInStatus.CLOSED -> {
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
                     binding.btnToggleSignin.text = "Closed"

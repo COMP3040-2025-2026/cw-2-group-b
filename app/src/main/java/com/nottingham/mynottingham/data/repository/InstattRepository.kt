@@ -82,12 +82,22 @@ class InstattRepository {
     /**
      * 教师关闭签到 - 使用 Firebase 实现实时更新
      * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * ✅ 新增：自动将所有未签到学生标记为 ABSENT
      */
     suspend fun lockSession(teacherId: String, courseScheduleId: String, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            // 直接使用 Firebase，不再调用后端 API
-            // 注意：firebaseManager 不需要 teacherId
-            firebaseManager.lockSession(courseScheduleId, date)
+            // 获取所有选课学生列表
+            val courseId = courseScheduleId.substringBefore("_")
+            val enrolledResult = firebaseCourseRepo.getEnrolledStudents(courseId)
+            val enrolledStudents = enrolledResult.getOrNull() ?: emptyList()
+
+            android.util.Log.d(
+                "InstattRepository",
+                "🔒 Locking session $courseScheduleId with ${enrolledStudents.size} enrolled students"
+            )
+
+            // 锁定 session 并自动标记未签到学生为缺席
+            firebaseManager.lockSession(courseScheduleId, date, enrolledStudents)
         }
     }
 
@@ -228,6 +238,9 @@ class InstattRepository {
     /**
      * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
      * 🔴 修复：使用 Firebase UID（String）作为唯一标识符，避免重名问题
+     * ✅ 新增：如果是首次标记，会自动增加 totalClasses
+     *
+     * @return Result<Boolean> - true 表示首次标记（totalClasses +1），false 表示非首次
      */
     suspend fun markAttendance(
         teacherId: String,  // Firebase UID (not used in Firebase operations)
@@ -238,7 +251,7 @@ class InstattRepository {
         studentName: String,
         matricNumber: String? = null,
         email: String? = null
-    ): Result<Unit> {
+    ): Result<Boolean> {
         return withContext(Dispatchers.IO) {
             val attendanceStatus = try {
                 AttendanceStatus.valueOf(status)

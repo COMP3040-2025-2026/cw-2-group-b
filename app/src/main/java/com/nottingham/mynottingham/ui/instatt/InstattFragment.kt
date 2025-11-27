@@ -72,10 +72,10 @@ class InstattFragment : Fragment() {
                         positionIndicator(currentTab, false)
                     }
 
-                    // 预加载周课表数据（在后台进行）
+                    // 预加载所有数据（今日课程、周课表、统计数据）
                     val studentId = tokenManager.getUserId().first() ?: ""
                     if (studentId.isNotEmpty()) {
-                        viewModel.preloadWeekCourses(studentId)
+                        viewModel.preloadAllData(studentId)
                     }
 
                     // Load default fragment - show today's courses
