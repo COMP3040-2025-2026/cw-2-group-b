@@ -3,6 +3,7 @@ package com.nottingham.mynottingham.data.repository
 import com.google.firebase.database.*
 import com.nottingham.mynottingham.data.model.ChatMessage
 import com.nottingham.mynottingham.data.model.Conversation
+import com.nottingham.mynottingham.util.FcmNotificationSender
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -432,10 +433,73 @@ class FirebaseMessageRepository {
             // 更新所有参与者的 user_conversations 中的 lastMessage 和 lastMessageTime
             updateLastMessageForAllParticipants(conversationId, message, timestamp, senderId)
 
+            // 发送 FCM 推送通知给其他参与者
+            sendPushNotificationToParticipants(conversationId, senderId, senderName, message)
+
             Result.success(messageId)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseMessageRepo", "Error sending message: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    /**
+     * 发送 FCM 推送通知给对话中的其他参与者
+     */
+    private suspend fun sendPushNotificationToParticipants(
+        conversationId: String,
+        senderId: String,
+        senderName: String,
+        message: String
+    ) {
+        try {
+            // 获取对话参与者
+            var participants: List<String> = emptyList()
+
+            // 尝试从多种路径获取参与者
+            val directSnapshot = conversationsRef.child(conversationId).child("participants").get().await()
+            if (directSnapshot.exists() && directSnapshot.childrenCount > 0) {
+                participants = directSnapshot.children.mapNotNull { it.key }
+            }
+
+            if (participants.isEmpty()) {
+                val metadataSnapshot = conversationsRef.child(conversationId).child("metadata").child("participants").get().await()
+                if (metadataSnapshot.exists() && metadataSnapshot.childrenCount > 0) {
+                    participants = metadataSnapshot.children.mapNotNull { it.key }
+                }
+            }
+
+            if (participants.isEmpty() && conversationId.contains("_")) {
+                participants = conversationId.split("_")
+            }
+
+            android.util.Log.d("FirebaseMessageRepo", "Sending push to participants: $participants (except $senderId)")
+
+            // 给每个参与者（除了发送者）发送推送通知
+            val usersRef = database.getReference("users")
+            participants.filter { it != senderId }.forEach { recipientId ->
+                try {
+                    val tokenSnapshot = usersRef.child(recipientId).child("fcmToken").get().await()
+                    val fcmToken = tokenSnapshot.getValue(String::class.java)
+
+                    if (!fcmToken.isNullOrEmpty()) {
+                        val success = FcmNotificationSender.sendChatNotification(
+                            recipientToken = fcmToken,
+                            senderName = senderName,
+                            messageContent = message,
+                            conversationId = conversationId,
+                            senderId = senderId
+                        )
+                        android.util.Log.d("FirebaseMessageRepo", "Push notification to $recipientId: ${if (success) "sent" else "failed"}")
+                    } else {
+                        android.util.Log.d("FirebaseMessageRepo", "No FCM token for user $recipientId")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("FirebaseMessageRepo", "Error sending push to $recipientId: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error in sendPushNotificationToParticipants: ${e.message}")
         }
     }
 

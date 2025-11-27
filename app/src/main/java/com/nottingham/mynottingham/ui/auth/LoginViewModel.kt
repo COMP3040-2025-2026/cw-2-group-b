@@ -7,9 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.messaging.FirebaseMessaging
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.data.repository.MessageRepository
+import com.nottingham.mynottingham.service.MyFirebaseMessagingService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -158,6 +160,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 firebaseUserRepo.setupPresence(uid)
                 Log.d(TAG, "🟢 Presence system initialized for user: $uid")
 
+                // Step 7: Save FCM token for push notifications
+                FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+                    MyFirebaseMessagingService.saveTokenToFirebase(fcmToken)
+                    Log.d(TAG, "📲 FCM token saved for push notifications")
+                }
+
                 _loginSuccess.value = true
 
             } catch (e: FirebaseAuthInvalidUserException) {
@@ -220,6 +228,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 firebaseUserRepo.setOffline(userId)
                 Log.d(TAG, "🔴 User set to offline: $userId")
             }
+            // Remove FCM token to stop receiving notifications
+            MyFirebaseMessagingService.removeTokenFromFirebase()
             firebaseAuth.signOut()
             tokenManager.clearToken()
             Log.d(TAG, "🚪 User logged out successfully")
