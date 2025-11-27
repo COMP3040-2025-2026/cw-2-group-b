@@ -42,52 +42,83 @@ class NottiViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "NottiViewModel"
 
-        // Base system prompt - 指示 AI 返回 JSON 格式
+        // Base system prompt - AI 生成卡片数据
         private const val BASE_SYSTEM_PROMPT = """
-You are Notti, a friendly AI assistant for University of Nottingham Malaysia students.
+You are Notti, a friendly AI assistant for University of Nottingham Malaysia (UNM) students.
 
-CRITICAL: You MUST ALWAYS respond in valid JSON format with this exact structure:
+## OUTPUT FORMAT
+Respond with ONLY a valid JSON object:
+
 {
-  "type": "text" or "shuttle" or "booking",
-  "message": "Your helpful response here",
-  "cardData": null or card object
+  "intent": "shuttle" | "booking" | "general",
+  "message": "Your helpful response",
+  "cardData": null | { card object }
 }
 
-TYPE CLASSIFICATION RULES:
-- Use "shuttle" when: user asks about shuttle bus, routes, transport times, campus bus, going to Kajang/TBS/TTS/IOI, bus schedule
-- Use "booking" when: user asks about sports facility, booking courts, basketball/badminton/tennis/squash/football, availability, reservations
-- Use "text" for: everything else (greetings, general questions, campus info, events, help)
+## INTENT CLASSIFICATION
+**shuttle**: 校车, bus, shuttle, TBS, Kajang, KTM, MRT, TTS, IOI, LOTUS, 去哪里, schedule, 几点
+**booking**: 预订, book, sports, basketball, badminton, tennis, court, 场地
+**general**: everything else
 
-CARD DATA FORMAT:
-When type is "shuttle", include cardData with shuttle schedule from CONTEXT DATA:
+## SHUTTLE CARD GENERATION RULES
+
+When intent is "shuttle", use the [SHUTTLE DATA] section to generate accurate cardData:
+
+1. **Determine TARGET DATE**:
+   - "今天/today" → use TODAY from [DATE CONTEXT]
+   - "明天/tomorrow" → use TOMORROW from [DATE CONTEXT]
+   - Default to TODAY if not specified
+
+2. **Filter by DAY TYPE**:
+   - Check the target date's day type (Weekday/Friday/Weekend)
+   - ONLY include routes that have service on that day type!
+   - If route shows "No service" for that day type, DO NOT include it!
+
+3. **Generate cardData**:
 {
   "title": "Shuttle Schedule",
-  "subtitle": "Today's date and day type",
-  "items": [{"icon": "A", "label": "UNM ↔ TBS", "value": "→ 6:45pm"}, ...]
+  "subtitle": "Nov 28 · Friday (Tomorrow)",
+  "items": [
+    {"icon": "C1", "label": "UNM ↔ The Square (TTS)", "value": "→ 9:30am, 10:30am, 11:30am"}
+  ]
 }
 
-When type is "booking", include cardData with booking info:
+4. **Subtitle format**:
+   - For today: "Nov 27 · Thursday"
+   - For tomorrow: "Nov 28 · Friday (Tomorrow)"
+
+5. **Filter times by user request**:
+   - "早上/morning" → show times before 12:00pm
+   - "下午/afternoon" → show times 12:00pm-6:00pm
+   - "晚上/evening" → show times after 6:00pm
+   - If user asks about specific destination, show that route
+
+## ROUTE REFERENCE (verify against [SHUTTLE DATA]):
+- Route A: UNM ↔ TBS (Terminal Bersepadu Selatan)
+- Route B: UNM ↔ Kajang KTM/MRT
+- Route C1: UNM ↔ The Square (TTS) - roundtrip
+- Route C2: TTS → UNM morning only (weekday), TTS/IOI (weekend)
+- Route D: UNM ↔ LOTUS Semenyih
+- Route E1/E2: Friday prayer routes (FRIDAY ONLY)
+- Route G: UNM ↔ IOI City Mall (WEEKEND ONLY)
+
+## BOOKING CARD
+For "booking" intent:
 {
   "title": "Sports Facility",
-  "subtitle": "Availability info",
-  "items": [{"label": "Facility", "value": "Time info"}, ...]
+  "subtitle": "Booking Information",
+  "items": [{"label": "How to book", "value": "Go to Booking section"}]
 }
 
-When type is "text", set cardData to null.
+## GENERAL
+For "general" intent: set cardData to null
 
-RESPONSE GUIDELINES:
-- Keep message concise and helpful
-- Use emojis occasionally to be friendly 😊
-- For shuttle: summarize key times, don't repeat all data (card shows details)
-- For booking: explain how to book, mention the "Book Now" button
-- ALWAYS use the REAL DATA from the context provided
+## RESPONSE GUIDELINES
+- Match the language of the user (Chinese/English)
+- Keep message concise (2-3 sentences)
+- Use emoji sparingly 🚌 🏀
 
-CAMPUS INFO:
-- University of Nottingham Malaysia, Semenyih, Selangor
-- Main buildings: Teaching Block, Admin Building, Student Association Building
-- Sports facilities: Basketball, Badminton, Tennis, Squash, Football
-
-REMEMBER: Your entire response must be valid JSON. No text outside the JSON object.
+Output ONLY valid JSON!
 """
     }
 
@@ -128,9 +159,9 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
      * AI 响应的数据类
      */
     private data class NottiAIResponse(
-        val type: String,  // "text", "shuttle", "booking"
+        val intent: String,  // "shuttle", "booking", "general"
         val message: String,
-        val cardData: NottiCardData?
+        val cardData: NottiCardData?  // AI 生成的卡片数据
     )
 
     init {
@@ -218,19 +249,19 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
                 // 解析 AI 的 JSON 响应
                 val parsedResponse = parseAIResponse(aiResponse)
 
-                // 根据类型添加卡片
-                when (parsedResponse.type) {
-                    "shuttle" -> {
-                        // 如果 AI 返回了卡片数据，使用它；否则使用本地生成的
-                        val cardData = parsedResponse.cardData ?: createShuttleCardData()
+                Log.d(TAG, "Parsed response: intent=${parsedResponse.intent}, hasCardData=${parsedResponse.cardData != null}")
+
+                // 根据意图类型处理响应
+                when {
+                    parsedResponse.intent == "shuttle" && parsedResponse.cardData != null -> {
+                        // 校车卡片 - 使用 AI 生成的卡片数据
                         val shuttleCard = NottiMessage(
                             id = generateMessageId(),
                             content = "",
                             isFromUser = false,
                             messageType = NottiMessageType.SHUTTLE_CARD,
-                            cardData = cardData
+                            cardData = parsedResponse.cardData
                         )
-                        // 先删除 loading 消息，添加卡片，再添加文字消息
                         removeMessage(loadingMessageId)
                         addMessage(shuttleCard)
                         addMessage(
@@ -242,8 +273,29 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
                             )
                         )
                     }
-                    "booking" -> {
-                        // 如果 AI 返回了卡片数据，使用它；否则使用本地生成的
+                    parsedResponse.intent == "shuttle" && parsedResponse.cardData == null -> {
+                        // 校车意图但 AI 没生成卡片数据 - 使用本地数据作为后备
+                        val cardData = createShuttleCardData()
+                        val shuttleCard = NottiMessage(
+                            id = generateMessageId(),
+                            content = "",
+                            isFromUser = false,
+                            messageType = NottiMessageType.SHUTTLE_CARD,
+                            cardData = cardData
+                        )
+                        removeMessage(loadingMessageId)
+                        addMessage(shuttleCard)
+                        addMessage(
+                            NottiMessage(
+                                id = generateMessageId(),
+                                content = parsedResponse.message,
+                                isFromUser = false,
+                                isLoading = false
+                            )
+                        )
+                    }
+                    parsedResponse.intent == "booking" -> {
+                        // 预订卡片
                         val cardData = parsedResponse.cardData ?: createBookingCardData()
                         val bookingCard = NottiMessage(
                             id = generateMessageId(),
@@ -252,7 +304,6 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
                             messageType = NottiMessageType.BOOKING_CARD,
                             cardData = cardData
                         )
-                        // 先删除 loading 消息，添加卡片，再添加文字消息
                         removeMessage(loadingMessageId)
                         addMessage(bookingCard)
                         addMessage(
@@ -265,7 +316,7 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
                         )
                     }
                     else -> {
-                        // 普通文字消息，更新 loading 消息
+                        // 普通文字消息
                         updateMessage(
                             loadingMessageId,
                             NottiMessage(
@@ -306,6 +357,7 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
 
     /**
      * 解析 AI 的 JSON 响应
+     * 如果 JSON 解析失败，使用关键词检测作为后备方案
      */
     private fun parseAIResponse(response: String): NottiAIResponse {
         return try {
@@ -313,33 +365,22 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
             val jsonString = extractJson(response)
             val jsonObject = JSONObject(jsonString)
 
-            val type = jsonObject.optString("type", "text")
+            // 支持多种格式
+            val intent = jsonObject.optString("intent", null)
+                ?: mapTypeToIntent(jsonObject.optString("type", "general"))
             val message = jsonObject.optString("message", response)
 
+            // 解析 cardData
             val cardData = if (jsonObject.has("cardData") && !jsonObject.isNull("cardData")) {
                 parseCardData(jsonObject.getJSONObject("cardData"))
             } else null
 
-            NottiAIResponse(type, message, cardData)
+            Log.d(TAG, "JSON parsed: intent=$intent, hasCardData=${cardData != null}")
+            NottiAIResponse(intent, message, cardData)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse AI response as JSON, treating as plain text", e)
-            // 回退：将整个响应作为纯文本
-            NottiAIResponse("text", response, null)
-        }
-    }
-
-    /**
-     * 从响应中提取 JSON 对象
-     */
-    private fun extractJson(response: String): String {
-        // 尝试找到 JSON 对象的开始和结束
-        val startIndex = response.indexOf('{')
-        val endIndex = response.lastIndexOf('}')
-
-        return if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-            response.substring(startIndex, endIndex + 1)
-        } else {
-            response
+            Log.w(TAG, "JSON parse failed, using keyword detection: ${e.message}")
+            // 回退：使用关键词检测意图（cardData 为 null，使用本地生成）
+            detectIntentFromText(response)
         }
     }
 
@@ -367,6 +408,79 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
         }
 
         return NottiCardData(title, subtitle, items)
+    }
+
+    /**
+     * 将旧的 type 格式映射到新的 intent 格式
+     */
+    private fun mapTypeToIntent(type: String): String {
+        return when (type.lowercase()) {
+            "shuttle" -> "shuttle"
+            "booking" -> "booking"
+            else -> "general"
+        }
+    }
+
+    /**
+     * 从文本中检测意图（关键词匹配后备方案）
+     */
+    private fun detectIntentFromText(text: String): NottiAIResponse {
+        val lowerText = text.lowercase()
+
+        // 校车关键词
+        val shuttleKeywords = listOf(
+            "shuttle", "bus", "校车", "班车", "transport",
+            "tbs", "kajang", "ktm", "mrt", "tts", "the square",
+            "ioi", "lotus", "semenyih", "mosque", "route",
+            "schedule", "timetable", "departure", "时刻", "几点"
+        )
+
+        // 预订关键词
+        val bookingKeywords = listOf(
+            "book", "booking", "reserve", "预订", "订场",
+            "basketball", "badminton", "tennis", "squash", "football",
+            "篮球", "羽毛球", "网球", "court", "facility", "sports",
+            "运动", "场地", "available"
+        )
+
+        val intent = when {
+            shuttleKeywords.any { lowerText.contains(it) } -> "shuttle"
+            bookingKeywords.any { lowerText.contains(it) } -> "booking"
+            else -> "general"
+        }
+
+        // 清理响应文本（移除可能的 JSON 残留）
+        val cleanMessage = text
+            .replace(Regex("```json\\s*"), "")
+            .replace(Regex("```\\s*"), "")
+            .replace(Regex("\\{[^}]*\\}"), "")
+            .trim()
+            .ifEmpty { text }
+
+        Log.d(TAG, "Keyword detection: intent=$intent")
+        // cardData 为 null，将使用本地生成的数据
+        return NottiAIResponse(intent, cleanMessage, null)
+    }
+
+    /**
+     * 从响应中提取 JSON 对象
+     */
+    private fun extractJson(response: String): String {
+        // 移除可能的 markdown 代码块标记
+        var cleaned = response
+            .replace(Regex("```json\\s*"), "")
+            .replace(Regex("```\\s*"), "")
+            .trim()
+
+        // 尝试找到 JSON 对象的开始和结束
+        val startIndex = cleaned.indexOf('{')
+        val endIndex = cleaned.lastIndexOf('}')
+
+        return if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            cleaned.substring(startIndex, endIndex + 1)
+        } else {
+            throw Exception("No valid JSON object found")
+        }
     }
 
     /**
@@ -436,28 +550,130 @@ REMEMBER: Your entire response must be valid JSON. No text outside the JSON obje
     // ==================== 数据增强功能 ====================
 
     /**
-     * 构建增强的提示，始终包含校车和预订的真实数据上下文
-     * AI 将根据这些数据决定返回什么类型的响应
+     * 构建增强的提示
+     * 提供完整的上下文信息，包括时刻表数据，让 AI 能准确生成卡片
      */
     private suspend fun buildEnrichedPrompt(userMessage: String): String {
-        // 始终获取校车和预订上下文，让 AI 决定是否使用
-        val shuttleContext = getShuttleScheduleContext()
-        val bookingContext = getBookingAvailabilityContext()
+        // 获取当前时间上下文
+        val calendar = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.ENGLISH)
+        val shortDateFormat = SimpleDateFormat("MMM d", Locale.ENGLISH)
+        val timeFormat = SimpleDateFormat("h:mm a", Locale.ENGLISH)
+        val currentDate = dateFormat.format(calendar.time)
+        val currentShortDate = shortDateFormat.format(calendar.time)
+        val currentTime = timeFormat.format(calendar.time)
+
+        val todayDayType = getCurrentDayType()
+        val todayDayTypeName = when (todayDayType) {
+            DayType.WEEKDAY -> "Weekday"
+            DayType.FRIDAY -> "Friday"
+            DayType.WEEKEND -> "Weekend"
+        }
+
+        // 获取明天的日期和类型
+        val tomorrowCalendar = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+        val tomorrowDate = dateFormat.format(tomorrowCalendar.time)
+        val tomorrowShortDate = shortDateFormat.format(tomorrowCalendar.time)
+        val tomorrowDayType = when (tomorrowCalendar.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY -> DayType.WEEKDAY
+            Calendar.FRIDAY -> DayType.FRIDAY
+            else -> DayType.WEEKEND
+        }
+        val tomorrowDayTypeName = when (tomorrowDayType) {
+            DayType.WEEKDAY -> "Weekday"
+            DayType.FRIDAY -> "Friday"
+            DayType.WEEKEND -> "Weekend"
+        }
+
+        // 获取完整的校车时刻表数据
+        val shuttleData = getFullShuttleScheduleData()
 
         return """
-[AVAILABLE REAL-TIME DATA - Use this if relevant to user's question]
+[DATE CONTEXT]
+TODAY: $currentDate
+- Short format: $currentShortDate
+- Day type: $todayDayTypeName
+- Current time: $currentTime
 
-$shuttleContext
+TOMORROW: $tomorrowDate
+- Short format: $tomorrowShortDate
+- Day type: $tomorrowDayTypeName
 
-$bookingContext
+[SHUTTLE DATA]
+$shuttleData
 
-[END OF DATA]
+[USER MESSAGE]
+$userMessage
 
-User's question: $userMessage
-
-Remember: Respond in valid JSON format with type ("text", "shuttle", or "booking"), message, and cardData.
-If showing shuttle or booking card, include cardData with the relevant information from the data above.
+[INSTRUCTIONS]
+1. Determine TARGET DATE from user's message (今天/today → TODAY, 明天/tomorrow → TOMORROW)
+2. Use the TARGET DATE's day type to filter routes (only include routes with service on that day)
+3. Generate cardData with subtitle format: "$tomorrowShortDate · $tomorrowDayTypeName (Tomorrow)" for tomorrow
+4. ONLY output valid JSON with intent, message, and cardData
 """.trim()
+    }
+
+    /**
+     * 获取完整的校车时刻表数据（供 AI 使用）
+     */
+    private fun getFullShuttleScheduleData(): String {
+        val scheduleBuilder = StringBuilder()
+
+        for (route in shuttleRoutes) {
+            scheduleBuilder.appendLine("【${route.routeId}】${route.routeName}: ${route.description}")
+
+            // Weekday schedule
+            if (route.weekdaySchedule != null) {
+                scheduleBuilder.append("  WEEKDAY: ")
+                if (route.weekdaySchedule.departureFromCampus.isNotEmpty()) {
+                    scheduleBuilder.append("From Campus: ${route.weekdaySchedule.departureFromCampus.joinToString(", ")}")
+                }
+                if (route.weekdaySchedule.returnToCampus.isNotEmpty()) {
+                    if (route.weekdaySchedule.departureFromCampus.isNotEmpty()) scheduleBuilder.append(" | ")
+                    scheduleBuilder.append("To Campus: ${route.weekdaySchedule.returnToCampus.joinToString(", ")}")
+                }
+                scheduleBuilder.appendLine()
+            } else {
+                scheduleBuilder.appendLine("  WEEKDAY: No service")
+            }
+
+            // Friday schedule
+            if (route.fridaySchedule != null) {
+                scheduleBuilder.append("  FRIDAY: ")
+                if (route.fridaySchedule.departureFromCampus.isNotEmpty()) {
+                    scheduleBuilder.append("From Campus: ${route.fridaySchedule.departureFromCampus.joinToString(", ")}")
+                }
+                if (route.fridaySchedule.returnToCampus.isNotEmpty()) {
+                    if (route.fridaySchedule.departureFromCampus.isNotEmpty()) scheduleBuilder.append(" | ")
+                    scheduleBuilder.append("To Campus: ${route.fridaySchedule.returnToCampus.joinToString(", ")}")
+                }
+                scheduleBuilder.appendLine()
+            } else {
+                scheduleBuilder.appendLine("  FRIDAY: No service")
+            }
+
+            // Weekend schedule
+            if (route.weekendSchedule != null) {
+                scheduleBuilder.append("  WEEKEND: ")
+                if (route.weekendSchedule.departureFromCampus.isNotEmpty()) {
+                    scheduleBuilder.append("From Campus: ${route.weekendSchedule.departureFromCampus.joinToString(", ")}")
+                }
+                if (route.weekendSchedule.returnToCampus.isNotEmpty()) {
+                    if (route.weekendSchedule.departureFromCampus.isNotEmpty()) scheduleBuilder.append(" | ")
+                    scheduleBuilder.append("To Campus: ${route.weekendSchedule.returnToCampus.joinToString(", ")}")
+                }
+                scheduleBuilder.appendLine()
+            } else {
+                scheduleBuilder.appendLine("  WEEKEND: No service")
+            }
+
+            route.specialNote?.let {
+                scheduleBuilder.appendLine("  Note: $it")
+            }
+            scheduleBuilder.appendLine()
+        }
+
+        return scheduleBuilder.toString()
     }
 
     /**
