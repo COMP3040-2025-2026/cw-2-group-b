@@ -90,10 +90,6 @@ class NottiFragment : Fragment() {
             viewModel.handleQuickAction(NottiViewModel.QuickAction.BOOKING)
         }
 
-        binding.chipEvents.setOnClickListener {
-            viewModel.handleQuickAction(NottiViewModel.QuickAction.EVENTS)
-        }
-
         binding.chipHelp.setOnClickListener {
             viewModel.handleQuickAction(NottiViewModel.QuickAction.HELP)
         }
