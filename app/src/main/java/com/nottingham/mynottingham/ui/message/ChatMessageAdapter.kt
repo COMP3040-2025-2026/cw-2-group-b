@@ -76,7 +76,7 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message
+                tvMessage.text = message.message.trim()
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
             }
@@ -90,7 +90,7 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message
+                tvMessage.text = message.message.trim()
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
                 // Optionally show sender name for group chats

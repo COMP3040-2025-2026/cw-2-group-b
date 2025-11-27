@@ -406,6 +406,9 @@ class FirebaseMessageRepository {
         messageType: String = "TEXT"
     ): Result<String> {
         return try {
+            // 去除消息首尾空白
+            val trimmedMessage = message.trim()
+
             val timestamp = System.currentTimeMillis()
             val newMessageRef = conversationsRef.child(conversationId).child("messages").push()
             val messageId = newMessageRef.key ?: throw Exception("Failed to generate message ID")
@@ -414,7 +417,7 @@ class FirebaseMessageRepository {
                 "senderId" to senderId,
                 "senderName" to senderName,
                 "senderAvatar" to senderAvatar,
-                "message" to message,
+                "message" to trimmedMessage,
                 "timestamp" to timestamp,
                 "isRead" to false,
                 "messageType" to messageType
@@ -425,16 +428,16 @@ class FirebaseMessageRepository {
 
             // 更新对话的最后消息信息 (metadata)
             val metadataUpdates = mapOf(
-                "lastMessage" to message,
+                "lastMessage" to trimmedMessage,
                 "lastMessageTime" to timestamp
             )
             conversationsRef.child(conversationId).child("metadata").updateChildren(metadataUpdates).await()
 
             // 更新所有参与者的 user_conversations 中的 lastMessage 和 lastMessageTime
-            updateLastMessageForAllParticipants(conversationId, message, timestamp, senderId)
+            updateLastMessageForAllParticipants(conversationId, trimmedMessage, timestamp, senderId)
 
             // 发送 FCM 推送通知给其他参与者
-            sendPushNotificationToParticipants(conversationId, senderId, senderName, message)
+            sendPushNotificationToParticipants(conversationId, senderId, senderName, trimmedMessage)
 
             Result.success(messageId)
         } catch (e: Exception) {
