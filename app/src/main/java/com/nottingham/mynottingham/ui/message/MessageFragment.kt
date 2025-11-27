@@ -88,7 +88,8 @@ class MessageFragment : Fragment() {
                     participantName = conversation.participantName,
                     participantId = conversation.participantId,
                     participantAvatar = conversation.participantAvatar,
-                    isOnline = conversation.isOnline
+                    isOnline = conversation.isOnline,
+                    isGroup = conversation.isGroup
                 )
                 findNavController().navigate(action)
             },

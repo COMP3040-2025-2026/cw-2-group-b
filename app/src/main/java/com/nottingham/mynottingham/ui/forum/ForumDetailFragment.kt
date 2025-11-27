@@ -22,6 +22,7 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.FragmentForumDetailBinding
+import com.nottingham.mynottingham.ui.common.ImageViewerDialog
 import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.first
@@ -232,8 +233,13 @@ class ForumDetailFragment : Fragment() {
                     .load(post.imageUrl)
                     .placeholder(R.drawable.ic_placeholder)
                     .into(ivPostImage)
+                // Click to view full image
+                ivPostImage.setOnClickListener {
+                    ImageViewerDialog(requireContext(), post.imageUrl).show()
+                }
             } else {
                 ivPostImage.isVisible = false
+                ivPostImage.setOnClickListener(null)
             }
 
             // Tags

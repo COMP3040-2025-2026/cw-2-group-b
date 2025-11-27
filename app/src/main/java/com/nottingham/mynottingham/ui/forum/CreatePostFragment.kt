@@ -1,15 +1,18 @@
 package com.nottingham.mynottingham.ui.forum
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.model.ForumCategory
@@ -28,6 +31,15 @@ class CreatePostFragment : Fragment() {
     // Edit mode properties
     private var isEditMode: Boolean = false
     private var editPostId: String? = null
+
+    // Image picker launcher
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            viewModel.setSelectedImage(imageUri)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,11 +65,39 @@ class CreatePostFragment : Fragment() {
         setupToolbar()
         setupCategorySpinner()
         setupPinCheckbox()
+        setupImageSelection()
         observeViewModel()
 
         // If in edit mode, populate the fields
         if (isEditMode) {
             populateEditData()
+        }
+    }
+
+    private fun setupImageSelection() {
+        // Add image button click
+        binding.btnAddImage.setOnClickListener {
+            imagePickerLauncher.launch("image/*")
+        }
+
+        // Remove image button click
+        binding.btnRemoveImage.setOnClickListener {
+            viewModel.clearSelectedImage()
+        }
+
+        // Observe selected image
+        viewModel.selectedImageUri.observe(viewLifecycleOwner) { uri ->
+            if (uri != null) {
+                binding.cardImagePreview.visibility = View.VISIBLE
+                binding.btnAddImage.text = "Change Image"
+                Glide.with(requireContext())
+                    .load(uri)
+                    .into(binding.ivImagePreview)
+            } else {
+                binding.cardImagePreview.visibility = View.GONE
+                binding.btnAddImage.text = "Add Image"
+                binding.ivImagePreview.setImageDrawable(null)
+            }
         }
     }
 
@@ -187,7 +227,13 @@ class CreatePostFragment : Fragment() {
             binding.editContent.isEnabled = !isLoading
             binding.editTags.isEnabled = !isLoading
             binding.spinnerCategory.isEnabled = !isLoading
+            binding.btnAddImage.isEnabled = !isLoading
+            binding.btnRemoveImage.isEnabled = !isLoading
             binding.toolbar.menu.findItem(R.id.action_post)?.isEnabled = !isLoading
+        }
+
+        viewModel.uploadingImage.observe(viewLifecycleOwner) { isUploading ->
+            binding.btnAddImage.alpha = if (isUploading) 0.5f else 1.0f
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->

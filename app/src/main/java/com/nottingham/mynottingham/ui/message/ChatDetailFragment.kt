@@ -1,22 +1,32 @@
 package com.nottingham.mynottingham.ui.message
 
+import android.app.AlertDialog
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.model.GroupMember
+import com.nottingham.mynottingham.data.model.GroupRole
+import com.nottingham.mynottingham.databinding.BottomSheetGroupInfoBinding
+import com.nottingham.mynottingham.databinding.BottomSheetUserProfileBinding
 import com.nottingham.mynottingham.databinding.FragmentChatDetailBinding
-import com.nottingham.mynottingham.util.Constants
+import com.nottingham.mynottingham.util.AvatarUtils
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -37,6 +47,15 @@ class ChatDetailFragment : Fragment() {
     private var currentUserId: String = ""
     private var token: String = ""
     private var isTyping = false
+
+    // Image picker launcher
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            viewModel.sendImageMessage(imageUri)
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -59,13 +78,14 @@ class ChatDetailFragment : Fragment() {
         val participantId = args.participantId
         val participantAvatar = args.participantAvatar
         val isOnline = args.isOnline
+        val isGroup = args.isGroup
 
-        setupToolbar(participantName, participantAvatar, isOnline)
+        setupToolbar(participantName, participantAvatar, isOnline, isGroup)
         setupInputField()
-        setupObservers(participantName)
+        setupObservers(participantName, isGroup)
 
-        // Observe participant's real-time presence status
-        if (participantId.isNotEmpty()) {
+        // Observe participant's real-time presence status (only for 1:1 chats)
+        if (!isGroup && participantId.isNotEmpty()) {
             viewModel.observeParticipantPresence(participantId)
         }
 
@@ -86,22 +106,36 @@ class ChatDetailFragment : Fragment() {
         }
     }
 
-    private fun setupToolbar(participantName: String, participantAvatar: String?, isOnline: Boolean) {
+    private fun setupToolbar(participantName: String, participantAvatar: String?, isOnline: Boolean, isGroup: Boolean) {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
 
         // Set participant info
         binding.textName.text = participantName
-        binding.textStatus.text = if (isOnline) "Active now" else "Offline"
+        binding.textStatus.text = if (isGroup) {
+            "Group Chat"
+        } else if (isOnline) {
+            "Active now"
+        } else {
+            "Offline"
+        }
 
-        // Set avatar initials
-        val initials = participantName.split(" ")
-            .take(2)
-            .map { it.firstOrNull()?.uppercase() ?: "" }
-            .joinToString("")
-        binding.imageAvatar.setImageDrawable(null) // Clear previous image
-        // TODO: Set avatar properly when ImageView is available in layout
+        // Set avatar
+        if (isGroup) {
+            binding.imageAvatar.setImageResource(R.drawable.ic_group)
+        } else {
+            binding.imageAvatar.setImageResource(AvatarUtils.getDrawableId(participantAvatar))
+        }
+
+        // More button click
+        binding.buttonMore.setOnClickListener {
+            if (isGroup) {
+                showGroupInfoBottomSheet()
+            } else {
+                showUserProfileBottomSheet(args.participantId)
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -125,6 +159,11 @@ class ChatDetailFragment : Fragment() {
             }
         }
 
+        // Image attachment button click
+        binding.buttonAttachImage.setOnClickListener {
+            imagePickerLauncher.launch("image/*")
+        }
+
         // Text change listener for typing indicator
         binding.editMessage.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -145,7 +184,7 @@ class ChatDetailFragment : Fragment() {
         })
     }
 
-    private fun setupObservers(participantName: String) {
+    private fun setupObservers(participantName: String, isGroup: Boolean) {
         // Observe messages
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
             if (messages.isEmpty()) {
@@ -172,6 +211,12 @@ class ChatDetailFragment : Fragment() {
         // Observe sending message state
         viewModel.sendingMessage.observe(viewLifecycleOwner) { isSending ->
             binding.buttonSend.isEnabled = !isSending
+            binding.buttonAttachImage.isEnabled = !isSending
+        }
+
+        // Observe image uploading state
+        viewModel.uploadingImage.observe(viewLifecycleOwner) { isUploading ->
+            binding.buttonAttachImage.alpha = if (isUploading) 0.5f else 1.0f
         }
 
         // Observe message sent
@@ -190,19 +235,22 @@ class ChatDetailFragment : Fragment() {
             }
         }
 
-        // Observe typing status - typing takes priority over presence status
-        viewModel.typingStatus.observe(viewLifecycleOwner) { typingText ->
-            if (typingText != null) {
-                binding.textStatus.text = typingText
+        // Only observe typing and presence for 1:1 chats
+        if (!isGroup) {
+            // Observe typing status - typing takes priority over presence status
+            viewModel.typingStatus.observe(viewLifecycleOwner) { typingText ->
+                if (typingText != null) {
+                    binding.textStatus.text = typingText
+                }
+                // If no typing, let participantStatus handle it
             }
-            // If no typing, let participantStatus handle it
-        }
 
-        // Observe participant's real-time presence status (Telegram-style)
-        viewModel.participantStatus.observe(viewLifecycleOwner) { status ->
-            // Only update if not showing typing indicator
-            if (viewModel.typingStatus.value == null) {
-                binding.textStatus.text = status
+            // Observe participant's real-time presence status (Telegram-style)
+            viewModel.participantStatus.observe(viewLifecycleOwner) { status ->
+                // Only update if not showing typing indicator
+                if (viewModel.typingStatus.value == null) {
+                    binding.textStatus.text = status
+                }
             }
         }
     }
@@ -218,5 +266,284 @@ class ChatDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    // ========== Bottom Sheets ==========
+
+    private fun showUserProfileBottomSheet(userId: String) {
+        if (userId.isEmpty()) return
+
+        viewModel.loadUserProfile(userId)
+
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val sheetBinding = BottomSheetUserProfileBinding.inflate(layoutInflater)
+        bottomSheet.setContentView(sheetBinding.root)
+
+        // Observe user profile
+        viewModel.userProfile.observe(viewLifecycleOwner) { profile ->
+            profile?.let {
+                sheetBinding.apply {
+                    tvName.text = it["name"] as? String ?: "Unknown"
+                    tvEmail.text = it["email"] as? String ?: ""
+
+                    val userRole = it["role"] as? String ?: "STUDENT"
+                    tvRole.text = if (userRole == "TEACHER") "Teacher" else "Student"
+
+                    // Avatar
+                    ivAvatar.setImageResource(AvatarUtils.getDrawableId(it["avatar"] as? String))
+
+                    // Faculty
+                    val faculty = it["faculty"] as? String
+                    if (!faculty.isNullOrEmpty()) {
+                        tvFaculty.text = faculty
+                        tvFacultyLabel.text = if (userRole == "TEACHER") "Department" else "Faculty"
+                        layoutFaculty.isVisible = true
+                    } else {
+                        layoutFaculty.isVisible = false
+                    }
+
+                    // Program (students only)
+                    val program = it["program"] as? String
+                    if (!program.isNullOrEmpty() && userRole != "TEACHER") {
+                        tvProgram.text = program
+                        layoutProgram.isVisible = true
+                    } else {
+                        layoutProgram.isVisible = false
+                    }
+
+                    // Year (students only)
+                    val year = it["year"] as? String
+                    if (!year.isNullOrEmpty() && userRole != "TEACHER") {
+                        tvYear.text = "Year $year"
+                        layoutYear.isVisible = true
+                        dividerYear.isVisible = true
+                    } else {
+                        layoutYear.isVisible = false
+                        dividerYear.isVisible = false
+                    }
+                }
+            }
+        }
+
+        bottomSheet.show()
+    }
+
+    private fun showGroupInfoBottomSheet() {
+        viewModel.loadGroupInfo()
+
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val sheetBinding = BottomSheetGroupInfoBinding.inflate(layoutInflater)
+        bottomSheet.setContentView(sheetBinding.root)
+
+        var memberAdapter: GroupMemberAdapter? = null
+
+        // Observe group info
+        viewModel.groupInfo.observe(viewLifecycleOwner) { info ->
+            info?.let {
+                sheetBinding.tvGroupName.text = it.name
+                sheetBinding.tvMemberCount.text = "${it.members.size} members"
+            }
+        }
+
+        // Observe current user role
+        viewModel.currentUserRole.observe(viewLifecycleOwner) { role ->
+            val isOwnerOrAdmin = role == GroupRole.OWNER || role == GroupRole.ADMIN
+            val isOwner = role == GroupRole.OWNER
+
+            sheetBinding.apply {
+                // Show edit button for owner/admin
+                btnEditName.isVisible = isOwnerOrAdmin
+                btnAddMember.isVisible = isOwnerOrAdmin
+
+                // Show admin actions
+                layoutAdminActions.isVisible = true
+                btnLeaveGroup.isVisible = !isOwner
+                btnTransferOwnership.isVisible = isOwner
+                btnDissolveGroup.isVisible = isOwner
+            }
+
+            // Update adapter with new role
+            memberAdapter?.let { adapter ->
+                viewModel.groupMembers.value?.let { members ->
+                    adapter.submitList(members.toList())
+                }
+            }
+        }
+
+        // Observe group members
+        viewModel.groupMembers.observe(viewLifecycleOwner) { members ->
+            val role = viewModel.currentUserRole.value ?: GroupRole.MEMBER
+
+            memberAdapter = GroupMemberAdapter(
+                currentUserId = currentUserId,
+                currentUserRole = role,
+                onMemberClick = { member ->
+                    bottomSheet.dismiss()
+                    showMemberProfileBottomSheet(member)
+                },
+                onSetAdmin = { member ->
+                    viewModel.setAsAdmin(member.id)
+                },
+                onRemoveAdmin = { member ->
+                    viewModel.removeAdmin(member.id)
+                },
+                onRemoveMember = { member ->
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("Remove Member")
+                        .setMessage("Remove ${member.name} from the group?")
+                        .setPositiveButton("Remove") { _, _ ->
+                            viewModel.removeGroupMember(member.id)
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                },
+                onTransferOwnership = { member ->
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("Transfer Ownership")
+                        .setMessage("Transfer group ownership to ${member.name}?")
+                        .setPositiveButton("Transfer") { _, _ ->
+                            viewModel.transferOwnership(member.id)
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            )
+
+            sheetBinding.recyclerMembers.apply {
+                layoutManager = LinearLayoutManager(context)
+                adapter = memberAdapter
+            }
+            memberAdapter?.submitList(members)
+        }
+
+        // Edit group name
+        sheetBinding.btnEditName.setOnClickListener {
+            val input = EditText(requireContext()).apply {
+                setText(viewModel.groupInfo.value?.name ?: "")
+                hint = "Group name"
+            }
+            AlertDialog.Builder(requireContext())
+                .setTitle("Edit Group Name")
+                .setView(input)
+                .setPositiveButton("Save") { _, _ ->
+                    val newName = input.text.toString().trim()
+                    if (newName.isNotEmpty()) {
+                        viewModel.updateGroupName(newName)
+                        sheetBinding.tvGroupName.text = newName
+                        binding.textName.text = newName
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        // Add member button
+        sheetBinding.btnAddMember.setOnClickListener {
+            bottomSheet.dismiss()
+            // Navigate to add member screen
+            Toast.makeText(context, "Add member feature coming soon", Toast.LENGTH_SHORT).show()
+        }
+
+        // Leave group
+        sheetBinding.btnLeaveGroup.setOnClickListener {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Leave Group")
+                .setMessage("Are you sure you want to leave this group?")
+                .setPositiveButton("Leave") { _, _ ->
+                    viewModel.leaveGroup()
+                    bottomSheet.dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        // Transfer ownership
+        sheetBinding.btnTransferOwnership.setOnClickListener {
+            Toast.makeText(context, "Select a member to transfer ownership", Toast.LENGTH_SHORT).show()
+        }
+
+        // Dissolve group
+        sheetBinding.btnDissolveGroup.setOnClickListener {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Dissolve Group")
+                .setMessage("Are you sure you want to dissolve this group? This action cannot be undone.")
+                .setPositiveButton("Dissolve") { _, _ ->
+                    viewModel.dissolveGroup()
+                    bottomSheet.dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        // Observe operation success
+        viewModel.operationSuccess.observe(viewLifecycleOwner) { result ->
+            result?.let {
+                when (it) {
+                    "LEFT_GROUP", "GROUP_DISSOLVED" -> {
+                        bottomSheet.dismiss()
+                        findNavController().navigateUp()
+                    }
+                    else -> {
+                        Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                viewModel.clearOperationSuccess()
+            }
+        }
+
+        bottomSheet.show()
+    }
+
+    private fun showMemberProfileBottomSheet(member: GroupMember) {
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val sheetBinding = BottomSheetUserProfileBinding.inflate(layoutInflater)
+        bottomSheet.setContentView(sheetBinding.root)
+
+        sheetBinding.apply {
+            tvName.text = member.name
+            tvEmail.text = member.email ?: ""
+            tvRole.text = if (member.userRole == "TEACHER") "Teacher" else "Student"
+            ivAvatar.setImageResource(AvatarUtils.getDrawableId(member.avatar))
+
+            // Faculty
+            if (!member.faculty.isNullOrEmpty()) {
+                tvFaculty.text = member.faculty
+                tvFacultyLabel.text = if (member.userRole == "TEACHER") "Department" else "Faculty"
+                layoutFaculty.isVisible = true
+            } else {
+                layoutFaculty.isVisible = false
+            }
+
+            // Program
+            if (!member.program.isNullOrEmpty() && member.userRole != "TEACHER") {
+                tvProgram.text = member.program
+                layoutProgram.isVisible = true
+            } else {
+                layoutProgram.isVisible = false
+            }
+
+            // Year
+            if (!member.year.isNullOrEmpty() && member.userRole != "TEACHER") {
+                tvYear.text = "Year ${member.year}"
+                layoutYear.isVisible = true
+                dividerYear.isVisible = true
+            } else {
+                layoutYear.isVisible = false
+                dividerYear.isVisible = false
+            }
+
+            // Show message button if not self
+            if (member.id != currentUserId) {
+                btnMessage.isVisible = true
+                btnMessage.setOnClickListener {
+                    bottomSheet.dismiss()
+                    // TODO: Navigate to 1:1 chat with this member
+                    // This would require creating or finding an existing conversation first
+                    Toast.makeText(context, "Private chat with ${member.name} coming soon", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        bottomSheet.show()
     }
 }

@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.ui.forum
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -8,6 +9,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseForumRepository
+import com.nottingham.mynottingham.data.repository.ImageUploadRepository
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -19,6 +21,7 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
 
     private val repository = FirebaseForumRepository()
     private val tokenManager = TokenManager(application)
+    private val imageUploadRepo = ImageUploadRepository()
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -28,6 +31,26 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _postCreated = MutableLiveData<Boolean>()
     val postCreated: LiveData<Boolean> = _postCreated
+
+    private val _selectedImageUri = MutableLiveData<Uri?>()
+    val selectedImageUri: LiveData<Uri?> = _selectedImageUri
+
+    private val _uploadingImage = MutableLiveData<Boolean>()
+    val uploadingImage: LiveData<Boolean> = _uploadingImage
+
+    /**
+     * Set selected image URI
+     */
+    fun setSelectedImage(uri: Uri?) {
+        _selectedImageUri.value = uri
+    }
+
+    /**
+     * Clear selected image
+     */
+    fun clearSelectedImage() {
+        _selectedImageUri.value = null
+    }
 
     /**
      * Create a new post
@@ -61,6 +84,30 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
             Log.d("CreatePostViewModel", "Creating post: title=$title, category=$category, tags=$tags")
             Log.d("CreatePostViewModel", "User: userId=$userId, userName=$userName")
 
+            // Upload image if selected
+            var imageUrl: String? = null
+            val selectedImage = _selectedImageUri.value
+            if (selectedImage != null) {
+                _uploadingImage.postValue(true)
+                val uploadResult = imageUploadRepo.uploadImage(
+                    context = getApplication(),
+                    imageUri = selectedImage,
+                    folder = ImageUploadRepository.FOLDER_FORUM_IMAGES,
+                    userId = userId
+                )
+                uploadResult.onSuccess { url ->
+                    imageUrl = url
+                    Log.d("CreatePostViewModel", "Image uploaded: $url")
+                }.onFailure { e ->
+                    Log.e("CreatePostViewModel", "Failed to upload image", e)
+                    _error.postValue("Failed to upload image: ${e.message}")
+                    _loading.postValue(false)
+                    _uploadingImage.postValue(false)
+                    return@launch
+                }
+                _uploadingImage.postValue(false)
+            }
+
             val result = repository.createPost(
                 authorId = userId,
                 authorName = userName,
@@ -68,7 +115,7 @@ class CreatePostViewModel(application: Application) : AndroidViewModel(applicati
                 category = category,
                 title = title.trim(),
                 content = content.trim(),
-                imageUrl = null,
+                imageUrl = imageUrl,
                 tags = tags,
                 isPinned = isPinned
             )

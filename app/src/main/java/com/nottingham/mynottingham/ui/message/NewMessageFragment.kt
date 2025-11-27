@@ -138,7 +138,8 @@ class NewMessageFragment : Fragment() {
                     participantName = it.participantName,
                     participantId = it.participantId,
                     participantAvatar = it.participantAvatar,
-                    isOnline = it.isOnline
+                    isOnline = it.isOnline,
+                    isGroup = it.isGroup
                 )
                 findNavController().navigate(action)
                 viewModel.resetConversationCreated()

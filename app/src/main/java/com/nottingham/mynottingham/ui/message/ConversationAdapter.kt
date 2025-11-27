@@ -58,11 +58,15 @@ class ConversationAdapter(
 
         fun bind(conversation: Conversation) {
             binding.apply {
-                // Set avatar
-                ivAvatar.setImageResource(AvatarUtils.getDrawableId(conversation.participantAvatar))
+                // Set avatar - use group icon for groups, otherwise user avatar
+                if (conversation.isGroup) {
+                    ivAvatar.setImageResource(com.nottingham.mynottingham.R.drawable.ic_group)
+                } else {
+                    ivAvatar.setImageResource(AvatarUtils.getDrawableId(conversation.participantAvatar))
+                }
 
-                // Show/hide online indicator
-                viewOnline.visibility = if (conversation.isOnline) View.VISIBLE else View.GONE
+                // Show/hide online indicator (only for 1:1 chats)
+                viewOnline.visibility = if (!conversation.isGroup && conversation.isOnline) View.VISIBLE else View.GONE
 
                 // Set name
                 tvName.text = conversation.participantName

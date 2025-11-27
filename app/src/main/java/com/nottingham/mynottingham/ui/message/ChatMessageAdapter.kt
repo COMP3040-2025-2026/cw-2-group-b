@@ -1,11 +1,17 @@
 package com.nottingham.mynottingham.ui.message
 
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.ChatMessage
+import com.nottingham.mynottingham.ui.common.ImageViewerDialog
 import com.nottingham.mynottingham.databinding.ItemChatMessageReceivedBinding
 import com.nottingham.mynottingham.databinding.ItemChatMessageSentBinding
 import com.nottingham.mynottingham.util.AvatarUtils
@@ -76,9 +82,31 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message.trim()
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
+
+                // Handle image messages
+                if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
+                    Log.d("ChatMessageAdapter", "Loading sent image: ${message.imageUrl}")
+                    ivMessageImage.visibility = View.VISIBLE
+                    tvMessage.visibility = View.GONE
+                    Glide.with(itemView.context)
+                        .load(message.imageUrl)
+                        .diskCacheStrategy(DiskCacheStrategy.ALL)
+                        .placeholder(R.drawable.ic_image)
+                        .error(R.drawable.ic_image)
+                        .into(ivMessageImage)
+
+                    // Click to view full image
+                    ivMessageImage.setOnClickListener {
+                        ImageViewerDialog(itemView.context, message.imageUrl).show()
+                    }
+                } else {
+                    ivMessageImage.visibility = View.GONE
+                    ivMessageImage.setOnClickListener(null)
+                    tvMessage.visibility = View.VISIBLE
+                    tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "[Image]"
+                }
             }
         }
     }
@@ -90,11 +118,31 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message.trim()
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
-                // Optionally show sender name for group chats
-                // textSenderName.text = message.senderName
+
+                // Handle image messages
+                if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
+                    Log.d("ChatMessageAdapter", "Loading received image: ${message.imageUrl}")
+                    ivMessageImage.visibility = View.VISIBLE
+                    tvMessage.visibility = View.GONE
+                    Glide.with(itemView.context)
+                        .load(message.imageUrl)
+                        .diskCacheStrategy(DiskCacheStrategy.ALL)
+                        .placeholder(R.drawable.ic_image)
+                        .error(R.drawable.ic_image)
+                        .into(ivMessageImage)
+
+                    // Click to view full image
+                    ivMessageImage.setOnClickListener {
+                        ImageViewerDialog(itemView.context, message.imageUrl).show()
+                    }
+                } else {
+                    ivMessageImage.visibility = View.GONE
+                    ivMessageImage.setOnClickListener(null)
+                    tvMessage.visibility = View.VISIBLE
+                    tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "?"
+                }
             }
         }
     }

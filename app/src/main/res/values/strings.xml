@@ -139,4 +139,8 @@
 
     <!-- Instatt -->
     <string name="attendance_status">Attendance Status</string>
+
+    <!-- Image Viewer -->
+    <string name="full_screen_image">Full screen image</string>
+    <string name="close">Close</string>
 </resources>

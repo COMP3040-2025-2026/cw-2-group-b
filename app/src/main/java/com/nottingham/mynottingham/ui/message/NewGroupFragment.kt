@@ -126,16 +126,16 @@ class NewGroupFragment : Fragment() {
                 Toast.makeText(context, "Group created successfully", Toast.LENGTH_SHORT).show()
 
                 // Navigate to chat detail for the new group
-                // First get the group details from the adapter
-                val selectedContacts = adapter.getSelectedContacts()
                 val groupName = binding.editGroupName.text?.toString()?.trim() ?: "Group"
 
-                // Navigate to chat detail
+                // Navigate to chat detail with isGroup=true
                 val action = NewGroupFragmentDirections.actionNewGroupToChatDetail(
                     conversationId = it,
                     participantName = groupName,
+                    participantId = "",
                     participantAvatar = null,
-                    isOnline = false
+                    isOnline = false,
+                    isGroup = true
                 )
                 findNavController().navigate(action)
 

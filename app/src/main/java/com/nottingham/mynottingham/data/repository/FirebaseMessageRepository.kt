@@ -284,6 +284,7 @@ class FirebaseMessageRepository {
                         val timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L
                         val isRead = child.child("isRead").getValue(Boolean::class.java) ?: false
                         val messageType = child.child("messageType").getValue(String::class.java) ?: "TEXT"
+                        val imageUrl = child.child("imageUrl").getValue(String::class.java)
 
                         if (senderId.isNotEmpty()) {
                             uniqueSenderIds.add(senderId)
@@ -297,7 +298,8 @@ class FirebaseMessageRepository {
                                 "message" to message,
                                 "timestamp" to timestamp,
                                 "isRead" to isRead,
-                                "messageType" to messageType
+                                "messageType" to messageType,
+                                "imageUrl" to imageUrl
                             )
                         )
                     } catch (e: Exception) {
@@ -381,7 +383,8 @@ class FirebaseMessageRepository {
                     message = raw["message"] as String,
                     timestamp = raw["timestamp"] as Long,
                     isRead = raw["isRead"] as Boolean,
-                    messageType = raw["messageType"] as String
+                    messageType = raw["messageType"] as String,
+                    imageUrl = raw["imageUrl"] as? String
                 )
             )
         }
@@ -395,6 +398,7 @@ class FirebaseMessageRepository {
      * @param senderAvatar 发送者头像URL
      * @param message 消息内容
      * @param messageType 消息类型（TEXT, IMAGE, FILE）
+     * @param imageUrl 图片URL（仅当messageType为IMAGE时使用）
      * @return Result<String> 消息ID或错误
      */
     suspend fun sendMessage(
@@ -403,7 +407,8 @@ class FirebaseMessageRepository {
         senderName: String,
         senderAvatar: String?,
         message: String,
-        messageType: String = "TEXT"
+        messageType: String = "TEXT",
+        imageUrl: String? = null
     ): Result<String> {
         return try {
             // 去除消息首尾空白
@@ -413,7 +418,7 @@ class FirebaseMessageRepository {
             val newMessageRef = conversationsRef.child(conversationId).child("messages").push()
             val messageId = newMessageRef.key ?: throw Exception("Failed to generate message ID")
 
-            val messageData = mapOf(
+            val messageData = mutableMapOf<String, Any?>(
                 "senderId" to senderId,
                 "senderName" to senderName,
                 "senderAvatar" to senderAvatar,
@@ -423,21 +428,29 @@ class FirebaseMessageRepository {
                 "messageType" to messageType
             )
 
+            // 如果是图片消息，添加图片URL
+            if (messageType == "IMAGE" && imageUrl != null) {
+                messageData["imageUrl"] = imageUrl
+            }
+
             // 保存消息
             newMessageRef.setValue(messageData).await()
 
+            // 设置最后消息显示文本
+            val lastMessageText = if (messageType == "IMAGE") "[Image]" else trimmedMessage
+
             // 更新对话的最后消息信息 (metadata)
             val metadataUpdates = mapOf(
-                "lastMessage" to trimmedMessage,
+                "lastMessage" to lastMessageText,
                 "lastMessageTime" to timestamp
             )
             conversationsRef.child(conversationId).child("metadata").updateChildren(metadataUpdates).await()
 
             // 更新所有参与者的 user_conversations 中的 lastMessage 和 lastMessageTime
-            updateLastMessageForAllParticipants(conversationId, trimmedMessage, timestamp, senderId)
+            updateLastMessageForAllParticipants(conversationId, lastMessageText, timestamp, senderId)
 
             // 发送 FCM 推送通知给其他参与者
-            sendPushNotificationToParticipants(conversationId, senderId, senderName, trimmedMessage)
+            sendPushNotificationToParticipants(conversationId, senderId, senderName, lastMessageText)
 
             Result.success(messageId)
         } catch (e: Exception) {
@@ -508,7 +521,7 @@ class FirebaseMessageRepository {
 
     /**
      * 创建新对话（一对一或群组）
-     * @param participantIds 参与者ID列表
+     * @param participantIds 参与者ID列表（不包含当前用户）
      * @param currentUserId 当前用户ID
      * @param currentUserName 当前用户名称
      * @param isGroup 是否为群组
@@ -523,6 +536,9 @@ class FirebaseMessageRepository {
         groupName: String? = null
     ): Result<String> {
         return try {
+            // 将当前用户加入参与者列表
+            val allParticipantIds = (participantIds + currentUserId).distinct()
+
             // 检查是否已存在相同参与者的对话
             val existingConvId = findExistingConversation(currentUserId, participantIds)
             if (existingConvId != null) {
@@ -533,8 +549,10 @@ class FirebaseMessageRepository {
             val conversationId = newConvRef.key ?: throw Exception("Failed to generate conversation ID")
             val timestamp = System.currentTimeMillis()
 
+            // 创建参与者映射（包含当前用户）
+            val participantsMap = allParticipantIds.associateWith { true }
+
             // 创建对话元数据
-            val participantsMap = participantIds.associateWith { true }
             val metadataMap = mutableMapOf<String, Any>(
                 "isGroup" to isGroup,
                 "createdAt" to timestamp,
@@ -548,33 +566,56 @@ class FirebaseMessageRepository {
 
             newConvRef.child("metadata").setValue(metadataMap).await()
 
-            // 为每个参与者创建用户对话记录
-            participantIds.forEach { participantId ->
-                val otherParticipants = participantIds.filter { it != participantId }
+            // 同时在 conversations/{id}/participants 创建记录（供 sendMessage 读取）
+            newConvRef.child("participants").setValue(participantsMap).await()
+
+            // 设置群主（创建者）
+            if (isGroup) {
+                newConvRef.child("ownerId").setValue(currentUserId).await()
+                newConvRef.child("adminIds").setValue(emptyList<String>()).await()
+                if (groupName != null) {
+                    newConvRef.child("groupName").setValue(groupName).await()
+                }
+            }
+
+            // 为每个参与者（包括当前用户）创建用户对话记录
+            for (participantId in allParticipantIds) {
                 val userConvData = mutableMapOf<String, Any>(
                     "unreadCount" to 0,
                     "isPinned" to false,
-                    "participantIds" to participantIds,
                     "lastMessage" to "",
                     "lastMessageTime" to timestamp,
                     "isGroup" to isGroup,
                     "isOnline" to false
                 )
 
-                // 如果不是群组，设置对方用户的名称和头像
-                if (!isGroup && otherParticipants.isNotEmpty()) {
-                    val otherUserId = otherParticipants.first()
-                    // 这里需要从 users 节点获取对方的名称和头像
-                    // 暂时使用占位符，后续可以通过 getUserInfo 方法获取
-                    userConvData["participantName"] = "Loading..."
-                    // 不设置 participantAvatar，保持为空
-                } else if (isGroup && groupName != null) {
-                    userConvData["participantName"] = groupName
+                if (isGroup) {
+                    // 群组：使用群组名称
+                    userConvData["participantName"] = groupName ?: "Group Chat"
+                    userConvData["participantId"] = ""
+                } else {
+                    // 一对一：设置对方的信息
+                    val otherUserId = allParticipantIds.first { it != participantId }
+                    userConvData["participantId"] = otherUserId
+                    // 获取对方用户信息
+                    try {
+                        val otherUserSnapshot = database.getReference("users").child(otherUserId).get().await()
+                        val otherUserName = otherUserSnapshot.child("fullName").getValue(String::class.java) ?: "Unknown"
+                        val otherUserAvatar = otherUserSnapshot.child("profileImageUrl").getValue(String::class.java)
+                        userConvData["participantName"] = otherUserName
+                        if (otherUserAvatar != null) {
+                            userConvData["participantAvatar"] = otherUserAvatar
+                        }
+                    } catch (e: Exception) {
+                        userConvData["participantName"] = "Unknown"
+                    }
                 }
 
                 userConversationsRef.child(participantId).child(conversationId).setValue(userConvData).await()
+                android.util.Log.d("FirebaseMessageRepo", "Created user_conversation for $participantId")
             }
 
+            android.util.Log.d("FirebaseMessageRepo", "Created conversation: $conversationId with ${allParticipantIds.size} participants")
             Result.success(conversationId)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseMessageRepo", "Error creating conversation: ${e.message}")
@@ -868,5 +909,228 @@ class FirebaseMessageRepository {
             android.util.Log.e("FirebaseMessageRepo", "Error updating typing status: ${e.message}")
             Result.failure(e)
         }
+    }
+
+    // ========== Group Management Methods ==========
+
+    /**
+     * 获取群组详细信息
+     */
+    suspend fun getGroupInfo(conversationId: String): Result<Map<String, Any?>> {
+        return try {
+            val snapshot = conversationsRef.child(conversationId).get().await()
+            if (!snapshot.exists()) {
+                return Result.failure(Exception("Group not found"))
+            }
+
+            val groupName = snapshot.child("groupName").getValue(String::class.java)
+                ?: snapshot.child("metadata").child("groupName").getValue(String::class.java)
+                ?: "Group"
+            val createdAt = snapshot.child("createdAt").getValue(Long::class.java)
+                ?: snapshot.child("metadata").child("createdAt").getValue(Long::class.java)
+                ?: 0L
+            val ownerId = snapshot.child("ownerId").getValue(String::class.java) ?: ""
+            val adminIds = snapshot.child("adminIds").children.mapNotNull { it.getValue(String::class.java) }
+            val participants = snapshot.child("participants").children.mapNotNull { it.key }
+                .ifEmpty { snapshot.child("metadata").child("participants").children.mapNotNull { it.key } }
+
+            val result = mapOf(
+                "id" to conversationId,
+                "groupName" to groupName,
+                "createdAt" to createdAt,
+                "ownerId" to ownerId,
+                "adminIds" to adminIds,
+                "participantIds" to participants
+            )
+
+            Result.success(result)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error getting group info: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 更新群组名称
+     */
+    suspend fun updateGroupName(conversationId: String, newName: String): Result<Unit> {
+        return try {
+            // 更新 conversations 中的群组名称
+            conversationsRef.child(conversationId).child("groupName").setValue(newName).await()
+            conversationsRef.child(conversationId).child("metadata").child("groupName").setValue(newName).await()
+
+            // 更新所有成员的 user_conversations 中的 participantName
+            val participantsSnapshot = conversationsRef.child(conversationId).child("participants").get().await()
+            val participants = participantsSnapshot.children.mapNotNull { it.key }
+
+            participants.forEach { participantId ->
+                userConversationsRef.child(participantId).child(conversationId)
+                    .child("participantName").setValue(newName).await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error updating group name: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 设置群主（创建群组时调用）
+     */
+    suspend fun setGroupOwner(conversationId: String, ownerId: String): Result<Unit> {
+        return try {
+            conversationsRef.child(conversationId).child("ownerId").setValue(ownerId).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error setting group owner: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 添加管理员
+     */
+    suspend fun addAdmin(conversationId: String, userId: String): Result<Unit> {
+        return try {
+            val adminIdsRef = conversationsRef.child(conversationId).child("adminIds")
+            val snapshot = adminIdsRef.get().await()
+            val currentAdmins = snapshot.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()
+
+            if (!currentAdmins.contains(userId)) {
+                currentAdmins.add(userId)
+                adminIdsRef.setValue(currentAdmins).await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error adding admin: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 移除管理员
+     */
+    suspend fun removeAdmin(conversationId: String, userId: String): Result<Unit> {
+        return try {
+            val adminIdsRef = conversationsRef.child(conversationId).child("adminIds")
+            val snapshot = adminIdsRef.get().await()
+            val currentAdmins = snapshot.children.mapNotNull { it.getValue(String::class.java) }.toMutableList()
+
+            currentAdmins.remove(userId)
+            adminIdsRef.setValue(currentAdmins).await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error removing admin: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 添加群成员
+     */
+    suspend fun addGroupMember(conversationId: String, userId: String, groupName: String): Result<Unit> {
+        return try {
+            // 添加到 participants
+            conversationsRef.child(conversationId).child("participants").child(userId).setValue(true).await()
+            conversationsRef.child(conversationId).child("metadata").child("participants").child(userId).setValue(true).await()
+
+            // 创建用户的 user_conversations 记录
+            val lastMessageSnapshot = conversationsRef.child(conversationId).child("metadata").child("lastMessage").get().await()
+            val lastMessage = lastMessageSnapshot.getValue(String::class.java) ?: ""
+            val lastTimeSnapshot = conversationsRef.child(conversationId).child("metadata").child("lastMessageTime").get().await()
+            val lastTime = lastTimeSnapshot.getValue(Long::class.java) ?: System.currentTimeMillis()
+
+            val userConvData = mapOf(
+                "participantId" to "",
+                "participantName" to groupName,
+                "participantAvatar" to null,
+                "lastMessage" to lastMessage,
+                "lastMessageTime" to lastTime,
+                "unreadCount" to 0,
+                "isPinned" to false,
+                "isGroup" to true,
+                "isOnline" to false
+            )
+            userConversationsRef.child(userId).child(conversationId).setValue(userConvData).await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error adding group member: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 移除群成员
+     */
+    suspend fun removeGroupMember(conversationId: String, userId: String): Result<Unit> {
+        return try {
+            // 从 participants 移除
+            conversationsRef.child(conversationId).child("participants").child(userId).removeValue().await()
+            conversationsRef.child(conversationId).child("metadata").child("participants").child(userId).removeValue().await()
+
+            // 从 adminIds 移除（如果是管理员）
+            removeAdmin(conversationId, userId)
+
+            // 删除用户的 user_conversations 记录
+            userConversationsRef.child(userId).child(conversationId).removeValue().await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error removing group member: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 转让群主
+     */
+    suspend fun transferOwnership(conversationId: String, newOwnerId: String): Result<Unit> {
+        return try {
+            // 设置新群主
+            conversationsRef.child(conversationId).child("ownerId").setValue(newOwnerId).await()
+
+            // 如果新群主是管理员，从管理员列表移除（群主不需要在管理员列表中）
+            removeAdmin(conversationId, newOwnerId)
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error transferring ownership: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 解散群组
+     */
+    suspend fun dissolveGroup(conversationId: String): Result<Unit> {
+        return try {
+            // 获取所有成员
+            val participantsSnapshot = conversationsRef.child(conversationId).child("participants").get().await()
+            val participants = participantsSnapshot.children.mapNotNull { it.key }
+
+            // 删除所有成员的 user_conversations 记录
+            participants.forEach { participantId ->
+                userConversationsRef.child(participantId).child(conversationId).removeValue().await()
+            }
+
+            // 删除整个对话
+            conversationsRef.child(conversationId).removeValue().await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseMessageRepo", "Error dissolving group: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 离开群组
+     */
+    suspend fun leaveGroup(conversationId: String, userId: String): Result<Unit> {
+        return removeGroupMember(conversationId, userId)
     }
 }

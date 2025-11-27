@@ -140,6 +140,11 @@
             app:argType="boolean"
             android:defaultValue="false" />
 
+        <argument
+            android:name="isGroup"
+            app:argType="boolean"
+            android:defaultValue="false" />
+
     </fragment>
 
     <!-- New Message Fragment -->

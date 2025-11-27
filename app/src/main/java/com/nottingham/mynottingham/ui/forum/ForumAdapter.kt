@@ -13,6 +13,7 @@ import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.ItemForumPostBinding
+import com.nottingham.mynottingham.ui.common.ImageViewerDialog
 import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
 
@@ -79,8 +80,13 @@ class ForumAdapter(
                         .centerCrop()
                         .dontAnimate()
                         .into(ivPostImage)
+                    // Click to view full image
+                    ivPostImage.setOnClickListener {
+                        ImageViewerDialog(itemView.context, post.imageUrl).show()
+                    }
                 } else {
                     ivPostImage.isVisible = false
+                    ivPostImage.setOnClickListener(null)
                 }
 
                 // Tags

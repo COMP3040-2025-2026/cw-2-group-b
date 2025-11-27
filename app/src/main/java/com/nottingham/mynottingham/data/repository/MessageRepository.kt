@@ -115,92 +115,142 @@ class MessageRepository(private val context: Context) {
             val tokenManager = TokenManager(context)
             val currentUserId = tokenManager.getUserId().first() ?: return Result.failure(Exception("User not logged in"))
             val currentUserName = tokenManager.getFullName().first() ?: "Unknown"
+            val currentUserAvatar = tokenManager.getAvatar().first()
 
             if (participantIds.isEmpty()) {
                 return Result.failure(Exception("No participants specified"))
             }
 
-            val participantId = participantIds.first()
-
-            // Get participant info from Firebase
-            val participantSnapshot = usersRef.child(participantId).get().await()
-            val participantName = participantSnapshot.child("fullName").getValue(String::class.java) ?: "Unknown"
-            val participantAvatar = participantSnapshot.child("profileImageUrl").getValue(String::class.java)
-
-            // For one-on-one, check if conversation already exists
+            // For one-on-one chats
             if (!isGroup) {
+                val participantId = participantIds.first()
+
+                // Get participant info from Firebase
+                val participantSnapshot = usersRef.child(participantId).get().await()
+                val participantName = participantSnapshot.child("fullName").getValue(String::class.java) ?: "Unknown"
+                val participantAvatar = participantSnapshot.child("profileImageUrl").getValue(String::class.java)
+
+                // Check if conversation already exists
                 val existingConversation = findExistingConversation(currentUserId, participantId)
                 if (existingConversation != null) {
                     Log.d(TAG, "Found existing conversation: ${existingConversation.id}")
                     return Result.success(existingConversation)
                 }
+
+                val conversationId = generateConversationId(currentUserId, participantId)
+                val now = System.currentTimeMillis()
+
+                // Save global conversation data
+                val conversationData = mapOf(
+                    "id" to conversationId,
+                    "isGroup" to false,
+                    "createdAt" to now,
+                    "updatedAt" to now,
+                    "participants" to mapOf(
+                        currentUserId to true,
+                        participantId to true
+                    )
+                )
+                conversationsRef.child(conversationId).setValue(conversationData).await()
+
+                // Save to current user's conversations
+                val currentUserData = mapOf(
+                    "participantId" to participantId,
+                    "participantName" to participantName,
+                    "participantAvatar" to participantAvatar,
+                    "lastMessage" to "",
+                    "lastMessageTime" to now,
+                    "unreadCount" to 0,
+                    "isPinned" to false,
+                    "isGroup" to false,
+                    "isOnline" to false
+                )
+                userConversationsRef.child(currentUserId).child(conversationId).setValue(currentUserData).await()
+
+                // Save to participant's conversations
+                val participantData = mapOf(
+                    "participantId" to currentUserId,
+                    "participantName" to currentUserName,
+                    "participantAvatar" to currentUserAvatar,
+                    "lastMessage" to "",
+                    "lastMessageTime" to now,
+                    "unreadCount" to 0,
+                    "isPinned" to false,
+                    "isGroup" to false,
+                    "isOnline" to false
+                )
+                userConversationsRef.child(participantId).child(conversationId).setValue(participantData).await()
+
+                Log.d(TAG, "Created 1:1 conversation: $conversationId")
+
+                return Result.success(
+                    Conversation(
+                        id = conversationId,
+                        participantId = participantId,
+                        participantName = participantName,
+                        participantAvatar = participantAvatar,
+                        lastMessage = "",
+                        lastMessageTime = now,
+                        unreadCount = 0,
+                        isOnline = false,
+                        isPinned = false,
+                        isGroup = false
+                    )
+                )
             }
 
-            // Generate conversation ID
-            val conversationId = if (isGroup) {
-                conversationsRef.push().key ?: return Result.failure(Exception("Failed to generate ID"))
-            } else {
-                generateConversationId(currentUserId, participantId)
-            }
-
+            // For group chats - include current user in all participants
+            val allParticipantIds = (participantIds + currentUserId).distinct()
+            val conversationId = conversationsRef.push().key ?: return Result.failure(Exception("Failed to generate ID"))
             val now = System.currentTimeMillis()
 
-            // Save global conversation data
+            // Build participants map
+            val participantsMap = allParticipantIds.associateWith { true }
+
+            // Save global conversation data with owner
             val conversationData = mapOf(
                 "id" to conversationId,
-                "isGroup" to isGroup,
+                "isGroup" to true,
                 "groupName" to groupName,
                 "createdAt" to now,
                 "updatedAt" to now,
-                "participants" to mapOf(
-                    currentUserId to true,
-                    participantId to true
-                )
+                "participants" to participantsMap,
+                "ownerId" to currentUserId,  // Set creator as owner
+                "adminIds" to emptyList<String>()  // Initially no admins
             )
             conversationsRef.child(conversationId).setValue(conversationData).await()
 
-            // Save to current user's conversations
-            val currentUserData = mapOf(
-                "participantId" to participantId,
-                "participantName" to participantName,
-                "participantAvatar" to participantAvatar,
-                "lastMessage" to "",
-                "lastMessageTime" to now,
-                "unreadCount" to 0,
-                "isPinned" to false,
-                "isGroup" to isGroup,
-                "isOnline" to false
-            )
-            userConversationsRef.child(currentUserId).child(conversationId).setValue(currentUserData).await()
+            // Create user_conversations entry for EACH participant
+            for (participantId in allParticipantIds) {
+                val userConvData = mapOf(
+                    "participantId" to "",  // Empty for groups
+                    "participantName" to (groupName ?: "Group Chat"),  // Use group name!
+                    "participantAvatar" to null,
+                    "lastMessage" to "",
+                    "lastMessageTime" to now,
+                    "unreadCount" to 0,
+                    "isPinned" to false,
+                    "isGroup" to true,
+                    "isOnline" to false
+                )
+                userConversationsRef.child(participantId).child(conversationId).setValue(userConvData).await()
+                Log.d(TAG, "Created user_conversation for $participantId in group $conversationId")
+            }
 
-            // Save to participant's conversations
-            val participantData = mapOf(
-                "participantId" to currentUserId,
-                "participantName" to currentUserName,
-                "participantAvatar" to null,
-                "lastMessage" to "",
-                "lastMessageTime" to now,
-                "unreadCount" to 0,
-                "isPinned" to false,
-                "isGroup" to isGroup,
-                "isOnline" to false
-            )
-            userConversationsRef.child(participantId).child(conversationId).setValue(participantData).await()
-
-            Log.d(TAG, "Created conversation: $conversationId")
+            Log.d(TAG, "Created group conversation: $conversationId with ${allParticipantIds.size} members")
 
             Result.success(
                 Conversation(
                     id = conversationId,
-                    participantId = participantId,
-                    participantName = participantName,
-                    participantAvatar = participantAvatar,
+                    participantId = "",
+                    participantName = groupName ?: "Group Chat",
+                    participantAvatar = null,
                     lastMessage = "",
                     lastMessageTime = now,
                     unreadCount = 0,
                     isOnline = false,
                     isPinned = false,
-                    isGroup = isGroup
+                    isGroup = true
                 )
             )
         } catch (e: Exception) {

@@ -76,6 +76,7 @@ firebase-database = { group = "com.google.firebase", name = "firebase-database" 
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
+firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
