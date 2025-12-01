@@ -57,6 +57,7 @@ class NewGroupFragment : Fragment() {
     }
 
     private fun setupToolbar() {
+        binding.toolbar.setNavigationIcon(com.nottingham.mynottingham.R.drawable.ic_back)
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
