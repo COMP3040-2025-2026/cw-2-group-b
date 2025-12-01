@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.data.model.Contact
 import com.nottingham.mynottingham.databinding.ItemContactSelectableBinding
 
@@ -47,12 +48,8 @@ class SelectableContactAdapter(
 
         fun bind(contact: Contact) {
             binding.apply {
-                // Set avatar initials
-                val initials = contact.name.split(" ")
-                    .take(2)
-                    .map { it.firstOrNull()?.uppercase() ?: "" }
-                    .joinToString("")
-                tvAvatar.text = initials
+                // Set avatar
+                ivAvatar.setImageResource(AvatarUtils.getDrawableId(contact.avatar))
 
                 // Set name
                 tvName.text = contact.name
