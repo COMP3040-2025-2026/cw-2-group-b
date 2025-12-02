@@ -127,7 +127,7 @@
 
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- Equipment Rental -->
+                    <!-- Equipment -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/card_equipment"
                         android:layout_width="0dp"
@@ -157,7 +157,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
-                                android:text="Equipment Rental"
+                                android:text="Equipment"
                                 android:textColor="@color/text_primary"
                                 android:textSize="16sp"
                                 android:textStyle="bold" />

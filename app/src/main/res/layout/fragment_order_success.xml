@@ -36,7 +36,7 @@
         android:layout_below="@id/tv_success_message"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="8dp"
-        android:text="Your errand has been posted."
+        android:text="Your order is being prepared."
         android:textColor="@color/text_secondary"
         android:textSize="16sp" />
 

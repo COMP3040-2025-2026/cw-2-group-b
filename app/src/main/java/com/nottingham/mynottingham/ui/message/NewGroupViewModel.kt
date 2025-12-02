@@ -6,7 +6,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.Contact
-import com.nottingham.mynottingham.data.remote.RetrofitInstance
 import com.nottingham.mynottingham.data.repository.MessageRepository
 import kotlinx.coroutines.launch
 
@@ -16,7 +15,6 @@ import kotlinx.coroutines.launch
 class NewGroupViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MessageRepository(application)
-    private val apiService = RetrofitInstance.apiService
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -31,39 +29,33 @@ class NewGroupViewModel(application: Application) : AndroidViewModel(application
     val groupCreated: LiveData<String?> = _groupCreated
 
     /**
-     * Load contact suggestions
+     * Load contact suggestions using Firebase
      */
     fun loadContacts(token: String) {
         _loading.value = true
         viewModelScope.launch {
-            try {
-                val response = apiService.getContactSuggestions("Bearer $token")
-                if (response.isSuccessful) {
-                    val contactSuggestions = response.body()?.data
-                    if (contactSuggestions != null) {
-                        // Convert DTOs to Contact models
-                        val contactList = contactSuggestions.map { dto ->
-                            Contact(
-                                id = dto.userId,
-                                name = dto.userName,
-                                avatar = dto.userAvatar,
-                                program = dto.program,
-                                year = dto.year,
-                                isOnline = dto.isOnline
-                            )
-                        }
-                        _contacts.value = contactList
-                    } else {
-                        _error.value = "No contacts found"
-                    }
-                } else {
-                    _error.value = "Failed to load contacts: ${response.code()}"
+            val result = repository.getContactSuggestions(token)
+
+            result.onSuccess { contactSuggestions ->
+                // Convert DTOs to Contact models
+                val contactList = contactSuggestions.map { dto ->
+                    Contact(
+                        id = dto.userId,
+                        name = dto.userName,
+                        avatar = dto.userAvatar,
+                        program = dto.program,
+                        year = dto.year,
+                        isOnline = dto.isOnline
+                    )
                 }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load contacts"
-            } finally {
-                _loading.value = false
+                _contacts.value = contactList
             }
+
+            result.onFailure { e ->
+                _error.value = e.message ?: "Failed to load contacts"
+            }
+
+            _loading.value = false
         }
     }
 

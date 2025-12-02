@@ -7,12 +7,12 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import com.nottingham.mynottingham.R
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.databinding.FragmentCheckoutBinding
-import com.nottingham.mynottingham.ui.errand.ErrandViewModel
-import com.nottingham.mynottingham.ui.errand.ErrandViewModelFactory
-import com.nottingham.mynottingham.ui.errand.ErrandTask
-import java.util.UUID
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class CheckoutFragment : Fragment() {
 
@@ -20,9 +20,7 @@ class CheckoutFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: RestaurantMenuViewModel by activityViewModels()
-    private val errandViewModel: ErrandViewModel by activityViewModels {
-        ErrandViewModelFactory(requireActivity().application)
-    }
+    private lateinit var tokenManager: TokenManager
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -36,8 +34,10 @@ class CheckoutFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        tokenManager = TokenManager(requireContext())
+
         setupToolbar()
-        setupDeliveryTimeSelection()
+        setupDeliveryTimeSelection() // New: Setup delivery time selection
         setupClickListeners()
         setupObservers()
     }
@@ -81,45 +81,38 @@ class CheckoutFragment : Fragment() {
         binding.btnConfirmOrder.setOnClickListener {
             val address = binding.etAddress.text.toString().trim()
             val phone = binding.etPhoneNumber.text.toString().trim()
-            
+
             if (address.isEmpty() || phone.isEmpty()) {
                 Toast.makeText(requireContext(), "Please fill in all fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            val selectedPaymentId = binding.rgPaymentMethod.checkedRadioButtonId
+            val paymentMethod = view?.findViewById<RadioButton>(selectedPaymentId)?.text.toString()
+
             val selectedDeliveryTimeId = binding.rgDeliveryTime.checkedRadioButtonId
             val deliveryTime = view?.findViewById<RadioButton>(selectedDeliveryTimeId)?.text.toString()
 
-            // Construct description
-            val items = viewModel.cartItems.value ?: emptyList()
-            val description = items.joinToString(separator = "\n") {
-                "${it.menuItem.name} x${it.quantity}"
-            } + "\n\nPhone: $phone"
+            // Get user info and place order
+            lifecycleScope.launch {
+                val userId = tokenManager.getUserId().first() ?: ""
+                val userName = tokenManager.getFullName().first() ?: "User"
+                val userAvatar = tokenManager.getAvatar().first()
 
-            // Create ErrandTask
-            val restaurantName = viewModel.restaurantName.value ?: "a restaurant"
-            val newTask = ErrandTask(
-                taskId = UUID.randomUUID().toString(),
-                title = "Buy food from $restaurantName",
-                description = description,
-                location = address,
-                price = (viewModel.deliveryFee.value ?: 0.0).toString(),
-                deadline = deliveryTime,
-                requesterId = "", // Will be set by the ViewModel
-                requesterName = "", // Will be set by the ViewModel
-                requesterAvatar = "",
-                timestamp = System.currentTimeMillis()
-            )
+                if (userId.isEmpty()) {
+                    Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
 
-            // Add task via ErrandViewModel
-            errandViewModel.addTask(newTask)
+                // Call the updated placeOrder method with real user info
+                viewModel.placeOrder(userId, userName, userAvatar, address, phone, paymentMethod, deliveryTime)
 
-            Toast.makeText(requireContext(), "Order Placed Successfully!", Toast.LENGTH_SHORT).show()
-            
-            // Navigate to OrderSuccessFragment
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.errand_fragment_container, OrderSuccessFragment())
-                .commit()
+                // Navigate to OrderSuccessFragment
+                val orderSuccessFragment = OrderSuccessFragment()
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.errand_fragment_container, orderSuccessFragment)
+                    .commit()
+            }
         }
     }
 

@@ -1,8 +1,10 @@
 package com.nottingham.mynottingham.ui.instatt
 
+import android.animation.ValueAnimator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.data.model.Course
@@ -24,10 +26,14 @@ class DayAdapter(
     private val onToggleExpand: (Int) -> Unit
 ) : RecyclerView.Adapter<DayAdapter.DayViewHolder>() {
 
+    // Track previous expansion state for each position
+    private val previousExpandStates = mutableMapOf<Int, Boolean>()
+
     inner class DayViewHolder(private val binding: ItemDayBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         private var coursesAdapter: DayCoursesAdapter? = null
+        private var currentAnimator: ValueAnimator? = null
 
         fun bind(dayWithCourses: DayWithCourses, position: Int) {
             binding.apply {
@@ -42,34 +48,121 @@ class DayAdapter(
                     "No classes"
                 }
 
-                // Setup expand/collapse icon rotation
-                ivExpandIcon.rotation = if (dayWithCourses.isExpanded) 180f else 0f
-
                 // Setup click listener for header
                 layoutDayHeader.setOnClickListener {
                     onToggleExpand(position)
                 }
 
-                // Show/hide courses list based on expansion state
-                if (dayWithCourses.isExpanded) {
-                    if (dayWithCourses.courses.isEmpty()) {
-                        // Show empty state
-                        rvCourses.isVisible = false
-                        tvNoCourses.isVisible = true
-                    } else {
-                        // Show courses list
-                        rvCourses.isVisible = true
-                        tvNoCourses.isVisible = false
+                // Get content view for animation
+                val contentView = if (dayWithCourses.courses.isEmpty()) tvNoCourses else rvCourses
 
-                        // Use TodayClassAdapter to display courses (no sign-in click handler for calendar view)
-                        coursesAdapter = DayCoursesAdapter(dayWithCourses.courses)
-                        rvCourses.adapter = coursesAdapter
+                // Update adapter on each binding (since ViewHolder gets reused)
+                if (dayWithCourses.courses.isNotEmpty()) {
+                    coursesAdapter = DayCoursesAdapter(dayWithCourses.courses)
+                    rvCourses.adapter = coursesAdapter
+                }
+
+                // Check if animation needed (on state change) - use adapter-level state tracking
+                val previousState = previousExpandStates[position]
+                val shouldAnimate = previousState != null && previousState != dayWithCourses.isExpanded
+                previousExpandStates[position] = dayWithCourses.isExpanded
+
+                if (shouldAnimate) {
+                    // Cancel previous animation
+                    currentAnimator?.cancel()
+
+                    // Arrow rotation animation
+                    val targetRotation = if (dayWithCourses.isExpanded) 180f else 0f
+                    ivExpandIcon.animate()
+                        .rotation(targetRotation)
+                        .setDuration(250)
+                        .setInterpolator(AccelerateDecelerateInterpolator())
+                        .start()
+
+                    // Expand/collapse animation
+                    if (dayWithCourses.isExpanded) {
+                        expandView(contentView)
+                    } else {
+                        collapseView(contentView)
                     }
                 } else {
-                    // Hide courses list
-                    rvCourses.isVisible = false
-                    tvNoCourses.isVisible = false
+                    // Initial state, no animation needed
+                    ivExpandIcon.rotation = if (dayWithCourses.isExpanded) 180f else 0f
+
+                    if (dayWithCourses.isExpanded) {
+                        if (dayWithCourses.courses.isEmpty()) {
+                            rvCourses.isVisible = false
+                            tvNoCourses.isVisible = true
+                        } else {
+                            rvCourses.isVisible = true
+                            tvNoCourses.isVisible = false
+                        }
+                    } else {
+                        rvCourses.isVisible = false
+                        tvNoCourses.isVisible = false
+                    }
                 }
+            }
+        }
+
+        /**
+         * Smoothly expand view
+         */
+        private fun expandView(view: View) {
+            view.visibility = View.VISIBLE
+            view.alpha = 0f
+
+            // Measure view height
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(binding.root.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            val targetHeight = view.measuredHeight
+
+            // Set initial height to 0
+            view.layoutParams.height = 0
+            view.requestLayout()
+
+            currentAnimator = ValueAnimator.ofInt(0, targetHeight).apply {
+                duration = 250
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val value = animation.animatedValue as Int
+                    view.layoutParams.height = value
+                    view.alpha = animation.animatedFraction
+                    view.requestLayout()
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                })
+                start()
+            }
+        }
+
+        /**
+         * Smoothly collapse view
+         */
+        private fun collapseView(view: View) {
+            val initialHeight = view.height
+
+            currentAnimator = ValueAnimator.ofInt(initialHeight, 0).apply {
+                duration = 250
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    val value = animation.animatedValue as Int
+                    view.layoutParams.height = value
+                    view.alpha = 1f - animation.animatedFraction
+                    view.requestLayout()
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        view.visibility = View.GONE
+                        view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                })
+                start()
             }
         }
     }
@@ -90,9 +183,10 @@ class DayAdapter(
     override fun getItemCount(): Int = daysWithCourses.size
 
     /**
-     * Update the entire dataset
+     * Update entire dataset
      */
     fun updateData(newData: List<DayWithCourses>) {
+        previousExpandStates.clear()
         daysWithCourses.clear()
         daysWithCourses.addAll(newData)
         notifyDataSetChanged()
@@ -123,7 +217,7 @@ class DayCoursesAdapter(
                 tvLocation.text = course.location ?: "TBA"
                 tvCourseType.text = course.courseType.displayName
 
-                // Set status indicator (simplified version for calendar view)
+                // Set status indicator (simplified for calendar view)
                 when (course.todayStatus) {
                     com.nottingham.mynottingham.data.model.TodayClassStatus.ATTENDED -> {
                         viewStatusLine.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))

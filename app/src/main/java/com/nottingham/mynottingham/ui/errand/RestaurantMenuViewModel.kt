@@ -5,21 +5,18 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.nottingham.mynottingham.data.local.database.AppDatabase
-import com.nottingham.mynottingham.data.local.database.entities.ErrandEntity
 import com.nottingham.mynottingham.data.model.CartItem
 import com.nottingham.mynottingham.data.model.MenuItem
-import kotlinx.coroutines.Dispatchers
+import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 import com.nottingham.mynottingham.R
 
 class RestaurantMenuViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val errandDao = AppDatabase.getInstance(application).errandDao()
+    private val errandRepository = FirebaseErrandRepository()
 
-    // 6个固定菜品数据
+    // 6 fixed menu items
     val menuItems = listOf(
         MenuItem("1", "noodles", "Beef Noodle Soup", "Traditional beef noodle with rich broth", 12.50, R.drawable.bsn),
         MenuItem("2", "noodles", "Fried Noodles", "Stir-fried noodles with vegetables", 10.00, R.drawable.fn),
@@ -54,15 +51,15 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         _menuListWithHeaders.value = combinedList
     }
 
-    // 购物车状态: Map<ItemId, Count>，用于 UI 快速响应
+    // Cart state: Map<ItemId, Count> for quick UI response
     private val _cartQuantities = MutableLiveData<Map<String, Int>>(emptyMap())
     val cartQuantities: LiveData<Map<String, Int>> = _cartQuantities
 
-    // 购物车详细信息 (用于计算总价和下单)
+    // Cart details (for calculating total price and placing order)
     private val _cartItems = MutableLiveData<List<CartItem>>(emptyList())
     val cartItems: LiveData<List<CartItem>> = _cartItems
-    
-    // 价格详情
+
+    // Price details
     private val _subtotal = MutableLiveData(0.0)
     val subtotal: LiveData<Double> = _subtotal
 
@@ -71,22 +68,15 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
 
     private val _totalPrice = MutableLiveData(0.0)
     val totalPrice: LiveData<Double> = _totalPrice
-    
+
     private val _totalCount = MutableLiveData(0)
     val totalCount: LiveData<Int> = _totalCount
-
-    private val _restaurantName = MutableLiveData<String>()
-    val restaurantName: LiveData<String> = _restaurantName
 
     private val _selectedDeliveryTime = MutableLiveData<String>()
     val selectedDeliveryTime: LiveData<String> = _selectedDeliveryTime
 
     private val _selectedDeliveryExtraFee = MutableLiveData(0.0)
     val selectedDeliveryExtraFee: LiveData<Double> = _selectedDeliveryExtraFee
-
-    fun setRestaurantName(name: String) {
-        _restaurantName.value = name
-    }
 
     fun setDeliveryOption(deliveryTime: String, extraFee: Double) {
         _selectedDeliveryTime.value = deliveryTime
@@ -134,7 +124,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 count += qty
                 itemsList.add(CartItem(menuItem, qty))
 
-                // New delivery fee logic based on category
+                // Delivery fee logic based on category
                 when (menuItem.category) {
                     "noodles", "rice" -> baseDeliveryFee += 2.0 * qty
                     "drinks" -> baseDeliveryFee += 1.0 * qty
@@ -152,37 +142,47 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         _cartItems.value = itemsList
     }
 
-    fun placeOrder(userId: String, address: String, contact: String, paymentMethod: String, deliveryTime: String) {
+    fun placeOrder(
+        userId: String,
+        userName: String,
+        userAvatar: String?,
+        address: String,
+        contact: String,
+        paymentMethod: String,
+        deliveryTime: String
+    ) {
         val items = _cartItems.value ?: return
         if (items.isEmpty()) return
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
+            // Description contains order items and contact information
             val sb = StringBuilder()
-            sb.append("Order from Chinese Restaurant:\n")
-            items.forEach { 
-                sb.append("- ${it.menuItem.name} x${it.quantity}\n") 
+            items.forEach {
+                sb.append("${it.menuItem.name} x${it.quantity}\n")
             }
-            sb.append(String.format("\nDelivery Fee: RM %.2f", _deliveryFee.value ?: 0.0))
-            sb.append("\nDelivery Time: $deliveryTime")
-            sb.append("\nContact: $contact")
-            sb.append("\nPayment: $paymentMethod")
+            sb.append("\nPhone: $contact")
 
-            val errand = ErrandEntity(
-                id = UUID.randomUUID().toString(),
-                requesterId = userId,
-                title = "Food Delivery: Chinese Restaurant",
-                description = sb.toString(),
-                type = "Food Delivery",
-                priority = "Standard",
-                pickupLocation = "Golden Dragon Restaurant",
-                deliveryLocation = address,
-                fee = _totalPrice.value ?: 0.0,
-                status = "pending",
-                imageUrl = "android.resource://com.nottingham.mynottingham/drawable/food_beef_noodle", // 示例图片
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
+            val errandData = mapOf(
+                "requesterId" to userId,
+                "requesterName" to userName,
+                "requesterAvatar" to (userAvatar ?: "default"),
+                "title" to "Buy food from Chinese Restaurant",
+                "description" to sb.toString().trim(),
+                "type" to "FOOD_DELIVERY",
+                "location" to address,
+                "reward" to (_totalPrice.value ?: 0.0),
+                "timeLimit" to deliveryTime
             )
-            errandDao.insertErrand(errand)
+
+            errandRepository.createErrand(errandData)
+
+            // Clear cart after successful order
+            _cartQuantities.postValue(emptyMap())
+            _cartItems.postValue(emptyList())
+            _subtotal.postValue(0.0)
+            _deliveryFee.postValue(0.0)
+            _totalPrice.postValue(0.0)
+            _totalCount.postValue(0)
         }
     }
 }

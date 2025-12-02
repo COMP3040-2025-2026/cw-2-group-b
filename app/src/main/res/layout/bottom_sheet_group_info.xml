@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bottom_sheet">
+
+    <!-- Handle bar -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_bottom_sheet_handle" />
+
+    <!-- Group Icon -->
+    <ImageView
+        android:id="@+id/iv_group_icon"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/ic_group"
+        android:contentDescription="Group icon" />
+
+    <!-- Group Name -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_group_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            tools:text="Study Group" />
+
+        <ImageButton
+            android:id="@+id/btn_edit_name"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone"
+            app:tint="@color/primary"
+            android:contentDescription="Edit group name" />
+
+    </LinearLayout>
+
+    <!-- Member Count -->
+    <TextView
+        android:id="@+id/tv_member_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        tools:text="5 members" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/divider" />
+
+    <!-- Members Section Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Members"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_member"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Add"
+            android:textSize="12sp"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.TonalButton"
+            app:icon="@drawable/ic_add"
+            app:iconSize="16dp" />
+
+    </LinearLayout>
+
+    <!-- Members List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_members"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:maxHeight="300dp"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp"
+        tools:listitem="@layout/item_group_member" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
+
+    <!-- Admin Actions -->
+    <LinearLayout
+        android:id="@+id/layout_admin_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- Leave Group (for non-owners) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_leave_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Leave Group"
+            android:textColor="@color/error"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            app:strokeColor="@color/error"
+            app:icon="@drawable/ic_exit"
+            app:iconTint="@color/error" />
+
+        <!-- Dissolve Group (for owner only) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dissolve_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Dissolve Group"
+            android:textColor="@color/error"
+            android:visibility="gone"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            app:strokeColor="@color/error"
+            app:icon="@drawable/ic_delete"
+            app:iconTint="@color/error" />
+
+    </LinearLayout>
+
+</LinearLayout>

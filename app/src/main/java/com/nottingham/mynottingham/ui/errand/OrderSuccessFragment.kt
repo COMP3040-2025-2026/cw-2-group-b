@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentOrderSuccessBinding
 
 class OrderSuccessFragment : Fragment() {

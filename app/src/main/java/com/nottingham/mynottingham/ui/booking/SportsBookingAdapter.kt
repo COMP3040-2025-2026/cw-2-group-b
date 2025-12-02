@@ -12,7 +12,7 @@ import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId // [新增] 导入 ZoneId
+import java.time.ZoneId // Import ZoneId
 
 class SportsBookingAdapter(
     private var bookings: List<BookingEntity>,
@@ -44,54 +44,71 @@ class SportsBookingAdapter(
 
         fun bind(booking: BookingEntity) {
             tvFacilityName.text = booking.facilityName
-            
+
             val timeString = String.format("%02d:00", booking.timeSlot)
             tvDateTime.text = "${booking.bookingDate} at $timeString"
-            
-            tvStatus.text = booking.status.uppercase()
+
+            // If already cancelled, show CANCELLED status and Delete button
+            if (booking.status.uppercase() == "CANCELLED") {
+                tvStatus.text = "CANCELLED"
+                tvStatus.setTextColor(Color.RED)
+                btnCancel.visibility = View.VISIBLE
+                btnCancel.isEnabled = true
+                btnCancel.text = "Delete"
+                btnCancel.setTextColor(Color.GRAY)
+                btnCancel.setOnClickListener {
+                    onCancelClick(booking)
+                }
+                return
+            }
 
             try {
                 val bookingDate = LocalDate.parse(booking.bookingDate)
                 val bookingTime = LocalTime.of(booking.timeSlot, 0)
                 val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
-                
-                // [关键修复] 统一使用马来西亚时区，防止时间判断出错
+
                 val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
                 val now = LocalDateTime.now(zoneId)
-                
-                // 定义关键时间点
-                // 1. 取消截止时间：开始前1小时
-                val cancelDeadline = bookingDateTime.minusHours(1)
-                // 2. 预定结束时间：开始后1小时（假设每场1小时）
+
+                // Booking end time: 1 hour after start
                 val endTime = bookingDateTime.plusHours(1)
 
-                if (now.isAfter(endTime)) {
-                    // --- 情况A: 预定已结束 (过期) ---
-                    // 按钮变为 "Delete"，允许点击删除记录
-                    btnCancel.isEnabled = true
-                    btnCancel.text = "Delete"
-                    btnCancel.setTextColor(Color.RED) // 或者你可以设为黑色/灰色，视设计而定
-                    btnCancel.setOnClickListener {
-                        onCancelClick(booking)
+                when {
+                    now.isAfter(endTime) -> {
+                        // Booking finished - show Finished, button becomes Delete
+                        tvStatus.text = "FINISHED"
+                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // Green
+                        btnCancel.visibility = View.VISIBLE
+                        btnCancel.isEnabled = true
+                        btnCancel.text = "Delete"
+                        btnCancel.setTextColor(Color.GRAY)
+                        btnCancel.setOnClickListener {
+                            onCancelClick(booking)
+                        }
                     }
-                } else if (now.isAfter(cancelDeadline)) {
-                    // --- 情况B: 临近开始 或 正在进行中 (不可取消) ---
-                    // 按钮变灰，禁用，显示提示文字 (如 Locked 或 Started)
-                    btnCancel.isEnabled = false
-                    btnCancel.text = "Locked" // 根据你的描述，这里不再显示 Non-cancellable，改为 Locked 或其他状态
-                    btnCancel.setTextColor(Color.GRAY)
-                } else {
-                    // --- 情况C: 还在可取消范围内 ---
-                    btnCancel.isEnabled = true
-                    btnCancel.text = "Cancel"
-                    btnCancel.setTextColor(Color.RED)
-                    btnCancel.setOnClickListener {
-                        onCancelClick(booking)
+                    now.isAfter(bookingDateTime) -> {
+                        // In progress - show In Progress, hide button
+                        tvStatus.text = "IN PROGRESS"
+                        tvStatus.setTextColor(Color.parseColor("#FF9800")) // Orange
+                        btnCancel.visibility = View.GONE
+                    }
+                    else -> {
+                        // Not started - show Confirmed, button is Cancel
+                        tvStatus.text = "CONFIRMED"
+                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // Green
+                        btnCancel.visibility = View.VISIBLE
+                        btnCancel.isEnabled = true
+                        btnCancel.text = "Cancel"
+                        btnCancel.setTextColor(Color.RED)
+                        btnCancel.setOnClickListener {
+                            onCancelClick(booking)
+                        }
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                btnCancel.isEnabled = true
+                tvStatus.text = "CONFIRMED"
+                btnCancel.visibility = View.VISIBLE
             }
         }
     }

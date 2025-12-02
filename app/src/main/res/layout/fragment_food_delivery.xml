@@ -209,10 +209,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/spacing_lg"
-                android:clickable="true"
-                android:focusable="true"
+                android:clickable="false"
+                android:focusable="false"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="2dp">
+                app:cardElevation="2dp"
+                android:alpha="0.6">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -238,21 +239,6 @@
                         app:layout_constraintStart_toStartOf="@id/restaurant2_bg"
                         app:layout_constraintTop_toTopOf="@id/restaurant2_bg" />
 
-                    <!-- Coming Soon text for Western -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Coming Soon"
-                        android:textColor="@android:color/white"
-                        android:textSize="24sp"
-                        android:textStyle="bold"
-                        android:padding="8dp"
-                        android:background="#80000000"
-                        app:layout_constraintTop_toTopOf="@id/restaurant2_bg"
-                        app:layout_constraintBottom_toBottomOf="@id/restaurant2_bg"
-                        app:layout_constraintStart_toStartOf="@id/restaurant2_bg"
-                        app:layout_constraintEnd_toEndOf="@id/restaurant2_bg" />
-
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -262,13 +248,32 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/restaurant2_bg">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Western"
-                            android:textColor="@color/text_primary"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Western"
+                                android:textColor="@color/text_primary"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:background="@drawable/bg_category_badge"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="4dp"
+                                android:text="Coming Soon"
+                                android:textColor="@color/white"
+                                android:textSize="12sp"
+                                app:backgroundTint="@color/warning" />
+                        </LinearLayout>
 
                         <LinearLayout
                             android:layout_width="wrap_content"
@@ -316,10 +321,11 @@
                 android:id="@+id/card_restaurant_cafe"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clickable="true"
-                android:focusable="true"
+                android:clickable="false"
+                android:focusable="false"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="2dp">
+                app:cardElevation="2dp"
+                android:alpha="0.6">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -344,21 +350,6 @@
                         app:layout_constraintStart_toStartOf="@id/restaurant3_bg"
                         app:layout_constraintTop_toTopOf="@id/restaurant3_bg" />
 
-                    <!-- Coming Soon text for Cafe -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Coming Soon"
-                        android:textColor="@android:color/white"
-                        android:textSize="24sp"
-                        android:textStyle="bold"
-                        android:padding="8dp"
-                        android:background="#80000000"
-                        app:layout_constraintTop_toTopOf="@id/restaurant3_bg"
-                        app:layout_constraintBottom_toBottomOf="@id/restaurant3_bg"
-                        app:layout_constraintStart_toStartOf="@id/restaurant3_bg"
-                        app:layout_constraintEnd_toEndOf="@id/restaurant3_bg" />
-
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -368,13 +359,32 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toBottomOf="@id/restaurant3_bg">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Cafe"
-                            android:textColor="@color/text_primary"
-                            android:textSize="20sp"
-                            android:textStyle="bold" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+	                        <TextView
+	                            android:layout_width="wrap_content"
+	                            android:layout_height="wrap_content"
+	                            android:text="Cafe"
+	                            android:textColor="@color/text_primary"
+	                            android:textSize="20sp"
+	                            android:textStyle="bold" />
+
+	                        <TextView
+	                            android:layout_width="wrap_content"
+	                            android:layout_height="wrap_content"
+	                            android:layout_marginStart="8dp"
+	                            android:background="@drawable/bg_category_badge"
+	                            android:paddingHorizontal="8dp"
+	                            android:paddingVertical="4dp"
+	                            android:text="Coming Soon"
+	                            android:textColor="@color/white"
+	                            android:textSize="12sp"
+	                            app:backgroundTint="@color/warning" />
+                        </LinearLayout>
 
                         <LinearLayout
                             android:layout_width="wrap_content"

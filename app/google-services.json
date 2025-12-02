@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "6005288736",
+    "project_id": "mynottingham-b02b7",
+    "storage_bucket": "mynottingham-b02b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:6005288736:android:cb6225b57865dff597f145",
+        "android_client_info": {
+          "package_name": "com.nottingham.mynottingham"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdOvoNPYtBhbKo11eKgosuRzXfdmK6Y9Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

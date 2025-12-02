@@ -61,7 +61,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/surface"
-        android:paddingVertical="8dp"
+        android:paddingVertical="0dp"
         android:scrollbars="none"
         app:layout_constraintBottom_toTopOf="@id/layout_input"
         app:layout_constraintEnd_toEndOf="parent"
@@ -79,7 +79,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Shuttle Schedule" />
+                android:text="Shuttle Schedule"
+                app:chipBackgroundColor="@color/surface_darker"
+                app:rippleColor="@android:color/transparent"
+                android:textColor="@color/text_primary" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_booking"
@@ -87,22 +90,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Book Facility" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_events"
-                style="@style/Widget.Material3.Chip.Suggestion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Campus Events" />
+                android:text="Book Facility"
+                app:chipBackgroundColor="@color/surface_darker"
+                app:rippleColor="@android:color/transparent"
+                android:textColor="@color/text_primary" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_help"
                 style="@style/Widget.Material3.Chip.Suggestion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Help" />
+                android:text="Help"
+                app:chipBackgroundColor="@color/surface_darker"
+                app:rippleColor="@android:color/transparent"
+                android:textColor="@color/text_primary" />
 
         </LinearLayout>
     </HorizontalScrollView>
@@ -112,6 +113,7 @@
         android:id="@+id/layout_input"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:background="@color/surface"
         android:elevation="4dp"
         android:orientation="horizontal"

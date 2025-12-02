@@ -22,7 +22,7 @@ data class Course(
     val endTime: String? = null,
     val location: String? = null,
     val courseType: CourseType = CourseType.LECTURE,
-    val todayStatus: TodayClassStatus? = null,
+    var todayStatus: TodayClassStatus? = null,  // Changed to var to support real-time updates
     // Sign-in system fields (for teacher/student interaction)
     var signInStatus: SignInStatus = SignInStatus.LOCKED,
     var signInUnlockedAt: Long? = null,  // Timestamp when unlocked
@@ -86,6 +86,7 @@ enum class TodayClassStatus : Parcelable {
 enum class SignInStatus : Parcelable {
     LOCKED,        // Not yet available for sign-in (show lock icon)
     UNLOCKED,      // Available for sign-in (show pencil icon for students)
+    SIGNED,        // Student has already signed in (show green check)
     CLOSED         // Sign-in period ended (lock again)
 }
 
@@ -97,7 +98,7 @@ enum class UserRole {
 
 // Student attendance information (for teacher's view of student list)
 data class StudentAttendance(
-    val studentId: Long,
+    val studentId: String,  // Firebase UID
     val studentName: String,
     val matricNumber: String?,  // Nullable as it may not be set for all students
     val email: String?,  // Nullable as it may not be set for all students

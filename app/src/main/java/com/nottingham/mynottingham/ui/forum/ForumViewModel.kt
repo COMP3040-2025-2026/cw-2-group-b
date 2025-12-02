@@ -1,108 +1,87 @@
 package com.nottingham.mynottingham.ui.forum
 
 import android.app.Application
-import android.util.Log
-import androidx.lifecycle.AndroidViewModel
-import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
-import com.nottingham.mynottingham.data.repository.ForumRepository
+import androidx.lifecycle.viewModelScope
+import com.nottingham.mynottingham.data.model.ForumPost
+import com.nottingham.mynottingham.data.repository.FirebaseForumRepository
+import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.ui.base.BaseViewModel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Forum (post list) screen
- * Extends BaseViewModel for common utilities
+ * Migrated to Firebase - real-time post updates
  */
 class ForumViewModel(application: Application) : BaseViewModel(application) {
 
-    private val repository = ForumRepository(application)
+    // Replaced with Firebase Repository
+    private val repository = FirebaseForumRepository()
+    private val tokenManager = TokenManager(application)
 
     private val _currentCategory = MutableStateFlow<String?>(null)
+    private val _currentUserId = MutableStateFlow<String>("")
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val posts: Flow<List<ForumPostEntity>> = _currentCategory.flatMapLatest { category ->
-        when (category) {
-            "TRENDING" -> repository.getTrendingPostsFlow()
-            else -> repository.getPostsFlow(category)
+    init {
+        // Get user ID during initialization
+        viewModelScope.launch {
+            tokenManager.getUserId().collect { uid ->
+                _currentUserId.value = uid ?: ""
+            }
         }
     }
 
-    private var currentPage = 0
-    private var hasMore = true
+    // Core change: Combine currentCategory and currentUserId to generate post flow
+    // Firebase returns ForumPost model (no longer using Room's ForumPostEntity)
+    // Note: Forum posts are public, should be able to load even if userId is empty (userId is only used to check like status)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val posts: Flow<List<ForumPost>> = combine(_currentCategory, _currentUserId) { category, userId ->
+        Pair(category, userId)
+    }.flatMapLatest { (category, userId) ->
+        // Load posts even if userId is empty (public content), userId is only used to check like status
+        repository.getPostsFlow(category, userId)
+    }
 
     /**
-     * Load posts from API and observe from database
+     * Change: Firebase is real-time, no need to manually call loadPosts
+     * This method is now mainly used to handle "refresh" action (Flow will auto-update, but keep interface compatibility)
      */
     fun loadPosts(token: String, category: String? = null, refresh: Boolean = false) {
-        Log.d("ForumViewModel", "loadPosts called with category: $category, refresh: $refresh")
-
-        if (_loading.value == true) {
-            Log.d("ForumViewModel", "Already loading, skipping")
-            return
+        // Firebase Flow handles data automatically, can be empty here or reset some UI state
+        if (category != _currentCategory.value) {
+            filterByCategory(category)
         }
-
-        val page = if (refresh) 0 else currentPage
-
-        launchDataLoad(
-            block = {
-                Log.d("ForumViewModel", "Fetching posts from API: page=$page, category=$category")
-                repository.fetchPosts(token, page, 20, category)
-            },
-            onSuccess = { pagedResponse ->
-                Log.d("ForumViewModel", "Successfully fetched ${pagedResponse.posts.size} posts")
-                hasMore = pagedResponse.hasNext
-                currentPage = if (refresh) 0 else page
-            }
-        )
     }
 
-    /**
-     * Filter posts by category
-     */
     fun filterByCategory(category: String?) {
-        Log.d("ForumViewModel", "filterByCategory called with: $category")
         _currentCategory.value = category
     }
 
-    /**
-     * Like/unlike post
-     */
+    // Keep backward compatibility with Long ID method
     fun likePost(token: String, postId: Long) {
-        launchDataLoad(
-            block = {
-                Log.d("ForumViewModel", "Liking post: $postId")
-                repository.likePost(token, postId)
-            },
-            onSuccess = {
-                Log.d("ForumViewModel", "Post liked successfully")
-            }
-        )
+        likePost(postId.toString())
     }
 
-    /**
-     * Delete post
-     */
+    // New method adapted for Firebase String ID
+    fun likePost(postId: String) {
+        viewModelScope.launch {
+            repository.toggleLikePost(postId, _currentUserId.value)
+        }
+    }
+
+    // Keep backward compatibility with Long ID method
     fun deletePost(token: String, postId: Long) {
-        launchOperation(
-            block = { repository.deletePost(token, postId) },
-            onSuccess = {
-                Log.d("ForumViewModel", "Post deleted successfully")
-            }
-        )
+         deletePost(postId.toString())
     }
 
-    /**
-     * Clean old cached data
-     */
-    fun cleanOldCache() {
+    fun deletePost(postId: String) {
         launchOperation(
-            block = {
-                repository.cleanOldCache()
-                Result.success(Unit)
-            },
+            block = { repository.deletePost(postId) },
             onSuccess = { }
         )
     }
 
+    fun cleanOldCache() {
+        // Firebase doesn't need manual local cache cleanup, SDK handles it
+    }
 }

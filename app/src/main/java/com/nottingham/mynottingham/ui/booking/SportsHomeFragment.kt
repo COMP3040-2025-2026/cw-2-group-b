@@ -38,7 +38,7 @@ class SportsHomeFragment : Fragment() {
             navigateToFragment(CheckAvailabilityFragment())
         }
 
-        // Equipment Rental card
+        // Equipment card
         binding.cardEquipment.setOnClickListener {
             navigateToFragment(EquipmentRentalFragment())
         }

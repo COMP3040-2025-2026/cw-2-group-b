@@ -1,30 +1,55 @@
 package com.nottingham.mynottingham.ui.message
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.nottingham.mynottingham.data.model.ChatMessage
-import com.nottingham.mynottingham.data.repository.MessageRepository
-import com.nottingham.mynottingham.data.websocket.WebSocketManager
+import com.nottingham.mynottingham.data.model.Contact
+import com.nottingham.mynottingham.data.model.GroupInfo
+import com.nottingham.mynottingham.data.model.GroupMember
+import com.nottingham.mynottingham.data.model.GroupRole
+import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
+import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
+import com.nottingham.mynottingham.data.repository.ImageUploadRepository
 import com.nottingham.mynottingham.util.Constants
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Chat Detail screen
+ * 🔥 Migrated to Firebase - no longer depends on backend API or WebSocket
  */
 class ChatDetailViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = MessageRepository(application)
-    private var webSocketManager: WebSocketManager? = null
+    private val firebaseRepo = FirebaseMessageRepository()
+    private val userRepo = FirebaseUserRepository()
+    private val imageUploadRepo = ImageUploadRepository()
+    private val database = FirebaseDatabase.getInstance(Constants.FIREBASE_DATABASE_URL)
+
+    // Membership status for group chats (to detect when user is removed)
+    private val _membershipStatus = MutableLiveData<String>("MEMBER")
+    val membershipStatus: LiveData<String> = _membershipStatus
+    private var membershipListener: ValueEventListener? = null
+
+    // Available contacts for adding to group
+    private val _availableContacts = MutableLiveData<List<Contact>>()
+    val availableContacts: LiveData<List<Contact>> = _availableContacts
+
+    private val _uploadingImage = MutableLiveData<Boolean>()
+    val uploadingImage: LiveData<Boolean> = _uploadingImage
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
+
+    private val _participantStatus = MutableLiveData<String>()
+    val participantStatus: LiveData<String> = _participantStatus
 
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
@@ -41,104 +66,51 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
     private var conversationId: String = ""
     private var currentUserId: String = ""
     private var currentUserName: String = ""
-    private var typingJob: Job? = null
+    private var currentUserAvatar: String? = null
 
-    /**
-     * Messages for current conversation
-     */
-    val messages: MutableLiveData<LiveData<List<ChatMessage>>> = MutableLiveData()
+    private val _messages = MutableLiveData<List<ChatMessage>>()
+    val messages: LiveData<List<ChatMessage>> = _messages
 
-    /**
-     * Initialize chat for a specific conversation
-     */
-    fun initializeChat(conversationId: String, userId: String, userName: String = "") {
+    // Group info
+    private val _groupInfo = MutableLiveData<GroupInfo?>()
+    val groupInfo: LiveData<GroupInfo?> = _groupInfo
+
+    private val _groupMembers = MutableLiveData<List<GroupMember>>()
+    val groupMembers: LiveData<List<GroupMember>> = _groupMembers
+
+    private val _currentUserRole = MutableLiveData<GroupRole>()
+    val currentUserRole: LiveData<GroupRole> = _currentUserRole
+
+    // User profile
+    private val _userProfile = MutableLiveData<Map<String, Any?>>()
+    val userProfile: LiveData<Map<String, Any?>> = _userProfile
+
+    // Operation results
+    private val _operationSuccess = MutableLiveData<String?>()
+    val operationSuccess: LiveData<String?> = _operationSuccess
+
+    fun initializeChat(
+        conversationId: String,
+        userId: String,
+        userName: String = "",
+        userAvatar: String? = null
+    ) {
         this.conversationId = conversationId
         this.currentUserId = userId
         this.currentUserName = userName
+        this.currentUserAvatar = userAvatar
 
-        // Observe messages from repository
-        messages.value = repository.getMessagesFlow(conversationId).asLiveData()
-
-        // Setup WebSocket
-        setupWebSocket(userId)
-    }
-
-    /**
-     * Setup WebSocket connection and listeners
-     */
-    private fun setupWebSocket(userId: String) {
-        webSocketManager = WebSocketManager.getInstance(userId)
-        webSocketManager?.connect()
-        webSocketManager?.joinConversation(conversationId)
-
-        // Listen to WebSocket messages
         viewModelScope.launch {
-            webSocketManager?.messageFlow?.collect { wsMessage ->
-                Log.d(TAG, "WebSocket message received: ${wsMessage.type}")
-                handleWebSocketMessage(wsMessage)
+            _loading.postValue(true)
+            firebaseRepo.getMessagesFlow(conversationId).collect { messageList ->
+                _messages.postValue(messageList)
+                _loading.postValue(false)
             }
         }
+        markAsRead()
     }
 
-    /**
-     * Handle incoming WebSocket messages
-     */
-    private fun handleWebSocketMessage(wsMessage: com.nottingham.mynottingham.data.websocket.WebSocketMessage) {
-        when (wsMessage.type) {
-            "NEW_MESSAGE" -> {
-                // Reload messages when new message arrives
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    viewModelScope.launch {
-                        // Refresh messages from local database
-                        // The message should already be saved from repository sendMessage
-                        // or we can trigger a sync here if needed
-                        Log.d(TAG, "New message received in conversation")
-                    }
-                }
-            }
-            "TYPING" -> {
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    val senderId = data["senderId"] as? String
-                    if (senderId != currentUserId) {
-                        val senderName = data["senderName"] as? String ?: "Someone"
-                        _typingStatus.value = "$senderName is typing..."
-                    }
-                }
-            }
-            "STOP_TYPING" -> {
-                val data = wsMessage.data
-                if (data != null && data["conversationId"] == conversationId) {
-                    _typingStatus.value = null
-                }
-            }
-            "MESSAGE_READ" -> {
-                // Handle message read status
-                Log.d(TAG, "Message read notification received")
-            }
-        }
-    }
-
-    /**
-     * Load messages from API
-     */
-    fun loadMessages(token: String) {
-        _loading.value = true
-        viewModelScope.launch {
-            val result = repository.syncMessages(token, conversationId)
-            _loading.value = false
-
-            result.onFailure { e ->
-                _error.value = e.message ?: "Failed to load messages"
-            }
-        }
-    }
-
-    /**
-     * Send a message
-     */
-    fun sendMessage(token: String, content: String) {
+    fun sendMessage(content: String) {
         if (content.isBlank() || content.length > Constants.MAX_MESSAGE_LENGTH) {
             _error.value = "Message is invalid"
             return
@@ -146,81 +118,487 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
 
         _sendingMessage.value = true
         viewModelScope.launch {
-            val result = repository.sendMessage(token, conversationId, content)
+            val result = firebaseRepo.sendMessage(
+                conversationId = conversationId,
+                senderId = currentUserId,
+                senderName = currentUserName,
+                senderAvatar = currentUserAvatar,
+                message = content
+            )
             _sendingMessage.value = false
 
             result.onSuccess {
                 _messageSent.value = true
-                // Mark as read since user is in the chat
-                markAsRead(token)
+                markAsRead()
             }
 
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to send message"
+                Log.e(TAG, "Failed to send message", e)
             }
         }
     }
 
-    /**
-     * Mark messages as read
-     */
-    fun markAsRead(token: String) {
+    fun updateTyping(isTyping: Boolean) {
         viewModelScope.launch {
-            repository.markMessagesAsRead(token, conversationId, currentUserId)
+            firebaseRepo.updateTypingStatus(conversationId, currentUserId, isTyping)
         }
     }
 
     /**
-     * Update typing status
+     * Send an image message
      */
-    fun updateTyping(token: String, isTyping: Boolean) {
-        // Cancel previous typing job
-        typingJob?.cancel()
+    fun sendImageMessage(imageUri: Uri) {
+        _uploadingImage.value = true
+        _sendingMessage.value = true
 
-        // Send via WebSocket for real-time updates
-        if (isTyping) {
-            webSocketManager?.sendTyping(conversationId, currentUserId, currentUserName)
-        } else {
-            webSocketManager?.sendStopTyping(conversationId, currentUserId)
-        }
-
-        // Also update via API
         viewModelScope.launch {
-            repository.updateTypingStatus(token, conversationId, isTyping)
-        }
+            // Upload image to Firebase Storage
+            val uploadResult = imageUploadRepo.uploadImage(
+                context = getApplication(),
+                imageUri = imageUri,
+                folder = ImageUploadRepository.FOLDER_CHAT_IMAGES,
+                userId = currentUserId
+            )
 
-        // Auto-stop typing after timeout
-        if (isTyping) {
-            typingJob = viewModelScope.launch {
-                delay(Constants.TYPING_INDICATOR_TIMEOUT_MS)
-                webSocketManager?.sendStopTyping(conversationId, currentUserId)
-                repository.updateTypingStatus(token, conversationId, false)
+            uploadResult.onSuccess { imageUrl ->
+                // Send message with image
+                val result = firebaseRepo.sendMessage(
+                    conversationId = conversationId,
+                    senderId = currentUserId,
+                    senderName = currentUserName,
+                    senderAvatar = currentUserAvatar,
+                    message = "",
+                    messageType = "IMAGE",
+                    imageUrl = imageUrl
+                )
+
+                result.onSuccess {
+                    _messageSent.value = true
+                    markAsRead()
+                }
+
+                result.onFailure { e ->
+                    _error.value = e.message ?: "Failed to send image"
+                    Log.e(TAG, "Failed to send image message", e)
+                }
             }
+
+            uploadResult.onFailure { e ->
+                _error.value = "Failed to upload image: ${e.message}"
+                Log.e(TAG, "Failed to upload image", e)
+            }
+
+            _uploadingImage.value = false
+            _sendingMessage.value = false
         }
     }
 
-    /**
-     * Reset message sent status
-     */
+    fun markAsRead() {
+        viewModelScope.launch {
+            firebaseRepo.markMessagesAsRead(conversationId, currentUserId)
+        }
+    }
+
     fun resetMessageSent() {
         _messageSent.value = false
     }
 
-    /**
-     * Clear error message
-     */
     fun clearError() {
         _error.value = null
     }
 
     /**
-     * Cleanup when ViewModel is destroyed
+     * Observe participant's online status (Telegram-style)
      */
+    fun observeParticipantPresence(participantId: String) {
+        viewModelScope.launch {
+            userRepo.observeUserPresence(participantId).collect { (isOnline, lastSeen) ->
+                val status = if (isOnline) {
+                    "Active now"
+                } else {
+                    userRepo.formatLastSeen(lastSeen)
+                }
+                _participantStatus.postValue(status)
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
-        // Leave conversation and disconnect WebSocket
-        webSocketManager?.leaveConversation(conversationId)
-        // Note: Don't destroy WebSocket instance as it might be used by other screens
+        // Remove membership listener
+        membershipListener?.let { listener ->
+            database.getReference("conversations")
+                .child(conversationId)
+                .child("participants")
+                .child(currentUserId)
+                .removeEventListener(listener)
+        }
+    }
+
+    /**
+     * Observe group membership status in real-time
+     * Detects when current user is removed from the group
+     */
+    fun observeGroupMembership() {
+        if (conversationId.isEmpty() || currentUserId.isEmpty()) return
+
+        val participantRef = database.getReference("conversations")
+            .child(conversationId)
+            .child("participants")
+            .child(currentUserId)
+
+        membershipListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) {
+                    _membershipStatus.postValue("REMOVED")
+                    Log.d(TAG, "User has been removed from group")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Error observing membership: ${error.message}")
+            }
+        }
+
+        participantRef.addValueEventListener(membershipListener!!)
+    }
+
+    /**
+     * Load available contacts (users not already in the group)
+     */
+    fun loadAvailableContacts(existingMemberIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                val result = userRepo.getAllUsers()
+                result.onSuccess { users ->
+                    val contacts = users
+                        .filter { user ->
+                            user.id != currentUserId && !existingMemberIds.contains(user.id)
+                        }
+                        .map { user ->
+                            Contact(
+                                id = user.id,
+                                name = user.name,
+                                avatar = user.profileImageUrl,
+                                program = user.program,
+                                year = user.year,
+                                isOnline = false
+                            )
+                        }
+                    _availableContacts.value = contacts
+                }
+                result.onFailure { e ->
+                    Log.e(TAG, "Failed to load contacts: ${e.message}")
+                    _error.value = "Failed to load contacts"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading contacts", e)
+                _error.value = "Error loading contacts"
+            }
+        }
+    }
+
+    /**
+     * Add multiple members to group
+     */
+    fun addGroupMembers(userIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                val groupName = _groupInfo.value?.name ?: "Group"
+                var successCount = 0
+                var failCount = 0
+
+                userIds.forEach { userId ->
+                    val result = firebaseRepo.addGroupMember(conversationId, userId, groupName)
+                    result.onSuccess { successCount++ }
+                    result.onFailure { failCount++ }
+                }
+
+                if (successCount > 0) {
+                    _operationSuccess.value = "$successCount member(s) added"
+                    loadGroupInfo()
+                }
+                if (failCount > 0) {
+                    _error.value = "Failed to add $failCount member(s)"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error adding members"
+            }
+        }
+    }
+
+    // ========== User Profile Methods ==========
+
+    /**
+     * Load user profile for 1:1 chat
+     */
+    fun loadUserProfile(userId: String) {
+        viewModelScope.launch {
+            try {
+                val result = userRepo.getUserProfileOnce(userId)
+                result.onSuccess { user ->
+                    _userProfile.value = mapOf(
+                        "id" to user.id,
+                        "name" to user.name,
+                        "email" to user.email,
+                        "role" to user.role,
+                        "faculty" to user.faculty,
+                        "program" to user.program,
+                        "year" to user.year.toString(),
+                        "avatar" to user.profileImageUrl
+                    )
+                }
+                result.onFailure { e: Throwable ->
+                    Log.e(TAG, "Failed to load user profile: ${e.message}")
+                    _error.value = "Failed to load user profile"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading user profile", e)
+                _error.value = "Error loading user profile"
+            }
+        }
+    }
+
+    // ========== Group Management Methods ==========
+
+    /**
+     * Load group info and members
+     */
+    fun loadGroupInfo() {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.getGroupInfo(conversationId)
+                result.onSuccess { info ->
+                    val ownerId = info["ownerId"] as? String ?: ""
+                    val adminIds = (info["adminIds"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                    val participantIds = (info["participantIds"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+
+                    // Determine current user's role
+                    val role = when {
+                        currentUserId == ownerId -> GroupRole.OWNER
+                        adminIds.contains(currentUserId) -> GroupRole.ADMIN
+                        else -> GroupRole.MEMBER
+                    }
+                    _currentUserRole.value = role
+
+                    // Load member details
+                    val members = mutableListOf<GroupMember>()
+                    participantIds.forEach { memberId ->
+                        val userResult = userRepo.getUserProfileOnce(memberId)
+                        userResult.onSuccess { user ->
+                            val memberRole = when {
+                                memberId == ownerId -> GroupRole.OWNER
+                                adminIds.contains(memberId) -> GroupRole.ADMIN
+                                else -> GroupRole.MEMBER
+                            }
+                            members.add(
+                                GroupMember(
+                                    id = user.id,
+                                    name = user.name,
+                                    avatar = user.profileImageUrl,
+                                    email = user.email,
+                                    role = memberRole,
+                                    faculty = user.faculty,
+                                    program = user.program,
+                                    year = user.year.toString(),
+                                    userRole = user.role
+                                )
+                            )
+                        }
+                    }
+
+                    // Sort: owner first, then admins, then members
+                    val sortedMembers = members.sortedWith(
+                        compareBy(
+                            { it.role != GroupRole.OWNER },
+                            { it.role != GroupRole.ADMIN },
+                            { it.name }
+                        )
+                    )
+                    _groupMembers.value = sortedMembers
+
+                    _groupInfo.value = GroupInfo(
+                        id = info["id"] as? String ?: "",
+                        name = info["groupName"] as? String ?: "Group",
+                        createdAt = info["createdAt"] as? Long ?: 0L,
+                        ownerId = ownerId,
+                        adminIds = adminIds,
+                        members = sortedMembers
+                    )
+                }
+                result.onFailure { e ->
+                    Log.e(TAG, "Failed to load group info: ${e.message}")
+                    _error.value = "Failed to load group info"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading group info", e)
+                _error.value = "Error loading group info"
+            }
+        }
+    }
+
+    /**
+     * Update group name
+     */
+    fun updateGroupName(newName: String) {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.updateGroupName(conversationId, newName)
+                result.onSuccess {
+                    _operationSuccess.value = "Group name updated"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to update group name: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error updating group name"
+            }
+        }
+    }
+
+    /**
+     * Add member to group
+     */
+    fun addGroupMember(userId: String) {
+        viewModelScope.launch {
+            try {
+                val groupName = _groupInfo.value?.name ?: "Group"
+                val result = firebaseRepo.addGroupMember(conversationId, userId, groupName)
+                result.onSuccess {
+                    _operationSuccess.value = "Member added"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to add member: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error adding member"
+            }
+        }
+    }
+
+    /**
+     * Remove member from group
+     */
+    fun removeGroupMember(userId: String) {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.removeGroupMember(conversationId, userId)
+                result.onSuccess {
+                    _operationSuccess.value = "Member removed"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to remove member: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error removing member"
+            }
+        }
+    }
+
+    /**
+     * Set user as admin
+     */
+    fun setAsAdmin(userId: String) {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.addAdmin(conversationId, userId)
+                result.onSuccess {
+                    _operationSuccess.value = "Admin added"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to set admin: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error setting admin"
+            }
+        }
+    }
+
+    /**
+     * Remove admin role
+     */
+    fun removeAdmin(userId: String) {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.removeAdmin(conversationId, userId)
+                result.onSuccess {
+                    _operationSuccess.value = "Admin removed"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to remove admin: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error removing admin"
+            }
+        }
+    }
+
+    /**
+     * Transfer group ownership
+     */
+    fun transferOwnership(newOwnerId: String) {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.transferOwnership(conversationId, newOwnerId)
+                result.onSuccess {
+                    _operationSuccess.value = "Ownership transferred"
+                    loadGroupInfo()
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to transfer ownership: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error transferring ownership"
+            }
+        }
+    }
+
+    /**
+     * Leave group
+     */
+    fun leaveGroup() {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.leaveGroup(conversationId, currentUserId)
+                result.onSuccess {
+                    _operationSuccess.value = "LEFT_GROUP"
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to leave group: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error leaving group"
+            }
+        }
+    }
+
+    /**
+     * Dissolve group (owner only)
+     */
+    fun dissolveGroup() {
+        viewModelScope.launch {
+            try {
+                val result = firebaseRepo.dissolveGroup(conversationId)
+                result.onSuccess {
+                    _operationSuccess.value = "GROUP_DISSOLVED"
+                }
+                result.onFailure { e ->
+                    _error.value = "Failed to dissolve group: ${e.message}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error dissolving group"
+            }
+        }
+    }
+
+    fun clearOperationSuccess() {
+        _operationSuccess.value = null
     }
 
     companion object {

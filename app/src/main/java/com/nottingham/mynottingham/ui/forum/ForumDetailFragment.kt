@@ -20,8 +20,10 @@ import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
-import com.nottingham.mynottingham.data.local.database.entities.ForumPostEntity
+import com.nottingham.mynottingham.data.model.ForumPost
 import com.nottingham.mynottingham.databinding.FragmentForumDetailBinding
+import com.nottingham.mynottingham.ui.common.ImageViewerDialog
+import com.nottingham.mynottingham.util.AvatarUtils
 import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -35,8 +37,10 @@ class ForumDetailFragment : Fragment() {
     private lateinit var tokenManager: TokenManager
     private lateinit var commentAdapter: ForumCommentAdapter
 
-    private var postId: Long = 0L
-    private var currentUserId: Long? = null
+    // Fixed: ID type changed to String
+    private var postId: String = ""
+    private var currentUserId: String = ""
+    private var currentPost: ForumPost? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,12 +55,12 @@ class ForumDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Get postId from arguments
+        // Get postId from arguments (handle both String and Long for compatibility)
         arguments?.let {
-            postId = it.getLong("postId")
+            postId = it.getString("postId") ?: it.getLong("postId", 0L).toString()
         }
 
-        if (postId == 0L) {
+        if (postId == "0" || postId.isEmpty()) {
             Toast.makeText(context, "Invalid Post ID", Toast.LENGTH_SHORT).show()
             findNavController().navigateUp()
             return
@@ -64,7 +68,7 @@ class ForumDetailFragment : Fragment() {
 
         // Get current user ID
         lifecycleScope.launch {
-            currentUserId = tokenManager.getUserId().first()?.toLongOrNull()
+            currentUserId = tokenManager.getUserId().first() ?: ""
         }
 
         setupUI()
@@ -73,100 +77,73 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Back button
-        binding.btnBack.setOnClickListener {
-            findNavController().navigateUp()
-        }
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
-        // More options button
-        binding.btnMoreOptions.setOnClickListener {
-            showPostOptionsMenu()
-        }
+        binding.btnMoreOptions.setOnClickListener { showPostOptionsMenu() }
 
-        // Comments RecyclerView
         commentAdapter = ForumCommentAdapter { comment ->
-            lifecycleScope.launch {
-                val token = tokenManager.getToken().first() ?: ""
-                if (token.isNotEmpty()) {
-                    viewModel.likeComment(token, comment.id)
-                } else {
-                    Toast.makeText(context, "Please login first", Toast.LENGTH_SHORT).show()
-                }
-            }
+            // Like comment
+            viewModel.likeComment(comment.id)
         }
         binding.recyclerComments.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = commentAdapter
         }
 
-        // Send Comment
         binding.btnSendComment.setOnClickListener {
             val content = binding.etComment.text.toString().trim()
             if (content.isNotEmpty()) {
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty()) {
-                        viewModel.sendComment(token, postId, content)
-                        binding.etComment.text.clear()
-                        hideKeyboard()
-                    }
-                }
+                viewModel.sendComment(postId, content)
+                binding.etComment.text.clear()
+                hideKeyboard()
             }
         }
 
-        // Like Post
         binding.layoutLike.setOnClickListener {
-            lifecycleScope.launch {
-                val token = tokenManager.getToken().first() ?: ""
-                if (token.isNotEmpty()) {
-                    viewModel.likePost(token, postId)
-                }
-            }
+            viewModel.likePost(postId)
         }
     }
 
     private fun setupObservers() {
-        // Observe Post Data
-        lifecycleScope.launch {
-            viewModel.getPostFlow(postId).collect { post ->
-                post?.let { bindPostData(it) }
-            }
+        // Use viewLifecycleOwner.lifecycleScope to ensure coroutine cancellation when View is destroyed
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.getPostFlow(0L) // Parameter retained for compatibility, ViewModel internally uses StateFlow
+                .collect { post ->
+                    post?.let {
+                        if (_binding != null) {
+                            bindPostData(it)
+                        }
+                    }
+                }
         }
 
-        // Observe Comments
-        lifecycleScope.launch {
-            viewModel.getCommentsFlow(postId).collect { comments ->
-                commentAdapter.submitList(comments)
-            }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.getCommentsFlow(0L) // Same as above
+                .collect { comments ->
+                    if (_binding != null) {
+                        commentAdapter.submitList(comments)
+                    }
+                }
         }
 
-        // Loading State
         viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
+            _binding?.progressBar?.isVisible = isLoading
         }
 
-        // Error State
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
-                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }
         }
 
-        // Comment Success
         viewModel.commentSuccess.observe(viewLifecycleOwner) { success ->
             if (success) {
                 Toast.makeText(context, "Comment added", Toast.LENGTH_SHORT).show()
                 viewModel.clearCommentSuccess()
-                // Refresh data to ensure everything is synced
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty()) viewModel.loadPostDetail(token, postId)
-                }
             }
         }
 
-        // Delete Success
         viewModel.deleteSuccess.observe(viewLifecycleOwner) { success ->
             if (success) {
                 Toast.makeText(context, "Post deleted successfully", Toast.LENGTH_SHORT).show()
@@ -183,7 +160,7 @@ class ForumDetailFragment : Fragment() {
         popupMenu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_edit_post -> {
-                    Toast.makeText(context, "Edit feature coming soon", Toast.LENGTH_SHORT).show()
+                    navigateToEditPost()
                     true
                 }
                 R.id.action_delete_post -> {
@@ -196,19 +173,27 @@ class ForumDetailFragment : Fragment() {
         popupMenu.show()
     }
 
+    private fun navigateToEditPost() {
+        currentPost?.let { post ->
+            val bundle = Bundle().apply {
+                putBoolean("isEditMode", true)
+                putString("editPostId", post.id)
+                putString("editTitle", post.title)
+                putString("editContent", post.content)
+                putString("editCategory", post.category)
+                putString("editTags", post.tags?.joinToString(", "))
+                putBoolean("editIsPinned", post.isPinned)
+            }
+            findNavController().navigate(R.id.action_forumDetail_to_editPost, bundle)
+        }
+    }
+
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Post")
-            .setMessage("Are you sure you want to delete this post? This action cannot be undone.")
+            .setMessage("Are you sure you want to delete this post?")
             .setPositiveButton("Delete") { dialog, _ ->
-                lifecycleScope.launch {
-                    val token = tokenManager.getToken().first() ?: ""
-                    if (token.isNotEmpty() && postId != 0L) {
-                        viewModel.deletePost(token, postId)
-                    } else {
-                        Toast.makeText(context, "Unable to delete post", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                viewModel.deletePost(postId)
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel") { dialog, _ ->
@@ -217,7 +202,9 @@ class ForumDetailFragment : Fragment() {
             .show()
     }
 
-    private fun bindPostData(post: ForumPostEntity) {
+    // Fixed: Receive ForumPost data model, not Entity
+    private fun bindPostData(post: ForumPost) {
+        currentPost = post
         binding.apply {
             tvAuthorName.text = post.authorName
             tvTimestamp.text = DateUtils.getRelativeTimeSpanString(
@@ -229,56 +216,57 @@ class ForumDetailFragment : Fragment() {
             tvViews.text = post.views.toString()
 
             chipCategory.text = post.category
-            // Set chip color based on category
-            chipCategory.setChipBackgroundColorResource(
-                when (post.category) {
-                    "ACADEMIC" -> R.color.category_academic
-                    "EVENTS" -> R.color.category_events
-                    "SPORTS" -> R.color.category_sports
-                    "SOCIAL" -> R.color.category_social
-                    else -> R.color.category_general
-                }
-            )
+            // Set category chip background color to match forum list
+            chipCategory.setChipBackgroundColorResource(getCategoryColor(post.category))
+            chipCategory.setTextColor(requireContext().getColor(android.R.color.white))
 
             // Avatar
             if (!post.authorAvatar.isNullOrEmpty()) {
-                Glide.with(requireContext())
-                    .load(Constants.BASE_URL + post.authorAvatar)
-                    .placeholder(R.drawable.ic_profile)
-                    .circleCrop()
-                    .into(ivAuthorAvatar)
+                 val avatarResId = AvatarUtils.getDrawableId(post.authorAvatar)
+                 ivAuthorAvatar.setImageResource(avatarResId)
             }
 
             // Post Image
             if (!post.imageUrl.isNullOrEmpty()) {
                 ivPostImage.isVisible = true
                 Glide.with(requireContext())
-                    .load(Constants.BASE_URL + post.imageUrl)
+                    .load(post.imageUrl)
                     .placeholder(R.drawable.ic_placeholder)
                     .into(ivPostImage)
+                // Click to view full image
+                ivPostImage.setOnClickListener {
+                    ImageViewerDialog(requireContext(), post.imageUrl).show()
+                }
             } else {
                 ivPostImage.isVisible = false
+                ivPostImage.setOnClickListener(null)
+            }
+
+            // Tags
+            if (!post.tags.isNullOrEmpty()) {
+                chipGroupTags.isVisible = true
+                chipGroupTags.removeAllViews()
+                post.tags.forEach { tag ->
+                    val chip = Chip(requireContext()).apply {
+                        text = tag
+                        textSize = 11f
+                        chipMinHeight = 24f * resources.displayMetrics.density
+                        isClickable = false
+                        setChipBackgroundColorResource(R.color.chip_background)
+                    }
+                    chipGroupTags.addView(chip)
+                }
+            } else {
+                chipGroupTags.isVisible = false
             }
 
             // Like Status
-            if (post.isLikedByCurrentUser) {
+            if (post.isLiked) {
                 ivLike.setImageResource(R.drawable.ic_favorite)
                 ivLike.setColorFilter(requireContext().getColor(R.color.primary))
             } else {
                 ivLike.setImageResource(R.drawable.ic_favorite_border)
                 ivLike.clearColorFilter()
-            }
-
-            // Tags
-            chipGroupTags.removeAllViews()
-            post.tags?.split(",")?.forEach { tag ->
-                if (tag.isNotBlank()) {
-                    val chip = Chip(context).apply {
-                        text = tag.trim()
-                        isClickable = false
-                    }
-                    chipGroupTags.addView(chip)
-                }
             }
 
             // Show/hide more options button based on author
@@ -287,12 +275,7 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun loadData() {
-        lifecycleScope.launch {
-            val token = tokenManager.getToken().first() ?: ""
-            if (token.isNotEmpty()) {
-                viewModel.loadPostDetail(token, postId)
-            }
-        }
+        viewModel.loadPostDetail(postId)
     }
 
     private fun hideKeyboard() {
@@ -303,5 +286,19 @@ class ForumDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun getCategoryColor(category: String): Int {
+        return when (category.uppercase()) {
+            "ACADEMIC" -> R.color.category_academic
+            "EVENTS" -> R.color.category_events
+            "SPORTS" -> R.color.category_sports
+            "SOCIAL" -> R.color.category_social
+            "ANNOUNCEMENTS" -> R.color.category_announcements
+            "CAREER" -> R.color.category_career
+            "FOOD" -> R.color.category_food
+            "QUESTIONS" -> R.color.category_questions
+            else -> R.color.category_general
+        }
     }
 }

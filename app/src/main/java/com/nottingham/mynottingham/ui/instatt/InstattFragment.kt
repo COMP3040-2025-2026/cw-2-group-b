@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentInstattBinding
@@ -21,6 +22,9 @@ class InstattFragment : Fragment() {
     private val binding get() = _binding!!
     private var currentTab = InstattTab.HOME
     private lateinit var tokenManager: TokenManager
+
+    // Shared ViewModel for preloading data
+    private val viewModel: InstattViewModel by viewModels()
 
     enum class InstattTab {
         HOME, CALENDAR, STATISTICS
@@ -66,6 +70,12 @@ class InstattFragment : Fragment() {
                     // Initialize indicator position after layout
                     binding.root.post {
                         positionIndicator(currentTab, false)
+                    }
+
+                    // Preload all data (today's courses, weekly schedule, statistics)
+                    val studentId = tokenManager.getUserId().first() ?: ""
+                    if (studentId.isNotEmpty()) {
+                        viewModel.preloadAllData(studentId)
                     }
 
                     // Load default fragment - show today's courses

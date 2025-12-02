@@ -21,7 +21,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Equipment Rental"
+                android:text="Equipment"
                 android:textColor="@color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"

@@ -21,7 +21,7 @@ class FoodDeliveryFragment : Fragment() {
     private var _binding: FragmentFoodDeliveryBinding? = null
     private val binding get() = _binding!!
 
-    // 获取共享 ViewModel 以访问菜单数据
+    // Get shared ViewModel to access menu data
     private val viewModel: RestaurantMenuViewModel by activityViewModels()
     private lateinit var searchAdapter: FoodSearchAdapter
 
@@ -48,7 +48,7 @@ class FoodDeliveryFragment : Fragment() {
     }
 
     private fun setupSearch() {
-        // 初始化简单的纯文字适配器
+        // Initialize simple text adapter
         searchAdapter = FoodSearchAdapter { menuItem ->
             navigateToRestaurantWithItem(menuItem)
         }
@@ -56,8 +56,8 @@ class FoodDeliveryFragment : Fragment() {
         binding.rvSearchResults.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = searchAdapter
-            // 给下拉列表加一个简单的背景和阴影，让它浮在内容上面
-            setBackgroundResource(R.drawable.bg_search_tag) // 需确保有此drawable，或使用白色背景
+            // Add simple background and shadow to dropdown list to float it above content
+            setBackgroundResource(R.drawable.bg_search_tag) // Make sure this drawable exists or use white background
             elevation = 10f
         }
 
@@ -86,7 +86,7 @@ class FoodDeliveryFragment : Fragment() {
 
     private fun performSearch(query: String) {
         val allItems = viewModel.menuItems
-        // 简单的模糊搜索：匹配菜名
+        // Simple fuzzy search: match dish names
         val filteredList = allItems.filter {
             it.name.contains(query, ignoreCase = true)
         }
@@ -100,7 +100,7 @@ class FoodDeliveryFragment : Fragment() {
     }
 
     private fun navigateToRestaurantWithItem(item: MenuItem) {
-        // 跳转并传递 highlight_item_id
+        // Navigate and pass highlight_item_id
         val fragment = RestaurantMenuFragment().apply {
             arguments = Bundle().apply {
                 putString("highlight_item_id", item.id)
@@ -116,26 +116,18 @@ class FoodDeliveryFragment : Fragment() {
             .addToBackStack("restaurant_menu")
             .commit()
 
-        // 重置搜索状态
+        // Reset search state
         binding.etSearch.text.clear()
         binding.rvSearchResults.isVisible = false
     }
 
     private fun setupRestaurantClicks() {
+        // Existing restaurant click logic...
         binding.cardRestaurantChinese.setOnClickListener {
-            viewModel.setRestaurantName("Chinese Restaurant")
             parentFragmentManager.beginTransaction()
                 .replace(R.id.errand_fragment_container, RestaurantMenuFragment())
                 .addToBackStack(null)
                 .commit()
-        }
-        binding.cardRestaurantWestern.apply {
-            alpha = 0.5f
-            isClickable = false
-        }
-        binding.cardRestaurantCafe.apply {
-            alpha = 0.5f
-            isClickable = false
         }
     }
 
@@ -144,7 +136,7 @@ class FoodDeliveryFragment : Fragment() {
         _binding = null
     }
 
-    // --- 简化的 Adapter 内部类 ---
+    // --- Simplified inner Adapter class ---
     inner class FoodSearchAdapter(private val onGoClick: (MenuItem) -> Unit) :
         RecyclerView.Adapter<FoodSearchAdapter.SearchViewHolder>() {
 
@@ -156,7 +148,7 @@ class FoodDeliveryFragment : Fragment() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchViewHolder {
-            // 使用新建的 item_search_food.xml
+            // Use item_search_food.xml
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_search_result, parent, false)
             return SearchViewHolder(view)
@@ -176,7 +168,7 @@ class FoodDeliveryFragment : Fragment() {
             fun bind(item: MenuItem) {
                 tvName.text = item.name
 
-                // 点击整个条目或者点击 GO 都可以跳转
+                // Click entire item or click GO to navigate
                 val clickListener = View.OnClickListener { onGoClick(item) }
                 btnGo.setOnClickListener(clickListener)
                 root.setOnClickListener(clickListener)

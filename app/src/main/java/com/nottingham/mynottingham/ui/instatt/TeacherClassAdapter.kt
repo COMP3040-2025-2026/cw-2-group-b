@@ -11,7 +11,8 @@ import com.nottingham.mynottingham.databinding.ItemTeacherClassBinding
 class TeacherClassAdapter(
     private val courses: List<Course>,
     private val onToggleSignIn: (Course) -> Unit,
-    private val onCourseClick: (Course) -> Unit
+    private val onCourseClick: (Course) -> Unit,
+    private val onMoreOptionsClick: (Course) -> Unit  // New: Three dot button callback
 ) : RecyclerView.Adapter<TeacherClassAdapter.TeacherClassViewHolder>() {
 
     inner class TeacherClassViewHolder(private val binding: ItemTeacherClassBinding) :
@@ -48,6 +49,12 @@ class TeacherClassAdapter(
                     binding.btnToggleSignin.text = "Lock"
                     binding.btnToggleSignin.isEnabled = true
                 }
+                SignInStatus.SIGNED -> {
+                    // SIGNED is student-specific, teacher sees UNLOCKED state
+                    binding.viewStatusLine.setBackgroundColor(Color.parseColor("#4CAF50"))
+                    binding.btnToggleSignin.text = "Lock"
+                    binding.btnToggleSignin.isEnabled = true
+                }
                 SignInStatus.CLOSED -> {
                     binding.viewStatusLine.setBackgroundColor(Color.parseColor("#F44336"))
                     binding.btnToggleSignin.text = "Closed"
@@ -58,6 +65,11 @@ class TeacherClassAdapter(
             // Toggle button click
             binding.btnToggleSignin.setOnClickListener {
                 onToggleSignIn(course)
+            }
+
+            // Three dot button click - opens student management dialog
+            binding.ivMoreOptions.setOnClickListener {
+                onMoreOptionsClick(course)
             }
 
             // Card click to open course management dialog

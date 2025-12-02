@@ -1,11 +1,17 @@
 package com.nottingham.mynottingham.ui.message
 
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.ChatMessage
+import com.nottingham.mynottingham.ui.common.ImageViewerDialog
 import com.nottingham.mynottingham.databinding.ItemChatMessageReceivedBinding
 import com.nottingham.mynottingham.databinding.ItemChatMessageSentBinding
 import com.nottingham.mynottingham.util.AvatarUtils
@@ -25,7 +31,9 @@ class ChatMessageAdapter(
         private const val VIEW_TYPE_RECEIVED = 2
 
         // Reuse SimpleDateFormat instance to avoid creating new objects on every bind
-        private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault()).apply {
+            timeZone = TimeZone.getDefault()
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -74,9 +82,14 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
+
+                // Handle image messages using helper
+                bindImageMessage(message, itemView, ivMessageImage, tvMessage, "Loading sent image")
+                if (message.messageType != "IMAGE" || message.imageUrl.isNullOrEmpty()) {
+                    tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "[Image]"
+                }
             }
         }
     }
@@ -88,17 +101,53 @@ class ChatMessageAdapter(
 
         fun bind(message: ChatMessage) {
             binding.apply {
-                tvMessage.text = message.message
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
-                // Optionally show sender name for group chats
-                // textSenderName.text = message.senderName
+
+                // Handle image messages using helper
+                bindImageMessage(message, itemView, ivMessageImage, tvMessage, "Loading received image")
+                if (message.messageType != "IMAGE" || message.imageUrl.isNullOrEmpty()) {
+                    tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "?"
+                }
             }
         }
     }
 
     private fun formatTimestamp(timestamp: Long): String {
         return timeFormatter.format(Date(timestamp))
+    }
+
+    /**
+     * Helper function to handle image message loading
+     * Extracts common image loading logic from both sent and received message ViewHolders
+     */
+    private fun bindImageMessage(
+        message: ChatMessage,
+        itemView: View,
+        ivMessageImage: android.widget.ImageView,
+        tvMessage: android.widget.TextView,
+        logPrefix: String
+    ) {
+        if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
+            Log.d("ChatMessageAdapter", "$logPrefix: ${message.imageUrl}")
+            ivMessageImage.visibility = View.VISIBLE
+            tvMessage.visibility = View.GONE
+            Glide.with(itemView.context)
+                .load(message.imageUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.ic_image)
+                .error(R.drawable.ic_image)
+                .into(ivMessageImage)
+
+            // Click to view full image
+            ivMessageImage.setOnClickListener {
+                ImageViewerDialog(itemView.context, message.imageUrl).show()
+            }
+        } else {
+            ivMessageImage.visibility = View.GONE
+            ivMessageImage.setOnClickListener(null)
+            tvMessage.visibility = View.VISIBLE
+        }
     }
 }
 

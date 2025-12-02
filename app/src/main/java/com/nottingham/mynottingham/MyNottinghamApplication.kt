@@ -1,7 +1,11 @@
 package com.nottingham.mynottingham
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import com.nottingham.mynottingham.data.local.database.AppDatabase
+import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
 import com.nottingham.mynottingham.data.repository.MessageRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +18,12 @@ import kotlinx.coroutines.launch
  * initializing app-wide components and maintaining global state.
  */
 class MyNottinghamApplication : Application() {
+
+    companion object {
+        // Notification Channel IDs
+        const val CHANNEL_MESSAGES = "messages"
+        const val CHANNEL_ERRANDS = "errands"
+    }
 
     /**
      * Provides a lazily-initialized singleton instance of the application's database.
@@ -36,11 +46,52 @@ class MyNottinghamApplication : Application() {
      */
     override fun onCreate() {
         super.onCreate()
-        // You can initialize third-party libraries here if needed.
-        // For example: Timber for logging, Firebase Crashlytics, etc.
+
+        // Create notification channels for Android 8.0+
+        createNotificationChannels()
 
         // Trigger the cleanup of old messages from the local database.
         cleanupOldMessages()
+
+        // Trigger the cleanup of old errand history (7 days)
+        cleanupOldErrands()
+    }
+
+    /**
+     * Creates notification channels for Android 8.0 (API 26) and above.
+     * Channels are required for showing notifications on these versions.
+     */
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+
+            // Messages channel - for chat messages
+            val messagesChannel = NotificationChannel(
+                CHANNEL_MESSAGES,
+                "Messages",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for new messages"
+                enableVibration(true)
+                enableLights(true)
+            }
+
+            // Errands channel - for order status updates
+            val errandsChannel = NotificationChannel(
+                CHANNEL_ERRANDS,
+                "Errand Updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for errand order updates"
+                enableVibration(true)
+            }
+
+            notificationManager.createNotificationChannels(
+                listOf(messagesChannel, errandsChannel)
+            )
+
+            android.util.Log.d("MyNottinghamApp", "Notification channels created")
+        }
     }
 
     /**
@@ -64,6 +115,25 @@ class MyNottinghamApplication : Application() {
                 // The cleanup task is not critical, so we catch exceptions to prevent crashes.
                 // Log the error for debugging purposes.
                 android.util.Log.e("MyNottinghamApp", "Failed to cleanup old messages", e)
+            }
+        }
+    }
+
+    /**
+     * Initiates a background task to delete old errand history (completed/cancelled tasks older than 7 days).
+     * This helps keep the Firebase database clean and saves storage.
+     */
+    private fun cleanupOldErrands() {
+        applicationScope.launch {
+            try {
+                val repository = FirebaseErrandRepository()
+                val result = repository.cleanupOldErrands(daysOld = 7)
+
+                result.onSuccess { deletedCount ->
+                    android.util.Log.d("MyNottinghamApp", "Successfully cleaned up $deletedCount old errands")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MyNottinghamApp", "Failed to cleanup old errands", e)
             }
         }
     }

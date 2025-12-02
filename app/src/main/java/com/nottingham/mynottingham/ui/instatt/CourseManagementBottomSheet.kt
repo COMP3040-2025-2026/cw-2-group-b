@@ -30,10 +30,14 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    private var teacherId: Long = 0L
+    // Fix: Changed teacherId from Long to String to support Firebase UID
+    private var teacherId: String = ""
 
     private lateinit var course: Course
     private lateinit var studentAdapter: StudentAttendanceAdapter
+
+    // New: Listener to notify parent screen to refresh
+    var onSessionStatusChanged: (() -> Unit)? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -60,9 +64,11 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            teacherId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            // Fix: Get String type Firebase UID directly, do not convert to Long
+            teacherId = tokenManager.getUserId().first() ?: ""
 
-            if (teacherId == 0L) {
+            // Fix: Check if string is empty
+            if (teacherId.isEmpty()) {
                 Toast.makeText(
                     requireContext(),
                     "User not logged in",
@@ -119,7 +125,8 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     btnUnlockSession.isEnabled = true
                     btnLockSession.isEnabled = false
                 }
-                SignInStatus.UNLOCKED -> {
+                SignInStatus.UNLOCKED, SignInStatus.SIGNED -> {
+                    // SIGNED is student-specific, teacher sees UNLOCKED state
                     tvSessionStatus.text = "Session is UNLOCKED"
                     tvSessionStatus.setTextColor(
                         ContextCompat.getColor(requireContext(), R.color.success)
@@ -170,29 +177,24 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
             java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
+        // Use Firebase Flow to real-time listen to student sign-in list
         lifecycleScope.launch {
-            val result = repository.getStudentAttendanceList(
+            repository.getStudentAttendanceList(
                 teacherId,
-                course.id.toLong(),
+                course.id,  // Use String ID directly
                 today
-            )
+            ).collect { students ->
+                // Auto-receive updates whenever a student signs in
+                binding.progressBar.visibility = View.GONE
 
-            binding.progressBar.visibility = View.GONE
-
-            result.onSuccess { students ->
                 if (students.isEmpty()) {
                     binding.tvEmptyState.visibility = View.VISIBLE
+                    binding.rvStudentList.visibility = View.GONE
                 } else {
+                    binding.tvEmptyState.visibility = View.GONE
                     binding.rvStudentList.visibility = View.VISIBLE
                     studentAdapter.submitList(students)
                 }
-            }.onFailure { error ->
-                binding.tvEmptyState.visibility = View.VISIBLE
-                Toast.makeText(
-                    requireContext(),
-                    "Failed to load students: ${error.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         }
     }
@@ -206,7 +208,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.unlockSession(teacherId, course.id.toLong(), today)
+            val result = repository.unlockSession(teacherId, course.id, today)  // Use String ID directly
 
             result.onSuccess {
                 Toast.makeText(
@@ -216,12 +218,23 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 ).show()
                 course.signInStatus = SignInStatus.UNLOCKED
                 updateSessionStatusUI()
+
+                // Fix: Notify parent screen to refresh course list
+                onSessionStatusChanged?.invoke()
+
+                // Add debug log
+                android.util.Log.d(
+                    "CourseManagement",
+                    "Session ${course.id} unlocked, Firebase updated at sessions/${course.id}_$today"
+                )
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),
                     "Failed to unlock: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("CourseManagement", "Failed to unlock: ${error.message}", error)
             }
         }
     }
@@ -235,7 +248,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.lockSession(teacherId, course.id.toLong(), today)
+            val result = repository.lockSession(teacherId, course.id, today)  // Use String ID directly
 
             result.onSuccess {
                 Toast.makeText(
@@ -245,12 +258,22 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 ).show()
                 course.signInStatus = SignInStatus.LOCKED
                 updateSessionStatusUI()
+
+                // Fix: Notify parent screen to refresh course list
+                onSessionStatusChanged?.invoke()
+
+                android.util.Log.d(
+                    "CourseManagement",
+                    "Session ${course.id} locked, Firebase updated"
+                )
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),
                     "Failed to lock: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("CourseManagement", "Failed to lock: ${error.message}", error)
             }
         }
     }
@@ -265,21 +288,28 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
         lifecycleScope.launch {
             val result = repository.markAttendance(
-                teacherId,
-                student.studentId,
-                course.id.toLong(),
-                today,
-                status.name
+                teacherId = teacherId,
+                studentUid = student.studentId,  // Fix: Use studentUid parameter name
+                courseScheduleId = course.id,
+                date = today,
+                status = status.name,
+                studentName = student.studentName,
+                matricNumber = student.matricNumber,
+                email = student.email
             )
 
-            result.onSuccess {
+            result.onSuccess { isFirstMark ->
+                val message = if (isFirstMark) {
+                    "Marked ${student.studentName} as ${status.name}\nSession #${course.totalClasses + 1} started"
+                } else {
+                    "Marked ${student.studentName} as ${status.name}"
+                }
                 Toast.makeText(
                     requireContext(),
-                    "Marked ${student.studentName} as ${status.name}",
+                    message,
                     Toast.LENGTH_SHORT
                 ).show()
-                // Reload the student list to show updated status
-                loadStudentList()
+                // Firebase will auto-notify all listeners, no manual refresh needed
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),

@@ -28,5 +28,6 @@ data class ChatMessage(
     val message: String,
     val timestamp: Long,
     val isRead: Boolean = false,
-    val messageType: String = "TEXT" // TEXT, IMAGE, FILE
+    val messageType: String = "TEXT", // TEXT, IMAGE, FILE
+    val imageUrl: String? = null // URL for image messages
 )

@@ -47,7 +47,7 @@ class RestaurantMenuFragment : Fragment() {
         setupObservers()
         setupScrollListeners()
 
-        // [修复] 使用 parentFragmentManager 处理手动事务的返回
+        // [Fix] Use parentFragmentManager to handle manual transaction return
         // The user wants a back button in the top right, which will be handled by the menu item.
         // The existing navigation icon is usually on the left.
         // If the user wants to keep the left navigation button, this line can remain.

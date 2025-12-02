@@ -1,12 +1,8 @@
 package com.nottingham.mynottingham.ui.forum
 
-import android.app.Activity
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
@@ -23,10 +19,6 @@ import com.nottingham.mynottingham.data.model.ForumCategory
 import com.nottingham.mynottingham.databinding.FragmentCreatePostBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.File
 
 class CreatePostFragment : Fragment() {
 
@@ -36,17 +28,16 @@ class CreatePostFragment : Fragment() {
     private lateinit var viewModel: CreatePostViewModel
     private lateinit var tokenManager: TokenManager
 
-    private var selectedImageUri: Uri? = null
+    // Edit mode properties
+    private var isEditMode: Boolean = false
+    private var editPostId: String? = null
 
     // Image picker launcher
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                selectedImageUri = uri
-                displayImagePreview(uri)
-            }
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            viewModel.setSelectedImage(imageUri)
         }
     }
 
@@ -65,15 +56,98 @@ class CreatePostFragment : Fragment() {
         viewModel = ViewModelProvider(this)[CreatePostViewModel::class.java]
         tokenManager = TokenManager(requireContext())
 
+        // Check for edit mode arguments
+        arguments?.let { args ->
+            isEditMode = args.getBoolean("isEditMode", false)
+            editPostId = args.getString("editPostId")
+        }
+
         setupToolbar()
         setupCategorySpinner()
-        setupImagePicker()
+        setupPinCheckbox()
+        setupImageSelection()
         observeViewModel()
+
+        // If in edit mode, populate the fields
+        if (isEditMode) {
+            populateEditData()
+        }
+    }
+
+    private fun setupImageSelection() {
+        // Add image button click
+        binding.btnAddImage.setOnClickListener {
+            imagePickerLauncher.launch("image/*")
+        }
+
+        // Remove image button click
+        binding.btnRemoveImage.setOnClickListener {
+            viewModel.clearSelectedImage()
+        }
+
+        // Observe selected image
+        viewModel.selectedImageUri.observe(viewLifecycleOwner) { uri ->
+            if (uri != null) {
+                binding.cardImagePreview.visibility = View.VISIBLE
+                binding.btnAddImage.text = "Change Image"
+                Glide.with(requireContext())
+                    .load(uri)
+                    .into(binding.ivImagePreview)
+            } else {
+                binding.cardImagePreview.visibility = View.GONE
+                binding.btnAddImage.text = "Add Image"
+                binding.ivImagePreview.setImageDrawable(null)
+            }
+        }
+    }
+
+    private fun setupPinCheckbox() {
+        // Only show pin checkbox for teachers
+        lifecycleScope.launch {
+            val userType = tokenManager.getUserType().first()
+            if (userType == "TEACHER") {
+                binding.checkboxPin.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun populateEditData() {
+        arguments?.let { args ->
+            val title = args.getString("editTitle")
+            val content = args.getString("editContent")
+            val category = args.getString("editCategory")
+            val tags = args.getString("editTags")
+            val isPinned = args.getBoolean("editIsPinned", false)
+
+            binding.editTitle.setText(title)
+            binding.editContent.setText(content)
+
+            // Set category in spinner
+            if (category != null) {
+                val categoryEnum = ForumCategory.values().find { it.name == category }
+                categoryEnum?.let {
+                    binding.spinnerCategory.setText(it.displayName, false)
+                }
+            }
+
+            // Set tags
+            if (tags != null) {
+                binding.editTags.setText(tags)
+            }
+
+            // Set pin status
+            binding.checkboxPin.isChecked = isPinned
+        }
     }
 
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
+        }
+
+        // Update toolbar title for edit mode
+        if (isEditMode) {
+            binding.toolbar.title = "Edit Post"
         }
 
         binding.toolbar.setOnMenuItemClickListener { menuItem ->
@@ -102,40 +176,12 @@ class CreatePostFragment : Fragment() {
         }
     }
 
-    private fun setupImagePicker() {
-        binding.btnAddImage.setOnClickListener {
-            openImagePicker()
-        }
-
-        binding.btnRemoveImage.setOnClickListener {
-            removeImage()
-        }
-    }
-
-    private fun openImagePicker() {
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        imagePickerLauncher.launch(intent)
-    }
-
-    private fun displayImagePreview(uri: Uri) {
-        binding.cardImage.visibility = View.VISIBLE
-        Glide.with(this)
-            .load(uri)
-            .centerCrop()
-            .into(binding.imagePreview)
-    }
-
-    private fun removeImage() {
-        selectedImageUri = null
-        binding.cardImage.visibility = View.GONE
-        binding.imagePreview.setImageDrawable(null)
-    }
-
     private fun submitPost() {
         val title = binding.editTitle.text.toString()
         val content = binding.editContent.text.toString()
         val categoryText = binding.spinnerCategory.text.toString()
         val tagsText = binding.editTags.text.toString()
+        val isPinned = binding.checkboxPin.isChecked
 
         // Parse tags
         val tags = if (tagsText.isNotBlank()) {
@@ -149,32 +195,26 @@ class CreatePostFragment : Fragment() {
             ?: ForumCategory.GENERAL
 
         lifecycleScope.launch {
-            val token = tokenManager.getToken().first() ?: ""
-
-            // Prepare image part if present
-            val imagePart = selectedImageUri?.let { uri ->
-                try {
-                    val inputStream = requireContext().contentResolver.openInputStream(uri)
-                    val file = File(requireContext().cacheDir, "upload_${System.currentTimeMillis()}.jpg")
-                    file.outputStream().use { output ->
-                        inputStream?.copyTo(output)
-                    }
-                    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
-                    MultipartBody.Part.createFormData("image", file.name, requestBody)
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Failed to prepare image", Toast.LENGTH_SHORT).show()
-                    null
-                }
+            if (isEditMode && editPostId != null) {
+                // Edit existing post
+                viewModel.updatePost(
+                    postId = editPostId!!,
+                    title = title,
+                    content = content,
+                    category = category.name,
+                    tags = tags,
+                    isPinned = isPinned
+                )
+            } else {
+                // Create new post
+                viewModel.createPost(
+                    title = title,
+                    content = content,
+                    category = category.name,
+                    tags = tags,
+                    isPinned = isPinned
+                )
             }
-
-            viewModel.createPost(
-                token = token,
-                title = title,
-                content = content,
-                category = category.name,
-                tags = tags,
-                image = imagePart
-            )
         }
     }
 
@@ -188,7 +228,12 @@ class CreatePostFragment : Fragment() {
             binding.editTags.isEnabled = !isLoading
             binding.spinnerCategory.isEnabled = !isLoading
             binding.btnAddImage.isEnabled = !isLoading
+            binding.btnRemoveImage.isEnabled = !isLoading
             binding.toolbar.menu.findItem(R.id.action_post)?.isEnabled = !isLoading
+        }
+
+        viewModel.uploadingImage.observe(viewLifecycleOwner) { isUploading ->
+            binding.btnAddImage.alpha = if (isUploading) 0.5f else 1.0f
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->

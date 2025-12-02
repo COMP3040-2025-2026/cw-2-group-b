@@ -1,13 +1,12 @@
 package com.nottingham.mynottingham.ui.instatt
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import android.widget.Toast
 import com.nottingham.mynottingham.data.model.Course
@@ -32,16 +31,16 @@ class InstattDayCoursesFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var dayOfWeek: DayOfWeek
 
+    // Use parent Fragment's shared ViewModel
+    private val viewModel: InstattViewModel by viewModels({ requireParentFragment() })
+
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    private var studentId: Long = 0L
-    private val handler = Handler(Looper.getMainLooper())
-    private var isPolling = false
+    private var studentId: String = ""
+    private var studentName: String = ""
 
-    // Server time cache - updated when fragment is created
-    private var serverDate: String? = null
-    private var serverDayOfWeek: DayOfWeek? = null
-    private var serverTime: String? = null
+    // Track if Firebase listeners have started
+    private var hasStartedListeners = false
 
     companion object {
         private const val ARG_DAY_OF_WEEK = "day_of_week"
@@ -97,56 +96,67 @@ class InstattDayCoursesFragment : Fragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            studentId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            studentId = tokenManager.getUserId().first() ?: ""
+            studentName = tokenManager.getFullName().first() ?: "Student"
 
-            if (studentId == 0L) {
-                Toast.makeText(
-                    context,
-                    "User not logged in",
-                    Toast.LENGTH_SHORT
-                ).show()
+            android.util.Log.d("InstattStudent", "Student ID: $studentId, Name: $studentName")
+
+            if (studentId.isEmpty()) {
+                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
-            // Fetch server time first, then load courses
-            fetchServerTime()
+            // Observe preloaded today's course data
+            observePreloadedData()
         }
     }
 
-    private fun fetchServerTime() {
-        lifecycleScope.launch {
-            val result = repository.getSystemTime()
+    /**
+     * Observe preloaded data
+     * Data was preloaded when InstattFragment entered
+     */
+    private fun observePreloadedData() {
+        // Observe today's courses
+        viewModel.todayCourses.observe(viewLifecycleOwner) { courses ->
+            if (courses != null && !hasStartedListeners) {
+                android.util.Log.d("InstattStudent", "Got ${courses.size} preloaded courses for today")
 
-            result.onSuccess { systemTime ->
-                // Cache server time
-                serverDate = systemTime.currentDate
-                serverDayOfWeek = systemTime.dayOfWeek
-                serverTime = systemTime.currentTime
+                // Filter today's courses
+                val filteredCourses = courses.filter { it.dayOfWeek == dayOfWeek }
+                android.util.Log.d("InstattStudent", "Filtered to ${filteredCourses.size} courses for $dayOfWeek")
 
-                // Now load courses with server date
-                loadCourses()
-                startPolling()
-            }.onFailure { error ->
-                // Fallback to local time if server time fails
-                Toast.makeText(
-                    context,
-                    "Failed to sync with server time: ${error.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                displayCourses(filteredCourses)
 
-                // Use local time as fallback
-                serverDate = null
-                serverDayOfWeek = null
-                serverTime = null
-                loadCourses()
-                startPolling()
+                // Get current date
+                val today = viewModel.getCurrentDate().ifEmpty {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
+                        LocalDate.now().format(dateFormatter)
+                    } else {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
+                    }
+                }
+
+                // Start Firebase real-time listeners (only once)
+                if (filteredCourses.isNotEmpty()) {
+                    startFirebaseListeners(filteredCourses, today)
+                    hasStartedListeners = true
+                }
             }
         }
+
+        // Observe loading state
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            // Can show loading indicator here
+            // binding.progressBar?.isVisible = isLoading
+        }
     }
 
-    private fun loadCourses() {
-        // Use server date if available, otherwise fallback to local date
-        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+    // Keep loadCourses as fallback (when preloaded data is unavailable)
+    // Normally use observePreloadedData to get preloaded data
+
+    private fun loadCoursesFallback() {
+        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
@@ -154,24 +164,16 @@ class InstattDayCoursesFragment : Fragment() {
         }
 
         lifecycleScope.launch {
+            android.util.Log.d("InstattStudent", "Fallback: Loading courses for studentId: $studentId")
             val result = repository.getStudentCourses(studentId, today)
 
             result.onSuccess { courses ->
-                // Filter courses by current day of week
                 val filteredCourses = courses.filter { it.dayOfWeek == dayOfWeek }
-
                 displayCourses(filteredCourses)
+                startFirebaseListeners(filteredCourses, today)
             }.onFailure { error ->
-                // Fallback to mock data if API fails
-                Toast.makeText(
-                    context,
-                    "Using offline data (Backend not connected)",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                // Use mock data as fallback
-                val mockCourses = getMockCourses(dayOfWeek)
-                displayCourses(mockCourses)
+                android.util.Log.e("InstattStudent", "Failed to load courses: ${error.message}", error)
+                Toast.makeText(context, "Failed to load courses", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -184,8 +186,8 @@ class InstattDayCoursesFragment : Fragment() {
             binding.rvCourses.isVisible = true
             binding.layoutEmpty.isVisible = false
 
-            // Get current time - use server time if available, otherwise system time
-            val currentTime = serverTime ?: getCurrentTime()
+            // Use local time
+            val currentTime = getCurrentTime()
 
             // Use TodayClassAdapter for today's view with sign-in callback
             val adapter = TodayClassAdapter(courses, currentTime) { course ->
@@ -195,17 +197,109 @@ class InstattDayCoursesFragment : Fragment() {
         }
     }
 
+    /**
+     * Real-time listen to Firebase sign-in status changes
+     * When teacher unlocks session, student side button lights up immediately
+     *
+     * Firebase sessions already support string IDs (e.g., "comp2001_1_2025-11-24")
+     * Real-time listening enabled - student side updates immediately when teacher unlocks
+     * Already signed courses no longer respond to lock/unlock status changes
+     */
+    private fun startFirebaseListeners(courses: List<Course>, date: String) {
+        android.util.Log.d(
+            "InstattStudent",
+            "Starting Firebase real-time listeners for ${courses.size} courses"
+        )
+
+        courses.forEach { course ->
+            // If student already signed, no need to listen to lock status changes
+            if (course.hasStudentSigned || course.signInStatus == SignInStatus.SIGNED) {
+                android.util.Log.d(
+                    "InstattStudent",
+                    "${course.courseCode} already signed, skipping listener"
+                )
+                return@forEach
+            }
+
+            lifecycleScope.launch {
+                android.util.Log.d(
+                    "InstattStudent",
+                    "Listening to session lock status for ${course.courseCode} (id: ${course.id})"
+                )
+
+                repository.listenToSessionLockStatus(
+                    courseScheduleId = course.id,
+                    date = date
+                ).collect { isLocked ->
+                    // Check again: if student signed during listening, stop responding to status changes
+                    if (course.hasStudentSigned || course.signInStatus == SignInStatus.SIGNED) {
+                        android.util.Log.d(
+                            "InstattStudent",
+                            "${course.courseCode} signed during listening, ignoring lock status"
+                        )
+                        return@collect
+                    }
+
+                    val oldSignInStatus = course.signInStatus
+                    val newSignInStatus = if (isLocked) SignInStatus.LOCKED else SignInStatus.UNLOCKED
+
+                    android.util.Log.d(
+                        "InstattStudent",
+                        "${course.courseCode}: $oldSignInStatus -> $newSignInStatus (isLocked=$isLocked)"
+                    )
+
+                    if (oldSignInStatus != newSignInStatus) {
+                        course.signInStatus = newSignInStatus
+
+                        // When session unlocks, set todayStatus to IN_PROGRESS (show pencil icon)
+                        // When session locks, restore to UPCOMING
+                        if (!isLocked) {
+                            course.todayStatus = TodayClassStatus.IN_PROGRESS
+                            android.util.Log.d("InstattStudent", "Set todayStatus to IN_PROGRESS")
+                        } else if (isLocked && course.todayStatus == TodayClassStatus.IN_PROGRESS) {
+                            course.todayStatus = TodayClassStatus.UPCOMING
+                            android.util.Log.d("InstattStudent", "Set todayStatus back to UPCOMING")
+                        }
+
+                        binding.rvCourses.adapter?.notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+    }
+
     private fun handleSignIn(course: Course) {
-        // Use server date if available, otherwise fallback to local date
-        val today = serverDate ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        // Use local date
+        val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
         } else {
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
+        // Show loading hint
+        Toast.makeText(
+            context,
+            "Signing in...",
+            Toast.LENGTH_SHORT
+        ).show()
+
         lifecycleScope.launch {
-            val result = repository.signIn(studentId, course.id.toLong(), today)
+            // Fix: Use Firebase UID (String) directly, no need to convert to Long
+            android.util.Log.d(
+                "InstattStudent",
+                "Attempting sign-in: studentId=$studentId, course=${course.id}, date=$today"
+            )
+
+            // Use Firebase sign-in - millisecond-level response
+            val result = repository.signIn(
+                studentUid = studentId,  // Use String UID directly
+                courseScheduleId = course.id,
+                date = today,
+                studentName = studentName,
+                matricNumber = null, // Can get from TokenManager
+                email = null // Can get from TokenManager
+            )
 
             result.onSuccess {
                 Toast.makeText(
@@ -214,38 +308,32 @@ class InstattDayCoursesFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-                // Reload to update UI
-                loadCourses()
+                android.util.Log.d("InstattStudent", "Sign-in successful!")
+
+                // Update local state to signed
+                course.todayStatus = TodayClassStatus.ATTENDED
+                course.signInStatus = SignInStatus.SIGNED
+                course.hasStudentSigned = true
+
+                // Refresh ViewModel data to update statistics
+                viewModel.refreshAllData(studentId)
+
+                binding.rvCourses.adapter?.notifyDataSetChanged()
             }.onFailure { error ->
                 Toast.makeText(
                     context,
                     "Sign-in failed: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+
+                android.util.Log.e("InstattStudent", "Sign-in failed: ${error.message}", error)
             }
         }
     }
 
-    private fun startPolling() {
-        if (isPolling) return
-        isPolling = true
-
-        val pollingRunnable = object : Runnable {
-            override fun run() {
-                if (isPolling && _binding != null) {
-                    loadCourses()
-                    handler.postDelayed(this, 3_000) // Poll every 3 seconds for real-time updates
-                }
-            }
-        }
-
-        handler.postDelayed(pollingRunnable, 3_000)
-    }
-
-    private fun stopPolling() {
-        isPolling = false
-        handler.removeCallbacksAndMessages(null)
-    }
+    // Removed polling mechanism - replaced by Firebase real-time listeners
+    // If real-time listening to course sign-in status is needed, can add Firebase Flow listener here
+    // Example: listen to isLocked status changes for all today's courses
 
     private fun getMockCourses(day: DayOfWeek): List<Course> {
         // Mock data - in real app, this would come from database or API
@@ -435,7 +523,9 @@ class InstattDayCoursesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopPolling()
+        // stopPolling() - polling has been removed
+        // Firebase Flow will auto-cleanup when lifecycleScope ends
         _binding = null
     }
 }
+

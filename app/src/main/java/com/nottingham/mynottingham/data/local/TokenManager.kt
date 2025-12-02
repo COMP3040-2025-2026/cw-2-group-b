@@ -3,6 +3,7 @@ package com.nottingham.mynottingham.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -35,6 +36,9 @@ class TokenManager(private val context: Context) {
         private val TITLE_KEY = stringPreferencesKey("title")
         private val OFFICE_ROOM_KEY = stringPreferencesKey("office_room")
         private val OFFICE_HOURS_KEY = stringPreferencesKey("office_hours")
+
+        // Errand Delivery Mode
+        private val DELIVERY_MODE_KEY = booleanPreferencesKey("delivery_mode")
     }
 
     suspend fun saveToken(token: String) {
@@ -222,6 +226,19 @@ class TokenManager(private val context: Context) {
     fun getOfficeHours(): Flow<String?> {
         return context.dataStore.data.map { preferences ->
             preferences[OFFICE_HOURS_KEY]
+        }
+    }
+
+    // Delivery Mode methods
+    fun getDeliveryMode(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[DELIVERY_MODE_KEY] ?: false
+        }
+    }
+
+    suspend fun setDeliveryMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DELIVERY_MODE_KEY] = enabled
         }
     }
 

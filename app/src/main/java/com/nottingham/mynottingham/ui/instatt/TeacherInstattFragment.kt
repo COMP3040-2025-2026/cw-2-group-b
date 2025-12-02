@@ -1,8 +1,6 @@
 package com.nottingham.mynottingham.ui.instatt
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,9 +35,12 @@ class TeacherInstattFragment : Fragment() {
     // Backend integration
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    private var teacherId: Long = 0L
-    private val handler = Handler(Looper.getMainLooper())
-    private var isPolling = false
+    // Fix: Changed teacherId from Long to String to support Firebase UID
+    private var teacherId: String = ""
+
+    // Removed polling mechanism - using Firebase real-time listeners instead
+    // private val handler = Handler(Looper.getMainLooper())
+    // private var isPolling = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,9 +59,11 @@ class TeacherInstattFragment : Fragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            teacherId = tokenManager.getUserId().first()?.toLongOrNull() ?: 0L
+            // Fix: Get String type Firebase UID directly, do not convert to Long
+            teacherId = tokenManager.getUserId().first() ?: ""
 
-            if (teacherId == 0L) {
+            // Fix: Check if string is empty
+            if (teacherId.isEmpty()) {
                 Toast.makeText(
                     context,
                     "User not logged in",
@@ -70,7 +73,8 @@ class TeacherInstattFragment : Fragment() {
             }
 
             loadTodayCourses()
-            startPolling()
+            // Removed polling - Firebase real-time listeners will auto-update
+            // startPolling()
         }
     }
 
@@ -87,6 +91,9 @@ class TeacherInstattFragment : Fragment() {
                 toggleSignIn(course)
             },
             onCourseClick = { course ->
+                showCourseManagementDialog(course)
+            },
+            onMoreOptionsClick = { course ->  // New: Three dot button callback
                 showCourseManagementDialog(course)
             }
         )
@@ -122,15 +129,23 @@ class TeacherInstattFragment : Fragment() {
                 // Fallback to mock data if API fails
                 Toast.makeText(
                     context,
-                    "Using offline data (Backend not connected)",
-                    Toast.LENGTH_SHORT
+                    "⚠️ Backend offline - INSTATT features require backend connection",
+                    Toast.LENGTH_LONG
                 ).show()
 
-                // Use mock data as fallback
+                // Log warning for debugging
+                android.util.Log.w(
+                    "InstattTeacher",
+                    "Using mock courses - INSTATT unlock/lock won't work without backend. Error: ${error.message}"
+                )
+
+                // Use mock data as fallback (for UI testing only)
                 val currentDay = getCurrentDayOfWeek()
                 courses.clear()
                 courses.addAll(getMockTeacherCourses(currentDay))
                 displayCourses()
+
+                // Note: Firebase operations won't work properly with mock course IDs
             }
         }
     }
@@ -156,19 +171,27 @@ class TeacherInstattFragment : Fragment() {
         }
 
         when (course.signInStatus) {
-            SignInStatus.LOCKED -> {
-                // Unlock sign-in via API
+            SignInStatus.LOCKED, SignInStatus.CLOSED -> {
+                // Unlock sign-in via Firebase - takes effect in real-time
+                // Both LOCKED and CLOSED states allow re-opening sign-in
                 lifecycleScope.launch {
-                    val result = repository.unlockSession(teacherId, course.id.toLong(), today)
+                    val result = repository.unlockSession(teacherId, course.id, today)  // Use String ID directly
 
-                    result.onSuccess {
+                    result.onSuccess { isFirstTime ->
+                        val message = if (isFirstTime) {
+                            "Session unlocked for ${course.courseName}\nThis is session #${course.attendedClasses + 1}"
+                        } else {
+                            "Session re-opened for ${course.courseName}\nAuto-locks in 20 minutes"
+                        }
+
                         Toast.makeText(
                             context,
-                            "Sign-in unlocked for ${course.courseName}",
-                            Toast.LENGTH_SHORT
+                            message,
+                            Toast.LENGTH_LONG
                         ).show()
 
-                        // Reload to update UI
+                        // Firebase will auto-notify all student clients, no manual refresh needed
+                        // But refresh locally to update UI
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -179,10 +202,11 @@ class TeacherInstattFragment : Fragment() {
                     }
                 }
             }
-            SignInStatus.UNLOCKED -> {
-                // Manually lock sign-in via API
+            SignInStatus.UNLOCKED, SignInStatus.SIGNED -> {
+                // SIGNED is student-specific, teacher treats it as UNLOCKED
+                // Lock sign-in via Firebase - takes effect in real-time
                 lifecycleScope.launch {
-                    val result = repository.lockSession(teacherId, course.id.toLong(), today)
+                    val result = repository.lockSession(teacherId, course.id, today)  // Use String ID directly
 
                     result.onSuccess {
                         Toast.makeText(
@@ -191,7 +215,7 @@ class TeacherInstattFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // Reload to update UI
+                        // Firebase will auto-notify all student clients, no manual refresh needed
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -202,37 +226,12 @@ class TeacherInstattFragment : Fragment() {
                     }
                 }
             }
-            SignInStatus.CLOSED -> {
-                // Already closed, do nothing
-                Toast.makeText(
-                    context,
-                    "Sign-in is already closed",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
         }
     }
 
-    private fun startPolling() {
-        if (isPolling) return
-        isPolling = true
-
-        val pollingRunnable = object : Runnable {
-            override fun run() {
-                if (isPolling && _binding != null) {
-                    loadTodayCourses()
-                    handler.postDelayed(this, 3_000) // Poll every 3 seconds for real-time updates
-                }
-            }
-        }
-
-        handler.postDelayed(pollingRunnable, 3_000)
-    }
-
-    private fun stopPolling() {
-        isPolling = false
-        handler.removeCallbacksAndMessages(null)
-    }
+    // Removed polling mechanism - replaced by Firebase real-time listeners
+    // private fun startPolling() { ... }
+    // private fun stopPolling() { ... }
 
     private fun getCurrentDayOfWeek(): DayOfWeek {
         val calendar = Calendar.getInstance()
@@ -407,12 +406,21 @@ class TeacherInstattFragment : Fragment() {
 
     private fun showCourseManagementDialog(course: Course) {
         val bottomSheet = CourseManagementBottomSheet.newInstance(course)
+
+        // Fix: Set callback listener to refresh main screen when session status changes
+        bottomSheet.onSessionStatusChanged = {
+            loadTodayCourses()
+            android.util.Log.d("TeacherInstatt", "Refreshing course list after session status change")
+        }
+
         bottomSheet.show(parentFragmentManager, "CourseManagementBottomSheet")
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopPolling()
+        // stopPolling() - polling has been removed
+        // Firebase Flow will auto-cleanup when lifecycleScope ends
         _binding = null
     }
 }
+

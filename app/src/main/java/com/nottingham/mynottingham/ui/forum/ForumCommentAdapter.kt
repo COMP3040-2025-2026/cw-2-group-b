@@ -6,15 +6,14 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.nottingham.mynottingham.R
-import com.nottingham.mynottingham.data.local.database.entities.ForumCommentEntity
+import com.nottingham.mynottingham.data.model.ForumComment
 import com.nottingham.mynottingham.databinding.ItemForumCommentBinding
-import com.nottingham.mynottingham.util.Constants
+import com.nottingham.mynottingham.util.AvatarUtils
 
 class ForumCommentAdapter(
-    private val onLikeClick: (ForumCommentEntity) -> Unit
-) : ListAdapter<ForumCommentEntity, ForumCommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
+    private val onLikeClick: (ForumComment) -> Unit
+) : ListAdapter<ForumComment, ForumCommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
         val binding = ItemForumCommentBinding.inflate(
@@ -32,7 +31,7 @@ class ForumCommentAdapter(
     inner class CommentViewHolder(private val binding: ItemForumCommentBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(comment: ForumCommentEntity) {
+        fun bind(comment: ForumComment) {
             binding.apply {
                 tvAuthorName.text = comment.authorName
                 tvContent.text = comment.content
@@ -48,18 +47,15 @@ class ForumCommentAdapter(
 
                 // Avatar
                 if (!comment.authorAvatar.isNullOrEmpty()) {
-                    Glide.with(itemView.context)
-                        .load(Constants.BASE_URL + comment.authorAvatar)
-                        .placeholder(R.drawable.ic_profile)
-                        .error(R.drawable.ic_profile)
-                        .circleCrop()
-                        .into(ivAuthorAvatar)
+                     // Use AvatarUtils to get resource ID or load URL
+                     val avatarResId = AvatarUtils.getDrawableId(comment.authorAvatar)
+                     ivAuthorAvatar.setImageResource(avatarResId)
                 } else {
                     ivAuthorAvatar.setImageResource(R.drawable.ic_profile)
                 }
 
                 // Like icon state
-                if (comment.isLikedByCurrentUser) {
+                if (comment.isLiked) {
                     ivLike.setImageResource(R.drawable.ic_favorite)
                     ivLike.setColorFilter(itemView.context.getColor(R.color.primary))
                 } else {
@@ -75,12 +71,12 @@ class ForumCommentAdapter(
         }
     }
 
-    class CommentDiffCallback : DiffUtil.ItemCallback<ForumCommentEntity>() {
-        override fun areItemsTheSame(oldItem: ForumCommentEntity, newItem: ForumCommentEntity): Boolean {
+    class CommentDiffCallback : DiffUtil.ItemCallback<ForumComment>() {
+        override fun areItemsTheSame(oldItem: ForumComment, newItem: ForumComment): Boolean {
             return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: ForumCommentEntity, newItem: ForumCommentEntity): Boolean {
+        override fun areContentsTheSame(oldItem: ForumComment, newItem: ForumComment): Boolean {
             return oldItem == newItem
         }
     }

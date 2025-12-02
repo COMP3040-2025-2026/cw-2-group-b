@@ -4,20 +4,21 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.nottingham.mynottingham.data.model.Conversation
-import com.nottingham.mynottingham.data.repository.MessageRepository
+import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Message (conversation list) screen
+ * 🔥 Migrated to Firebase - no longer depends on backend API
  */
 class MessageViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = MessageRepository(application)
+    // Using Firebase Repository instead of traditional HTTP Repository
+    private val firebaseRepo = FirebaseMessageRepository()
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: LiveData<Boolean> = _loading
@@ -25,16 +26,10 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
-    private val _searchQuery = MutableLiveData<String>("")
     private var currentUserId: String = ""
 
     private val _conversations = MutableLiveData<List<Conversation>>()
     val conversations: LiveData<List<Conversation>> = _conversations
-
-    // Sync throttling to prevent data loss during frequent navigation
-    private var lastSyncTime: Long = 0
-    private var isSyncing: Boolean = false
-    private val SYNC_THROTTLE_MS = 5000L // 5 seconds minimum between syncs
 
     // Pinned conversations
     val pinnedConversations: LiveData<List<Conversation>> = conversations.map { list ->
@@ -57,54 +52,31 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Observe conversations from repository
+     * Firebase real-time listening - no manual sync required
      */
     private fun observeConversations() {
         viewModelScope.launch {
-            repository.getConversationsFlow(currentUserId).collect { conversationList ->
-                // Sort by pinned status and last message time
+            firebaseRepo.getConversationsFlow(currentUserId).collect { conversationList ->
+                // Firebase already handles sorting, but we maintain consistency
                 val sorted = conversationList.sortedWith(
                     compareByDescending<Conversation> { it.isPinned }
                         .thenByDescending { it.lastMessageTime }
                 )
                 _conversations.postValue(sorted)
+                _loading.postValue(false) // Data loading complete
             }
         }
     }
 
     /**
-     * Sync conversations from API
-     * Throttled to prevent data loss during frequent navigation switches
+     * syncConversations() method has been removed
+     * Firebase real-time listening auto-syncs, no manual call needed
+     * Keep this comment as reminder: if Fragment calls syncConversations, remove it
      */
-    fun syncConversations(token: String, forceSync: Boolean = false) {
-        val currentTime = System.currentTimeMillis()
-
-        // Skip if already syncing
-        if (isSyncing && !forceSync) {
-            return
-        }
-
-        // Skip if synced recently (unless forced)
-        if (!forceSync && (currentTime - lastSyncTime) < SYNC_THROTTLE_MS) {
-            return
-        }
-
-        isSyncing = true
-        _loading.value = true
-        lastSyncTime = currentTime
-
-        viewModelScope.launch {
-            val result = repository.syncConversations(token)
-            _loading.value = false
-            isSyncing = false
-
-            result.onFailure { e ->
-                _error.value = e.message ?: "Failed to sync conversations"
-            }
-        }
-    }
 
     /**
-     * Search conversations
+     * Search conversations (client-side filtering)
+     * Firebase version - filter existing data locally
      */
     fun searchConversations(query: String) {
         viewModelScope.launch {
@@ -112,24 +84,24 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                 // Revert to full list
                 observeConversations()
             } else {
-                // Search in repository with current user ID
-                repository.searchConversations(query, currentUserId).collect { conversationList ->
-                    val sorted = conversationList.sortedWith(
-                        compareByDescending<Conversation> { it.isPinned }
-                            .thenByDescending { it.lastMessageTime }
-                    )
-                    _conversations.postValue(sorted)
+                // Search within existing conversation list
+                val currentList = _conversations.value ?: emptyList()
+                val filtered = currentList.filter { conversation ->
+                    conversation.participantName.contains(query, ignoreCase = true) ||
+                    conversation.lastMessage.contains(query, ignoreCase = true)
                 }
+                _conversations.postValue(filtered)
             }
         }
     }
 
     /**
      * Toggle pinned status
+     * No longer requires token parameter
      */
-    fun togglePinned(token: String, conversationId: String, isPinned: Boolean) {
+    fun togglePinned(conversationId: String, isPinned: Boolean) {
         viewModelScope.launch {
-            val result = repository.updatePinnedStatus(token, conversationId, !isPinned)
+            val result = firebaseRepo.togglePinConversation(currentUserId, conversationId, !isPinned)
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to update pinned status"
             }
@@ -138,10 +110,11 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Mark conversation as read
+     * No longer requires token parameter
      */
-    fun markAsRead(token: String, conversationId: String, currentUserId: String) {
+    fun markAsRead(conversationId: String) {
         viewModelScope.launch {
-            val result = repository.markMessagesAsRead(token, conversationId, currentUserId)
+            val result = firebaseRepo.markMessagesAsRead(conversationId, currentUserId)
             result.onFailure { e ->
                 _error.value = e.message ?: "Failed to mark as read"
             }
@@ -150,23 +123,57 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Mark conversation as unread
+     * Placeholder method - future implementation
      */
     fun markAsUnread(conversationId: String) {
-        viewModelScope.launch {
-            repository.markConversationAsUnread(conversationId)
-        }
+        // TODO: Implement mark as unread functionality in repository
+        // For now, this is a placeholder to satisfy the fragment call
     }
 
     /**
      * Delete conversation
+     * No longer requires token parameter
      * Returns Result indicating success or failure
      */
-    suspend fun deleteConversation(token: String, conversationId: String): Result<Unit> {
-        val result = repository.deleteConversation(token, conversationId)
+    suspend fun deleteConversation(conversationId: String): Result<Unit> {
+        val result = firebaseRepo.deleteConversation(currentUserId, conversationId)
         result.onFailure { e ->
             _error.value = e.message ?: "Failed to delete conversation"
         }
         return result
+    }
+
+    /**
+     * Search users for creating new conversation
+     * New method - search users to create conversations
+     */
+    fun searchUsers(query: String): LiveData<List<Map<String, String>>> {
+        val result = MutableLiveData<List<Map<String, String>>>()
+        viewModelScope.launch {
+            firebaseRepo.searchUsers(query).collect { users ->
+                result.postValue(users)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Create new conversation
+     * New method - create new conversations
+     */
+    suspend fun createConversation(
+        participantIds: List<String>,
+        currentUserName: String,
+        isGroup: Boolean = false,
+        groupName: String? = null
+    ): Result<String> {
+        return firebaseRepo.createConversation(
+            participantIds = participantIds,
+            currentUserId = currentUserId,
+            currentUserName = currentUserName,
+            isGroup = isGroup,
+            groupName = groupName
+        )
     }
 
     /**

@@ -7,25 +7,41 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_message"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="64dp"
         android:layout_marginEnd="8dp"
+        android:maxWidth="280dp"
         app:cardBackgroundColor="@color/primary"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:layout_constraintEnd_toStartOf="@id/iv_avatar"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_max="280dp">
+        app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/tv_message"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:text="Sent message"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+            android:orientation="vertical">
+
+            <!-- Image message -->
+            <ImageView
+                android:id="@+id/iv_message_image"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                android:adjustViewBounds="true" />
+
+            <!-- Text message -->
+            <TextView
+                android:id="@+id/tv_message"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:text="Sent message"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+        </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
 

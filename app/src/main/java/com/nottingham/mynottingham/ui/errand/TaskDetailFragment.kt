@@ -8,25 +8,51 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.Navigation
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
-import com.nottingham.mynottingham.data.remote.RetrofitInstance
-import com.nottingham.mynottingham.data.remote.dto.UpdateStatusRequest
+import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
+import com.nottingham.mynottingham.data.repository.FirebaseMessageRepository
 import com.nottingham.mynottingham.databinding.FragmentTaskDetailsBinding
-import androidx.core.os.bundleOf
-import androidx.fragment.app.setFragmentResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Task Detail Fragment
+ * ✅ Migrated to Firebase - no longer uses backend API
+ * ✅ Supports delivery workflow: PENDING → ACCEPTED → DELIVERING → COMPLETED
+ */
 class TaskDetailFragment : Fragment() {
 
     private var _binding: FragmentTaskDetailsBinding? = null
     private val binding get() = _binding!!
 
-    private var isAcceptedByMe = false
+    private val repository = FirebaseErrandRepository()
+    private val messageRepository = FirebaseMessageRepository()
+    private lateinit var tokenManager: TokenManager
+
     private var currentTaskId: String = ""
+    private var currentStatus: String = "PENDING"
+    private var currentUserId: String = ""
+    private var requesterId: String = ""
+    private var providerId: String? = null
+    private var providerName: String? = null
+    private var providerAvatar: String? = null
+
+    // Additional task details for editing
+    private var taskTitle: String = ""
+    private var taskDescription: String = ""
+    private var taskPrice: String = ""
+    private var taskLocation: String = ""
+    private var taskDeadline: String = ""
+
+    companion object {
+        private const val MAX_ACTIVE_ORDERS = 3
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -39,31 +65,42 @@ class TaskDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        tokenManager = TokenManager(requireContext())
+
         binding.btnBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
 
+        // Get parameters from arguments
         currentTaskId = arguments?.getString("taskId") ?: ""
-        val title = arguments?.getString("title")
-        val description = arguments?.getString("description")
-        val price = arguments?.getString("price")
-        val location = arguments?.getString("location")
+        taskTitle = arguments?.getString("title") ?: ""
+        taskDescription = arguments?.getString("description") ?: ""
+        taskPrice = arguments?.getString("price") ?: ""
+        taskLocation = arguments?.getString("location") ?: ""
         val requesterName = arguments?.getString("requesterName")
-        val requesterId = arguments?.getString("requesterId")
+        requesterId = arguments?.getString("requesterId") ?: ""
         val requesterAvatar = arguments?.getString("requesterAvatar") ?: "default"
-        val timeLimit = arguments?.getString("timeLimit") ?: "No Deadline"
+        providerId = arguments?.getString("providerId")
+        providerName = arguments?.getString("providerName")
+        providerAvatar = arguments?.getString("providerAvatar")
+        currentStatus = arguments?.getString("status") ?: "PENDING"
+        taskDeadline = arguments?.getString("timeLimit") ?: "No Deadline"
         val timestamp = arguments?.getLong("timestamp") ?: 0
 
-        binding.tvTaskTitle.text = title
-        binding.tvTaskDescription.text = description
-        binding.tvTaskPrice.text = "RM $price"
-        binding.tvTaskLocation.text = location
+        // Bind UI
+        binding.tvTaskTitle.text = taskTitle
+        binding.tvTaskDescription.text = taskDescription
+        binding.tvTaskPrice.text = "RM $taskPrice"
+        binding.tvTaskLocation.text = taskLocation
         binding.tvRequesterName.text = requesterName
-        binding.ivRequesterAvatar.setImageResource(com.nottingham.mynottingham.util.AvatarUtils.getDrawableId(requesterAvatar))
+        binding.ivRequesterAvatar.setImageResource(
+            com.nottingham.mynottingham.util.AvatarUtils.getDrawableId(requesterAvatar)
+        )
 
-        binding.tvTaskDeadline.text = "Deadline: $timeLimit"
-        binding.tvTaskDeadline.visibility = if (timeLimit == "No Deadline") View.GONE else View.VISIBLE
+        binding.tvTaskDeadline.text = "Deadline: $taskDeadline"
+        binding.tvTaskDeadline.visibility = if (taskDeadline == "No Deadline") View.GONE else View.VISIBLE
 
+        // Calculate time ago
         val currentTime = System.currentTimeMillis()
         val diffMillis = currentTime - timestamp
         val minutesAgo = diffMillis / (1000 * 60)
@@ -75,197 +112,478 @@ class TaskDetailFragment : Fragment() {
         }
         binding.tvTaskPosted.visibility = View.VISIBLE
 
-        val tokenManager = TokenManager(requireContext())
+        // Setup based on user role
         lifecycleScope.launch {
-            val storedToken = tokenManager.getToken().first()
-            val currentUserId = tokenManager.getUserId().first()
+            currentUserId = tokenManager.getUserId().first() ?: ""
 
-            if (storedToken.isNullOrEmpty() || currentUserId.isNullOrEmpty()) {
-                Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
-                binding.btnAcceptTask.isEnabled = false
+            if (currentUserId.isEmpty()) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
+                    binding.btnAcceptTask.isEnabled = false
+                }
                 return@launch
             }
 
-            val token = "Bearer $storedToken"
-
-            // 检查状态
-            checkTaskStatus(token, currentTaskId, currentUserId)
-
-            if (currentUserId == requesterId) {
-                // [Owner] 发布者
-                showOwnerView()
-                binding.btnDelete.setOnClickListener { performDelete(token, currentTaskId) }
-                binding.btnEdit.setOnClickListener {
-                    Toast.makeText(requireContext(), "Edit coming soon", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                // [Other] 接单者或其他人
-                if (isAcceptedByMe) {
-                    // [Runner] 接单者
-                    showRunnerView()
-                    binding.btnComplete.setOnClickListener { markAsComplete(token, currentTaskId) }
-                    binding.btnRunnerDrop.setOnClickListener { performDrop(token, currentTaskId) }
-                } else {
-                    // [Visitor] 访客 -> 这里点击监听器只在未完成时有效
-                    // 如果 checkTaskStatus 发现已完成，会禁用按钮，这里的监听器实际上点不到
-                    binding.btnAcceptTask.setOnClickListener { acceptErrand(token, currentTaskId) }
-                }
-            }
+            // Refresh status from Firebase
+            refreshTaskStatus()
         }
     }
 
-    private fun showOwnerView() {
-        binding.btnAcceptTask.visibility = View.GONE
-        binding.layoutRunnerActions.visibility = View.GONE
-        binding.layoutOwnerActions.visibility = View.VISIBLE
-    }
-
-    private fun showRunnerView() {
-        binding.btnAcceptTask.visibility = View.GONE
-        binding.layoutOwnerActions.visibility = View.GONE
-        binding.layoutRunnerActions.visibility = View.VISIBLE
-    }
-
-    private fun showAcceptView() {
-        binding.layoutOwnerActions.visibility = View.GONE
-        binding.layoutRunnerActions.visibility = View.GONE
-        binding.btnAcceptTask.visibility = View.VISIBLE
-        binding.btnAcceptTask.isEnabled = true
-        binding.btnAcceptTask.text = "Accept Task"
-        binding.btnAcceptTask.backgroundTintList = ColorStateList.valueOf(
-            ContextCompat.getColor(requireContext(), R.color.primary)
-        )
-    }
-
-    // [关键修改] 增加了对 COMPLETED 状态的处理
-    private fun showCompletedView() {
-        binding.layoutOwnerActions.visibility = View.GONE
-        binding.layoutRunnerActions.visibility = View.GONE
-        binding.btnAcceptTask.visibility = View.VISIBLE
-        
-        binding.btnAcceptTask.isEnabled = false // 禁用点击
-        binding.btnAcceptTask.text = "Task Finished" // 修改文字
-        binding.btnAcceptTask.backgroundTintList = ColorStateList.valueOf(
-            ContextCompat.getColor(requireContext(), android.R.color.darker_gray) // 变灰
-        )
-        binding.tvTaskPosted.text = "Status: COMPLETED"
-    }
-
-    private suspend fun checkTaskStatus(token: String, taskId: String, currentUserId: String) {
+    private suspend fun refreshTaskStatus() {
         try {
-            val response = RetrofitInstance.apiService.getErrandById(token, taskId)
-            if (response.isSuccessful && response.body() != null) {
-                val task = response.body()!!
-                val providerId = task.providerId
-                val status = task.status
+            val result = repository.getErrandById(currentTaskId)
+            result.onSuccess { task ->
+                if (task == null || _binding == null) return@onSuccess
 
-                // [Fix] 优先判断是否已完成
-                if (status == "COMPLETED") {
-                    showCompletedView()
-                    return // 直接返回，不再执行后续逻辑
-                }
+                providerId = task["providerId"] as? String
+                providerName = task["providerName"] as? String
+                providerAvatar = task["providerAvatar"] as? String
+                currentStatus = task["status"] as? String ?: "PENDING"
 
-                if (status == "IN_PROGRESS" && providerId == currentUserId) {
-                    // 是我接的任务且未完成
-                    isAcceptedByMe = true
-                    if (task.requesterId != currentUserId) {
-                        showRunnerView()
-                        binding.btnComplete.setOnClickListener { markAsComplete(token, taskId) }
-                        binding.btnRunnerDrop.setOnClickListener { performDrop(token, taskId) }
-                    }
-                } else if (status != "PENDING" && providerId != currentUserId) {
-                    // 被别人接了
-                    binding.btnAcceptTask.isEnabled = false
-                    binding.btnAcceptTask.text = "Task Taken"
-                }
+                setupUIBasedOnRole()
+            }.onFailure {
+                // Use the status from arguments if Firebase fails
+                setupUIBasedOnRole()
             }
         } catch (e: Exception) {
-            Log.e("TaskDetail", "Status check failed", e)
+            Log.e("TaskDetail", "Failed to refresh status", e)
+            setupUIBasedOnRole()
         }
     }
 
-    private fun acceptErrand(token: String, taskId: String) {
+    private fun setupUIBasedOnRole() {
+        if (_binding == null) return
+
+        val isOwner = currentUserId == requesterId
+        val isProvider = providerId == currentUserId
+
+        if (isOwner) {
+            setupOwnerView()
+        } else if (isProvider) {
+            setupProviderView()
+        } else {
+            setupOtherUserView()
+        }
+    }
+
+    /**
+     * Requester (owner) view:
+     * - PENDING: Can Edit, Delete
+     * - ACCEPTED: Can see status, cannot delete
+     * - DELIVERING: Can see status, cannot delete
+     * - COMPLETED/CANCELLED: Just show status
+     */
+    private fun setupOwnerView() {
+        if (_binding == null) return
+
+        binding.btnAcceptTask.visibility = View.GONE
+        binding.layoutProviderActions.visibility = View.GONE
+        binding.layoutOwnerActions.visibility = View.VISIBLE
+
+        when (currentStatus.uppercase()) {
+            "PENDING" -> {
+                binding.layoutEditDelete.visibility = View.VISIBLE
+                binding.btnComplete.visibility = View.GONE
+                binding.btnChatRider.visibility = View.GONE
+
+                binding.btnEdit.setOnClickListener { navigateToEditTask() }
+                binding.btnDelete.setOnClickListener { confirmDelete() }
+            }
+            "ACCEPTED" -> {
+                binding.layoutEditDelete.visibility = View.GONE
+                binding.btnComplete.visibility = View.GONE
+                // Show Chat with Rider button
+                binding.btnChatRider.visibility = View.VISIBLE
+                binding.btnChatRider.setOnClickListener { chatWithRider() }
+                showStatusMessage("Waiting for rider to start delivery")
+            }
+            "DELIVERING" -> {
+                binding.layoutEditDelete.visibility = View.GONE
+                binding.btnComplete.visibility = View.GONE
+                // Show Chat with Rider button
+                binding.btnChatRider.visibility = View.VISIBLE
+                binding.btnChatRider.setOnClickListener { chatWithRider() }
+                showStatusMessage("Rider is delivering your order")
+            }
+            "COMPLETED" -> {
+                binding.layoutOwnerActions.visibility = View.GONE
+                showStatusMessage("Task completed")
+            }
+            "CANCELLED" -> {
+                binding.layoutOwnerActions.visibility = View.GONE
+                showStatusMessage("Task was cancelled")
+            }
+            else -> {
+                // IN_PROGRESS (legacy status)
+                binding.layoutEditDelete.visibility = View.GONE
+                binding.btnComplete.visibility = View.GONE
+                showStatusMessage("Task in progress")
+            }
+        }
+    }
+
+    /**
+     * Provider (rider) view:
+     * - ACCEPTED: "Start Delivering" + "Drop Task"
+     * - DELIVERING: "Mark Complete" + "Drop Task"
+     */
+    private fun setupProviderView() {
+        if (_binding == null) return
+
+        // Hide other action layouts
+        binding.btnAcceptTask.visibility = View.GONE
+        binding.layoutOwnerActions.visibility = View.GONE
+
+        when (currentStatus.uppercase()) {
+            "ACCEPTED", "IN_PROGRESS" -> {
+                // Show provider actions: Drop Task + Start Delivering
+                binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnProviderAction.text = "Start Delivering"
+                binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(requireContext(), R.color.errand_delivering)
+                )
+                binding.btnProviderAction.setOnClickListener { startDelivering() }
+                binding.btnDropTask.setOnClickListener { confirmDrop() }
+            }
+            "DELIVERING" -> {
+                // Show provider actions: Drop Task + Mark Complete
+                binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnProviderAction.text = "Mark Complete"
+                binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(requireContext(), R.color.errand_completed)
+                )
+                binding.btnProviderAction.setOnClickListener { completeTask() }
+                binding.btnDropTask.setOnClickListener { confirmDrop() }
+            }
+            "COMPLETED" -> {
+                binding.layoutProviderActions.visibility = View.GONE
+                showStatusMessage("Task completed")
+            }
+            else -> {
+                binding.layoutProviderActions.visibility = View.GONE
+            }
+        }
+    }
+
+    /**
+     * Other user view (not owner, not provider):
+     * - PENDING: Can accept (if delivery mode on and < 3 orders)
+     * - Otherwise: Show "Task Taken"
+     */
+    private fun setupOtherUserView() {
+        if (_binding == null) return
+
+        binding.layoutOwnerActions.visibility = View.GONE
+        binding.layoutProviderActions.visibility = View.GONE
+
+        if (currentStatus.uppercase() == "PENDING") {
+            binding.btnAcceptTask.visibility = View.VISIBLE
+            binding.btnAcceptTask.text = "Accept Task"
+            binding.btnAcceptTask.backgroundTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(requireContext(), R.color.primary)
+            )
+            binding.btnAcceptTask.setOnClickListener { checkAndAcceptTask() }
+        } else {
+            binding.btnAcceptTask.visibility = View.VISIBLE
+            binding.btnAcceptTask.isEnabled = false
+            binding.btnAcceptTask.text = "Task Taken"
+        }
+    }
+
+    private fun showStatusMessage(message: String) {
+        if (_binding == null) return
+        binding.tvTaskPosted.text = "Status: $message"
+    }
+
+    /**
+     * Check delivery mode and order limit before accepting
+     */
+    private fun checkAndAcceptTask() {
+        if (_binding == null) return
         binding.btnAcceptTask.isEnabled = false
+
         lifecycleScope.launch {
             try {
-                val response = RetrofitInstance.apiService.acceptErrand(token, taskId)
-                if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Task Accepted!", Toast.LENGTH_SHORT).show()
-                    isAcceptedByMe = true
-                    showRunnerView()
-                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
-                    binding.btnComplete.setOnClickListener { markAsComplete(token, taskId) }
-                    binding.btnRunnerDrop.setOnClickListener { performDrop(token, taskId) }
-                } else {
-                    if (response.code() == 409) {
-                        val tokenManager = TokenManager(requireContext())
-                        checkTaskStatus(token, taskId, tokenManager.getUserId().first() ?: "")
-                    } else {
-                        Toast.makeText(requireContext(), "Failed: ${response.code()}", Toast.LENGTH_SHORT).show()
+                // Check 1: Is Delivery Mode enabled?
+                val deliveryModeEnabled = tokenManager.getDeliveryMode().first()
+                if (!deliveryModeEnabled) {
+                    if (_binding != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            "Please enable Delivery Mode in Profile settings first",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        binding.btnAcceptTask.isEnabled = true
+                    }
+                    return@launch
+                }
+
+                // Check 2: Order limit
+                val activeCountResult = repository.getActiveErrandCount(currentUserId)
+                activeCountResult.onSuccess { count ->
+                    if (_binding == null) return@onSuccess
+
+                    if (count >= MAX_ACTIVE_ORDERS) {
+                        Toast.makeText(
+                            requireContext(),
+                            "You have reached the maximum of $MAX_ACTIVE_ORDERS active orders",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        binding.btnAcceptTask.isEnabled = true
+                        return@onSuccess
+                    }
+
+                    // All checks passed, accept the task
+                    acceptTask()
+                }.onFailure { e ->
+                    if (_binding != null) {
+                        Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        binding.btnAcceptTask.isEnabled = true
                     }
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-            } finally {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    binding.btnAcceptTask.isEnabled = true
+                }
+            }
+        }
+    }
+
+    private fun acceptTask() {
+        lifecycleScope.launch {
+            try {
+                val userName = tokenManager.getFullName().first() ?: "User"
+                val userAvatar = tokenManager.getAvatar().first()
+
+                val result = repository.acceptErrand(currentTaskId, currentUserId, userName, userAvatar)
+
+                if (_binding == null) return@launch
+
+                result.onSuccess {
+                    Toast.makeText(requireContext(), "Task Accepted!", Toast.LENGTH_SHORT).show()
+                    providerId = currentUserId
+                    currentStatus = "ACCEPTED"
+                    setupProviderView()
+                }.onFailure { e ->
+                    Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            if (_binding != null) {
                 binding.btnAcceptTask.isEnabled = true
             }
         }
     }
 
-    private fun performDrop(token: String, taskId: String) {
-        binding.btnRunnerDrop.isEnabled = false
+    private fun startDelivering() {
+        if (_binding == null) return
+        binding.btnAcceptTask.isEnabled = false
+
         lifecycleScope.launch {
-            try {
-                val response = RetrofitInstance.apiService.dropErrand(token, taskId, emptyMap())
-                if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Task Dropped", Toast.LENGTH_SHORT).show()
-                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
-                    parentFragmentManager.popBackStack()
-                } else {
-                    Toast.makeText(requireContext(), "Drop Failed: ${response.code()}", Toast.LENGTH_SHORT).show()
+            val result = repository.startDelivering(currentTaskId)
+
+            if (_binding == null) return@launch
+
+            result.onSuccess {
+                Toast.makeText(requireContext(), "Delivery started!", Toast.LENGTH_SHORT).show()
+                currentStatus = "DELIVERING"
+                setupProviderView()
+            }.onFailure { e ->
+                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+
+            binding.btnAcceptTask.isEnabled = true
+        }
+    }
+
+    private fun completeTask() {
+        if (_binding == null) return
+        binding.btnProviderAction.isEnabled = false
+
+        lifecycleScope.launch {
+            val result = repository.completeErrand(currentTaskId)
+
+            if (_binding == null) return@launch
+
+            result.onSuccess {
+                Toast.makeText(requireContext(), "Task completed!", Toast.LENGTH_SHORT).show()
+                // Navigate back after completing
+                parentFragmentManager.popBackStack()
+            }.onFailure { e ->
+                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                if (_binding != null) {
+                    binding.btnProviderAction.isEnabled = true
                 }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-            } finally {
-                binding.btnRunnerDrop.isEnabled = true
             }
         }
     }
 
-    private fun performDelete(token: String, taskId: String) {
+    private fun confirmDelete() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Delete Task")
+            .setMessage("Are you sure you want to permanently delete this task?")
+            .setPositiveButton("Delete") { _, _ -> performDelete() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performDelete() {
         lifecycleScope.launch {
-            try {
-                val response = RetrofitInstance.apiService.deleteErrand(token, taskId)
-                if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Deleted", Toast.LENGTH_SHORT).show()
-                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
-                    parentFragmentManager.popBackStack()
-                } else {
-                    Toast.makeText(requireContext(), "Delete Failed", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            val result = repository.deleteErrand(currentTaskId)
+
+            if (_binding == null) return@launch
+
+            result.onSuccess {
+                Toast.makeText(requireContext(), "Task Deleted", Toast.LENGTH_SHORT).show()
+                parentFragmentManager.popBackStack()
+            }.onFailure { e ->
+                Toast.makeText(requireContext(), "Delete Failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun markAsComplete(token: String, taskId: String) {
+    private fun confirmDrop() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Drop Task")
+            .setMessage("Are you sure you want to drop this task? It will be available for other riders.")
+            .setPositiveButton("Drop") { _, _ -> performDrop() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performDrop() {
+        if (_binding == null) return
+        binding.btnDropTask.isEnabled = false
+
         lifecycleScope.launch {
-            try {
-                val request = UpdateStatusRequest("COMPLETED")
-                val response = RetrofitInstance.apiService.updateErrandStatus(token, taskId, request)
-                if (response.isSuccessful) {
-                    Toast.makeText(requireContext(), "Task Completed!", Toast.LENGTH_SHORT).show()
-                    setFragmentResult("taskUpdated", bundleOf("refresh" to true)) // Notify MyTasksFragment
-                    // [Fix] 成功后立即更新界面为完成状态
-                    showCompletedView()
-                } else {
-                    Toast.makeText(requireContext(), "Failed to complete", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            val result = repository.dropErrand(currentTaskId)
+
+            if (_binding == null) return@launch
+
+            result.onSuccess {
+                Toast.makeText(requireContext(), "Task Dropped", Toast.LENGTH_SHORT).show()
+                parentFragmentManager.popBackStack()
+            }.onFailure { e ->
+                Toast.makeText(requireContext(), "Drop Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+
+            if (_binding != null) {
+                binding.btnDropTask.isEnabled = true
             }
         }
+    }
+
+    /**
+     * Open chat with the rider
+     */
+    private fun chatWithRider() {
+        val riderId = providerId
+        val riderName = providerName
+
+        if (riderId.isNullOrEmpty()) {
+            Toast.makeText(requireContext(), "Rider information not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                // Get current user info
+                val currentUserName = tokenManager.getFullName().first() ?: "User"
+
+                // Create or get existing conversation
+                val participantIds = listOf(currentUserId, riderId)
+                val result = messageRepository.createConversation(
+                    participantIds = participantIds,
+                    currentUserId = currentUserId,
+                    currentUserName = currentUserName,
+                    isGroup = false
+                )
+
+                if (_binding == null) return@launch
+
+                result.onSuccess { conversationId ->
+                    // Update conversation participant info for current user
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantName = riderName ?: "Rider",
+                        participantAvatar = providerAvatar
+                    )
+
+                    // Update conversation participant info for rider
+                    val myName = tokenManager.getFullName().first() ?: "User"
+                    val myAvatar = tokenManager.getAvatar().first()
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = riderId,
+                        conversationId = conversationId,
+                        participantName = myName,
+                        participantAvatar = myAvatar
+                    )
+
+                    // Also update participantId for both users
+                    messageRepository.updateConversationParticipantId(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantId = riderId
+                    )
+                    messageRepository.updateConversationParticipantId(
+                        userId = riderId,
+                        conversationId = conversationId,
+                        participantId = currentUserId
+                    )
+
+                    // Navigate to ChatDetailFragment using NavController
+                    try {
+                        val bundle = bundleOf(
+                            "conversationId" to conversationId,
+                            "participantName" to (riderName ?: "Rider"),
+                            "participantAvatar" to providerAvatar,
+                            "isOnline" to false
+                        )
+
+                        // Find the main NavController from the activity
+                        val navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment)
+                        navController.navigate(R.id.chatDetailFragment, bundle)
+                    } catch (e: Exception) {
+                        Log.e("TaskDetail", "Navigation failed", e)
+                        Toast.makeText(requireContext(), "Failed to open chat", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { e ->
+                    Toast.makeText(requireContext(), "Failed to create conversation: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Navigate to EditTaskFragment to edit the task
+     */
+    private fun navigateToEditTask() {
+        val editFragment = EditTaskFragment().apply {
+            arguments = Bundle().apply {
+                putString("taskId", currentTaskId)
+                putString("title", taskTitle)
+                putString("description", taskDescription)
+                putString("reward", taskPrice)
+                putString("location", taskLocation)
+                putString("deadline", taskDeadline)
+                putString("status", currentStatus)
+                putString("providerId", providerId)
+            }
+        }
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.errand_fragment_container, editFragment)
+            .addToBackStack(null)
+            .commit()
     }
 
     override fun onDestroyView() {
