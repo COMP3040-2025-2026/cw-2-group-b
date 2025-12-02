@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.model.ForumComment
 import com.nottingham.mynottingham.databinding.ItemForumCommentBinding
@@ -48,7 +47,7 @@ class ForumCommentAdapter(
 
                 // Avatar
                 if (!comment.authorAvatar.isNullOrEmpty()) {
-                     // 使用 AvatarUtils 获取资源 ID 或者加载 URL
+                     // Use AvatarUtils to get resource ID or load URL
                      val avatarResId = AvatarUtils.getDrawableId(comment.authorAvatar)
                      ivAuthorAvatar.setImageResource(avatarResId)
                 } else {

@@ -37,7 +37,7 @@ class ForumDetailFragment : Fragment() {
     private lateinit var tokenManager: TokenManager
     private lateinit var commentAdapter: ForumCommentAdapter
 
-    // ⚠️ 修复：ID 类型改为 String
+    // Fixed: ID type changed to String
     private var postId: String = ""
     private var currentUserId: String = ""
     private var currentPost: ForumPost? = null
@@ -105,9 +105,9 @@ class ForumDetailFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        // 使用 viewLifecycleOwner.lifecycleScope 确保在 View 销毁时取消协程
+        // Use viewLifecycleOwner.lifecycleScope to ensure coroutine cancellation when View is destroyed
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.getPostFlow(0L) // 参数为了兼容保留，实际 ViewModel 内部用 StateFlow
+            viewModel.getPostFlow(0L) // Parameter retained for compatibility, ViewModel internally uses StateFlow
                 .collect { post ->
                     post?.let {
                         if (_binding != null) {
@@ -118,7 +118,7 @@ class ForumDetailFragment : Fragment() {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.getCommentsFlow(0L) // 同上
+            viewModel.getCommentsFlow(0L) // Same as above
                 .collect { comments ->
                     if (_binding != null) {
                         commentAdapter.submitList(comments)
@@ -202,7 +202,7 @@ class ForumDetailFragment : Fragment() {
             .show()
     }
 
-    // ⚠️ 修复：接收 ForumPost 数据模型，而非 Entity
+    // Fixed: Receive ForumPost data model, not Entity
     private fun bindPostData(post: ForumPost) {
         currentPost = post
         binding.apply {

@@ -17,7 +17,7 @@ class DateAdapter(
     private val onDateSelected: (LocalDate) -> Unit
 ) : RecyclerView.Adapter<DateAdapter.DateViewHolder>() {
 
-    private var selectedPosition = 0 // 默认选中今天
+    private var selectedPosition = 0 // Default to today selected
 
     inner class DateViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val card: MaterialCardView = itemView.findViewById(R.id.card_date)
@@ -29,7 +29,7 @@ class DateAdapter(
             tvDayNumber.text = date.dayOfMonth.toString()
 
             if (selectedPosition == position) {
-                card.setCardBackgroundColor(Color.parseColor("#6200EE")) // 选中颜色 (紫色)
+                card.setCardBackgroundColor(Color.parseColor("#6200EE")) // Selected color (purple)
                 tvDayName.setTextColor(Color.WHITE)
                 tvDayNumber.setTextColor(Color.WHITE)
             } else {

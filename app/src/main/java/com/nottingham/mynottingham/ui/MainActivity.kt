@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navController: NavController
     private lateinit var tokenManager: TokenManager
 
-    // 🔥 1. 初始化 MainViewModel
+    // Initialize MainViewModel
     private val mainViewModel: MainViewModel by viewModels()
 
     // Defines a set of top-level destinations. When the user is on these screens,
@@ -71,18 +71,18 @@ class MainActivity : AppCompatActivity() {
         // Request notification permission for Android 13+
         requestNotificationPermission()
 
-        // 🔥 2. 在 onCreate 最后调用监听方法
+        // Call method to observe unread count at the end of onCreate
         observeUnreadCount()
     }
 
-    // 🔥 3. 添加观察未读数量的方法
+    // Method to observe unread message count
     private fun observeUnreadCount() {
-        // 观察 ViewModel 的未读数量数据，一旦变化就更新 UI
+        // Observe ViewModel's unread count data and update UI when it changes
         mainViewModel.unreadMessageCount.observe(this) { count ->
             updateMessageBadge(count)
         }
 
-        // 获取当前登录用户的 ID，并开启监听
+        // Get current logged-in user's ID and start listening
         lifecycleScope.launch {
             tokenManager.getUserId().collect { userId ->
                 if (!userId.isNullOrEmpty()) {
@@ -92,22 +92,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 🔥 4. 添加更新底部导航栏角标的方法
+    // Method to update bottom navigation bar badge
     private fun updateMessageBadge(count: Int) {
         try {
             val navView = binding.bottomNavigation
-            // 这里的 ID 必须与 bottom_navigation_menu.xml 中的 Message item ID 一致
+            // This ID must match the Message item ID in bottom_navigation_menu.xml
             val messageMenuId = R.id.messageFragment
 
-            // 获取或创建 BadgeDrawable
+            // Get or create BadgeDrawable
             val badge = navView.getOrCreateBadge(messageMenuId)
 
             if (count > 0) {
                 badge.isVisible = true
-                badge.number = count // 显示具体数字
-                // 如果数字太大，可以考虑限制显示，例如 "99+" (Material Badge 默认会自动处理多位数)
+                badge.number = count // Display specific number
+                // If number is too large, consider limiting display to "99+" (Material Badge automatically handles multi-digit numbers)
             } else {
-                badge.isVisible = false // 没有未读消息时隐藏
+                badge.isVisible = false // Hide when no unread messages
             }
         } catch (e: Exception) {
             e.printStackTrace()

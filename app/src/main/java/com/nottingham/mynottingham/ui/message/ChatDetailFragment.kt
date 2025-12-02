@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.ui.message
 
 import android.app.AlertDialog
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -21,12 +22,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.model.Contact
 import com.nottingham.mynottingham.data.model.GroupMember
 import com.nottingham.mynottingham.data.model.GroupRole
+import com.nottingham.mynottingham.databinding.BottomSheetAddMemberBinding
 import com.nottingham.mynottingham.databinding.BottomSheetGroupInfoBinding
 import com.nottingham.mynottingham.databinding.BottomSheetUserProfileBinding
 import com.nottingham.mynottingham.databinding.FragmentChatDetailBinding
 import com.nottingham.mynottingham.util.AvatarUtils
+import com.nottingham.mynottingham.util.Constants
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
@@ -102,6 +106,11 @@ class ChatDetailFragment : Fragment() {
                 val currentUserName = tokenManager.getUsername().firstOrNull() ?: ""
                 viewModel.initializeChat(conversationId, currentUserId, currentUserName)
                 viewModel.markAsRead()
+
+                // For group chats, observe membership status to detect removal
+                if (isGroup) {
+                    viewModel.observeGroupMembership()
+                }
             }
         }
     }
@@ -252,6 +261,17 @@ class ChatDetailFragment : Fragment() {
                     binding.textStatus.text = status
                 }
             }
+        } else {
+            // For group chats, observe membership status
+            viewModel.membershipStatus.observe(viewLifecycleOwner) { status ->
+                if (status == "REMOVED") {
+                    // Hide input layout and show removed notice
+                    binding.layoutInput.visibility = View.GONE
+                    binding.layoutRemovedNotice.visibility = View.VISIBLE
+                    // Update toolbar status
+                    binding.textStatus.text = "You have been removed"
+                }
+            }
         }
     }
 
@@ -358,7 +378,6 @@ class ChatDetailFragment : Fragment() {
                 // Show admin actions
                 layoutAdminActions.isVisible = true
                 btnLeaveGroup.isVisible = !isOwner
-                btnTransferOwnership.isVisible = isOwner
                 btnDissolveGroup.isVisible = isOwner
             }
 
@@ -440,8 +459,8 @@ class ChatDetailFragment : Fragment() {
         // Add member button
         sheetBinding.btnAddMember.setOnClickListener {
             bottomSheet.dismiss()
-            // Navigate to add member screen
-            Toast.makeText(context, "Add member feature coming soon", Toast.LENGTH_SHORT).show()
+            val existingMemberIds = viewModel.groupMembers.value?.map { it.id } ?: emptyList()
+            showAddMemberBottomSheet(existingMemberIds)
         }
 
         // Leave group
@@ -455,11 +474,6 @@ class ChatDetailFragment : Fragment() {
                 }
                 .setNegativeButton("Cancel", null)
                 .show()
-        }
-
-        // Transfer ownership
-        sheetBinding.btnTransferOwnership.setOnClickListener {
-            Toast.makeText(context, "Select a member to transfer ownership", Toast.LENGTH_SHORT).show()
         }
 
         // Dissolve group
@@ -541,6 +555,57 @@ class ChatDetailFragment : Fragment() {
                     // This would require creating or finding an existing conversation first
                     Toast.makeText(context, "Private chat with ${member.name} coming soon", Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+
+        bottomSheet.show()
+    }
+
+    private fun showAddMemberBottomSheet(existingMemberIds: List<String>) {
+        val bottomSheet = BottomSheetDialog(requireContext())
+        val sheetBinding = BottomSheetAddMemberBinding.inflate(layoutInflater)
+        bottomSheet.setContentView(sheetBinding.root)
+
+        // Load available contacts
+        viewModel.loadAvailableContacts(existingMemberIds)
+
+        // Setup adapter
+        val adapter = SelectableContactAdapter { selectedContacts ->
+            val count = selectedContacts.size
+            sheetBinding.tvSelectedCount.text = "$count selected"
+            sheetBinding.btnAddMembers.isEnabled = count > 0
+        }
+
+        sheetBinding.recyclerContacts.apply {
+            layoutManager = LinearLayoutManager(context)
+            this.adapter = adapter
+        }
+
+        // Show loading
+        sheetBinding.progressBar.visibility = View.VISIBLE
+        sheetBinding.recyclerContacts.visibility = View.GONE
+        sheetBinding.layoutEmpty.visibility = View.GONE
+
+        // Observe available contacts
+        viewModel.availableContacts.observe(viewLifecycleOwner) { contacts ->
+            sheetBinding.progressBar.visibility = View.GONE
+
+            if (contacts.isEmpty()) {
+                sheetBinding.layoutEmpty.visibility = View.VISIBLE
+                sheetBinding.recyclerContacts.visibility = View.GONE
+            } else {
+                sheetBinding.layoutEmpty.visibility = View.GONE
+                sheetBinding.recyclerContacts.visibility = View.VISIBLE
+                adapter.submitList(contacts)
+            }
+        }
+
+        // Add members button
+        sheetBinding.btnAddMembers.setOnClickListener {
+            val selectedIds = adapter.getSelectedContacts().map { it.id }
+            if (selectedIds.isNotEmpty()) {
+                viewModel.addGroupMembers(selectedIds)
+                bottomSheet.dismiss()
             }
         }
 

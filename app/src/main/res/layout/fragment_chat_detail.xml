@@ -132,6 +132,38 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible" />
 
+    <!-- Removed from Group Notice -->
+    <LinearLayout
+        android:id="@+id/layout_removed_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@color/error_light"
+        android:elevation="4dp"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:visibility="visible">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_info"
+            app:tint="@color/error"
+            android:contentDescription="Info" />
+
+        <TextView
+            android:id="@+id/text_removed_notice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="You have been removed from this group"
+            android:textColor="@color/error"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
     <!-- Input Layout -->
     <LinearLayout
         android:id="@+id/layout_input"

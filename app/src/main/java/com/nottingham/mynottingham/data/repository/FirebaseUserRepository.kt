@@ -15,14 +15,14 @@ import kotlinx.coroutines.tasks.await
 /**
  * Firebase User Repository
  *
- * 直接从 Firebase Realtime Database 读取用户数据
- * 不再依赖 Spring Boot 后端 API
+ * Reads user data directly from Firebase Realtime Database.
+ * No longer depends on Spring Boot backend API.
  *
- * 数据结构:
- * - users/{firebaseUID}: 用户详细信息
- * - username_to_uid/{username}: 用户名到 UID 的映射
+ * Data structure:
+ * - users/{firebaseUID}: User details
+ * - username_to_uid/{username}: Username to UID mapping
  *
- * 示例:
+ * Example:
  * users/abc123xyz/ {
  *   username: "student1",
  *   fullName: "Alice Wong",
@@ -40,8 +40,8 @@ import kotlinx.coroutines.tasks.await
  */
 class FirebaseUserRepository {
 
-    // ⚠️ 重要：必须指定数据库 URL，因为数据库在 asia-southeast1 区域
-    // 如果不指定，Android SDK 会默认连接到美国服务器，导致无法读取数据
+    // Important: Must specify database URL as database is in asia-southeast1 region
+    // If not specified, Android SDK defaults to US server, causing data read failures
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val usersRef: DatabaseReference = database.getReference("users")
     private val usernameToUidRef: DatabaseReference = database.getReference("username_to_uid")
@@ -49,9 +49,9 @@ class FirebaseUserRepository {
     private val connectedRef: DatabaseReference = database.getReference(".info/connected")
 
     /**
-     * 获取用户资料 (实时监听)
-     * @param userId 用户ID (如 "student1", "teacher1")
-     * @return Flow<User> 用户数据流，自动更新
+     * Get user profile (real-time listener)
+     * @param userId User ID (e.g. "student1", "teacher1")
+     * @return Flow<User> User data flow with auto-updates
      */
     fun getUserProfile(userId: String): Flow<User?> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -67,19 +67,19 @@ class FirebaseUserRepository {
                     val email = snapshot.child("email").getValue(String::class.java) ?: ""
                     val role = snapshot.child("role").getValue(String::class.java) ?: "STUDENT"
 
-                    // 学生特有字段
+                    // Student-specific fields
                     val studentId = snapshot.child("studentId").getValue(Long::class.java)?.toString() ?: ""
                     val matricNumber = snapshot.child("matricNumber").getValue(String::class.java) ?: ""
                     val faculty = snapshot.child("faculty").getValue(String::class.java) ?: ""
 
-                    // 教师特有字段
+                    // Teacher-specific fields
                     val employeeId = snapshot.child("employeeId").getValue(String::class.java)
                     val department = snapshot.child("department").getValue(String::class.java)
                     val title = snapshot.child("title").getValue(String::class.java)
                     val officeRoom = snapshot.child("officeRoom").getValue(String::class.java)
                     val profileImageUrl = snapshot.child("profileImageUrl").getValue(String::class.java)
 
-                    // 映射到 User 模型
+                    // Map to User model
                     val user = User(
                         id = userId,
                         username = username,
@@ -88,8 +88,8 @@ class FirebaseUserRepository {
                         role = role,
                         studentId = if (role == "STUDENT") studentId else (employeeId ?: ""),
                         faculty = if (role == "STUDENT") faculty else (department ?: ""),
-                        year = 2, // TODO: 从 Firebase 添加 year 字段，或从 matricNumber 解析
-                        program = "Computer Science", // TODO: 从 Firebase 添加 program 字段
+                        year = 2, // TODO: Add year field from Firebase or parse from matricNumber
+                        program = "Computer Science", // TODO: Add program field from Firebase
                         title = title,
                         officeRoom = officeRoom,
                         profileImageUrl = profileImageUrl
@@ -116,9 +116,9 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 获取用户资料 (一次性读取)
-     * @param userId 用户ID
-     * @return Result<User> 用户数据或错误
+     * Get user profile (one-time read)
+     * @param userId User ID
+     * @return Result<User> User data or error
      */
     suspend fun getUserProfileOnce(userId: String): Result<User> {
         return try {
@@ -170,16 +170,16 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 更新用户资料
-     * @param userId 用户ID
-     * @param updates 要更新的字段 Map
-     * @return Result<Unit> 成功或失败
+     * Update user profile
+     * @param userId User ID
+     * @param updates Map of fields to update
+     * @return Result<Unit> Success or failure
      */
     suspend fun updateUserProfile(userId: String, updates: Map<String, Any>): Result<Unit> {
         return try {
             usersRef.child(userId).updateChildren(updates).await()
 
-            // 🔴 如果更新了头像，同步更新所有相关对话中的头像
+            // If avatar was updated, sync avatar across all related conversations
             if (updates.containsKey("profileImageUrl")) {
                 val newAvatar = updates["profileImageUrl"] as? String
                 updateAvatarInConversations(userId, newAvatar)
@@ -193,33 +193,33 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 更新用户在所有对话中的头像
-     * 当用户更改头像时，需要同步更新其他用户的对话列表中显示的头像
+     * Update user avatar in all conversations
+     * When user changes avatar, sync to all other users' conversation lists
      *
-     * 🔴 数据结构：user_conversations/{otherUserId}/{conversationId}/participantId = userId
-     * 我们需要找到所有其他用户的对话中 participantId 等于当前用户的记录，并更新 participantAvatar
+     * Data structure: user_conversations/{otherUserId}/{conversationId}/participantId = userId
+     * Find all records where participantId equals current user and update participantAvatar
      *
-     * @param userId 更改头像的用户ID
-     * @param newAvatar 新头像 key
+     * @param userId User ID who changed avatar
+     * @param newAvatar New avatar key
      */
     private suspend fun updateAvatarInConversations(userId: String, newAvatar: String?) {
         try {
             val userConversationsRef = database.getReference("user_conversations")
 
-            // 1. 获取当前用户的所有对话，从中得知参与者
+            // 1. Get all conversations of current user to find participants
             val myConversations = userConversationsRef.child(userId).get().await()
 
             myConversations.children.forEach { convSnapshot ->
                 val conversationId = convSnapshot.key ?: return@forEach
-                // 🔴 从对话数据中获取对方的 participantId
+                // Get the other user's participantId from conversation data
                 val otherUserId = convSnapshot.child("participantId").getValue(String::class.java) ?: return@forEach
 
-                // 2. 🔴 先检查对方的对话是否存在，避免创建不完整的记录
+                // 2. Check if other user's conversation exists first to avoid creating incomplete records
                 try {
                     val otherConvRef = userConversationsRef.child(otherUserId).child(conversationId)
                     val otherConvSnapshot = otherConvRef.get().await()
 
-                    // 只有当对话存在且有完整数据时才更新头像
+                    // Only update avatar when conversation exists with complete data
                     if (otherConvSnapshot.exists() && otherConvSnapshot.child("participantId").exists()) {
                         otherConvRef.child("participantAvatar").setValue(newAvatar).await()
                         android.util.Log.d("FirebaseUserRepo",
@@ -239,9 +239,9 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 检查用户是否存在
-     * @param userId 用户ID
-     * @return Boolean 是否存在
+     * Check if user exists
+     * @param userId User ID
+     * @return Boolean Whether user exists
      */
     suspend fun userExists(userId: String): Boolean {
         return try {
@@ -252,9 +252,9 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 获取所有用户 (用于联系人列表)
-     * @param excludeUserId 排除的用户ID (通常是当前用户)
-     * @return Result<List<User>> 用户列表
+     * Get all users (for contact list)
+     * @param excludeUserId User ID to exclude (usually current user)
+     * @return Result<List<User>> User list
      */
     suspend fun getAllUsers(excludeUserId: String? = null): Result<List<User>> {
         return try {
@@ -310,13 +310,13 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 根据用户名查找用户 UID (用于登录 - 已废弃)
+     * Find user UID by username (for login - deprecated)
      *
-     * ⚠️ DEPRECATED: 不再需要此方法
-     * 现在使用 Firebase Authentication 直接登录，不需要先查找 UID
+     * DEPRECATED: This method is no longer needed
+     * Now using Firebase Authentication directly, no need to lookup UID first
      *
-     * @param username 用户名
-     * @return String? Firebase UID 或 null
+     * @param username Username
+     * @return String? Firebase UID or null
      */
     @Deprecated(
         message = "Use Firebase Authentication instead. Convert username to email and use FirebaseAuth.signInWithEmailAndPassword()",
@@ -324,13 +324,13 @@ class FirebaseUserRepository {
     )
     suspend fun findUserIdByUsername(username: String): String? {
         return try {
-            // 优先使用 username_to_uid 映射 (更高效)
+            // Prefer using username_to_uid mapping (more efficient)
             val mappingSnapshot = usernameToUidRef.child(username).get().await()
             if (mappingSnapshot.exists()) {
                 return mappingSnapshot.getValue(String::class.java)
             }
 
-            // 备用方案：查询 users 表 (较慢)
+            // Fallback: query users table (slower)
             val snapshot = usersRef.orderByChild("username").equalTo(username).get().await()
             snapshot.children.firstOrNull()?.key
         } catch (e: Exception) {
@@ -342,10 +342,10 @@ class FirebaseUserRepository {
     // ==================== Presence System (Telegram-style) ====================
 
     /**
-     * 设置用户在线状态并配置断开连接时自动离线
-     * 类似Telegram的在线状态逻辑
+     * Set up user presence and configure auto-offline on disconnect
+     * Telegram-style online status logic
      *
-     * @param userId 用户ID
+     * @param userId User ID
      */
     fun setupPresence(userId: String) {
         val userPresenceRef = presenceRef.child(userId)
@@ -355,14 +355,14 @@ class FirebaseUserRepository {
                 val connected = snapshot.getValue(Boolean::class.java) ?: false
 
                 if (connected) {
-                    // 用户连接时设置在线
+                    // Set online when user connects
                     val presenceData = mapOf(
                         "isOnline" to true,
                         "lastSeen" to ServerValue.TIMESTAMP
                     )
                     userPresenceRef.setValue(presenceData)
 
-                    // 配置断开连接时自动设置离线和最后在线时间
+                    // Configure auto-offline and last seen time on disconnect
                     userPresenceRef.onDisconnect().setValue(
                         mapOf(
                             "isOnline" to false,
@@ -379,9 +379,9 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 手动设置用户离线（用于登出）
+     * Manually set user offline (for logout)
      *
-     * @param userId 用户ID
+     * @param userId User ID
      */
     suspend fun setOffline(userId: String) {
         try {
@@ -397,10 +397,10 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 监听用户在线状态（实时）
+     * Observe user online status (real-time)
      *
-     * @param userId 要监听的用户ID
-     * @return Flow<Pair<Boolean, Long>> Pair(是否在线, 最后在线时间戳)
+     * @param userId User ID to observe
+     * @return Flow<Pair<Boolean, Long>> Pair(isOnline, lastSeenTimestamp)
      */
     fun observeUserPresence(userId: String): Flow<Pair<Boolean, Long>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -423,10 +423,10 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 一次性获取用户在线状态
+     * Get user online status (one-time)
      *
-     * @param userId 用户ID
-     * @return Pair<Boolean, Long> Pair(是否在线, 最后在线时间戳)
+     * @param userId User ID
+     * @return Pair<Boolean, Long> Pair(isOnline, lastSeenTimestamp)
      */
     suspend fun getUserPresence(userId: String): Pair<Boolean, Long> {
         return try {
@@ -441,10 +441,10 @@ class FirebaseUserRepository {
     }
 
     /**
-     * 格式化最后在线时间（Telegram风格）
+     * Format last seen time (Telegram-style)
      *
-     * @param lastSeen 最后在线时间戳
-     * @return String 格式化的字符串，如 "last seen just now", "last seen 5 minutes ago"
+     * @param lastSeen Last seen timestamp
+     * @return String Formatted string like "last seen just now", "last seen 5 minutes ago"
      */
     fun formatLastSeen(lastSeen: Long): String {
         if (lastSeen == 0L) return "Offline"

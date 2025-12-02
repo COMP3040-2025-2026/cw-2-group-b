@@ -14,9 +14,9 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.databinding.FragmentNottiBinding
 
 /**
- * NottiFragment - Notti AI Assistant 界面
+ * NottiFragment - Notti AI Assistant UI
  *
- * 使用 Firebase AI Logic (Gemini) 提供 AI 对话功能
+ * Provides AI conversation functionality using Firebase AI Logic (Gemini)
  */
 class NottiFragment : Fragment() {
 
@@ -65,12 +65,12 @@ class NottiFragment : Fragment() {
     }
 
     private fun setupInputArea() {
-        // 发送按钮点击
+        // Send button click
         binding.fabSend.setOnClickListener {
             sendMessage()
         }
 
-        // 键盘发送
+        // Keyboard send
         binding.etMessage.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage()
@@ -96,20 +96,20 @@ class NottiFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        // 观察消息列表
+        // Observe message list
         viewModel.messages.observe(viewLifecycleOwner) { messages ->
             chatAdapter.submitList(messages) {
-                // 滚动到最新消息
+                // Scroll to latest message
                 if (messages.isNotEmpty()) {
                     binding.recyclerMessages.smoothScrollToPosition(messages.size - 1)
                 }
             }
 
-            // 显示/隐藏空状态
+            // Show/hide empty state
             binding.layoutEmpty.isVisible = messages.size <= 1
         }
 
-        // 观察加载状态
+        // Observe loading state
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             binding.fabSend.isEnabled = !isLoading
         }

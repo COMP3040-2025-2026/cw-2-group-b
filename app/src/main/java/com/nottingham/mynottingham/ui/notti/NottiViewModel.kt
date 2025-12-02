@@ -31,18 +31,18 @@ import java.util.Locale
 import kotlin.coroutines.resume
 
 /**
- * NottiViewModel - Notti AI Assistant 的 ViewModel
+ * NottiViewModel - ViewModel for Notti AI Assistant
  *
- * 使用 Firebase AI Logic (Gemini) 实现 AI 对话功能
- * 免费版本使用 Gemini Developer API
- * 聊天记录按用户账号本地缓存
+ * Uses Firebase AI Logic (Gemini) to implement AI conversation functionality
+ * Free version uses Gemini Developer API
+ * Chat history is cached locally per user account
  */
 class NottiViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val TAG = "NottiViewModel"
 
-        // Base system prompt - AI 生成卡片数据
+        // Base system prompt - AI generates card data
         private const val BASE_SYSTEM_PROMPT = """
 You are Notti, a friendly AI assistant for University of Nottingham Malaysia (UNM) students.
 
@@ -56,8 +56,8 @@ Respond with ONLY a valid JSON object:
 }
 
 ## INTENT CLASSIFICATION
-**shuttle**: 校车, bus, shuttle, TBS, Kajang, KTM, MRT, TTS, IOI, LOTUS, 去哪里, schedule, 几点
-**booking**: 预订, book, sports, basketball, badminton, tennis, court, 场地
+**shuttle**: shuttle bus, bus, shuttle, TBS, Kajang, KTM, MRT, TTS, IOI, LOTUS, where to go, schedule, what time
+**booking**: booking, book, sports, basketball, badminton, tennis, court, facility
 **general**: everything else
 
 ## SHUTTLE CARD GENERATION RULES
@@ -65,8 +65,8 @@ Respond with ONLY a valid JSON object:
 When intent is "shuttle", use the [SHUTTLE DATA] section to generate accurate cardData:
 
 1. **Determine TARGET DATE**:
-   - "今天/today" → use TODAY from [DATE CONTEXT]
-   - "明天/tomorrow" → use TOMORROW from [DATE CONTEXT]
+   - "today" → use TODAY from [DATE CONTEXT]
+   - "tomorrow" → use TOMORROW from [DATE CONTEXT]
    - Default to TODAY if not specified
 
 2. **Filter by DAY TYPE**:
@@ -88,9 +88,9 @@ When intent is "shuttle", use the [SHUTTLE DATA] section to generate accurate ca
    - For tomorrow: "Nov 28 · Friday (Tomorrow)"
 
 5. **Filter times by user request**:
-   - "早上/morning" → show times before 12:00pm
-   - "下午/afternoon" → show times 12:00pm-6:00pm
-   - "晚上/evening" → show times after 6:00pm
+   - "morning" → show times before 12:00pm
+   - "afternoon" → show times 12:00pm-6:00pm
+   - "evening" → show times after 6:00pm
    - If user asks about specific destination, show that route
 
 ## ROUTE REFERENCE (verify against [SHUTTLE DATA]):
@@ -113,32 +113,38 @@ For "booking" intent:
 ## GENERAL
 For "general" intent: set cardData to null
 
+## LANGUAGE RULE (IMPORTANT!)
+**ALWAYS respond in the SAME language as the user's message:**
+- If user writes in Chinese → Reply in Chinese
+- If user writes in English → Reply in English
+- If user mixes languages → Match the primary language used
+
 ## RESPONSE GUIDELINES
-- Match the language of the user (Chinese/English)
 - Keep message concise (2-3 sentences)
 - Use emoji sparingly 🚌 🏀
+- Be friendly and helpful
 
 Output ONLY valid JSON!
 """
     }
 
-    // 聊天消息列表
+    // Chat message list
     private val _messages = MutableLiveData<List<NottiMessage>>(emptyList())
     val messages: LiveData<List<NottiMessage>> = _messages
 
-    // 是否正在等待 AI 响应
+    // Whether waiting for AI response
     private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // 本地聊天记录存储
+    // Local chat history storage
     private val chatStorage = NottiChatStorage(application)
     private val currentUserId: String = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    // Firebase Database 引用
+    // Firebase Database reference
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val bookingsRef = database.getReference("bookings")
 
-    // 初始化 Gemini 模型 - 使用免费的 Gemini Developer API
+    // Initialize Gemini model - using free Gemini Developer API
     private val generativeModel by lazy {
         Firebase.ai(backend = GenerativeBackend.googleAI())
             .generativeModel(
@@ -147,37 +153,37 @@ Output ONLY valid JSON!
             )
     }
 
-    // 对话历史（用于保持上下文）
+    // Conversation history (for maintaining context)
     private val chat by lazy {
         generativeModel.startChat()
     }
 
-    // 校车时刻表数据
+    // Shuttle bus schedule data
     private val shuttleRoutes: List<ShuttleRoute> by lazy { loadShuttleRoutes() }
 
     /**
-     * AI 响应的数据类
+     * Data class for AI response
      */
     private data class NottiAIResponse(
         val intent: String,  // "shuttle", "booking", "general"
         val message: String,
-        val cardData: NottiCardData?  // AI 生成的卡片数据
+        val cardData: NottiCardData?  // AI-generated card data
     )
 
     init {
-        // 加载本地缓存的聊天记录
+        // Load locally cached chat history
         loadChatHistory()
     }
 
     /**
-     * 从本地存储加载聊天记录
+     * Load chat history from local storage
      */
     private fun loadChatHistory() {
         val savedMessages = chatStorage.loadChatHistory(currentUserId)
         if (savedMessages.isNotEmpty()) {
             _messages.value = savedMessages
         } else {
-            // 没有历史记录，显示欢迎消息
+            // No history, show welcome message
             addMessage(
                 NottiMessage(
                     content = "Hi! I'm Notti, your AI campus assistant. How can I help you today?",
@@ -188,35 +194,35 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 保存聊天记录到本地存储
+     * Save chat history to local storage
      */
     private fun saveChatHistory() {
         val currentMessages = _messages.value ?: return
         chatStorage.saveChatHistory(currentUserId, currentMessages)
     }
 
-    // 消息计数器，确保每条消息有唯一 ID
+    // Message counter to ensure each message has unique ID
     private var messageCounter = 0L
 
     /**
-     * 生成唯一消息 ID
+     * Generate unique message ID
      */
     private fun generateMessageId(): String {
         return "${System.currentTimeMillis()}_${messageCounter++}"
     }
 
     /**
-     * 发送消息给 AI 并获取响应
+     * Send message to AI and get response
      */
     fun sendMessage(userMessage: String) {
         if (userMessage.isBlank()) return
 
-        // 提前生成 loading 消息 ID，以便在 catch 中使用
+        // Pre-generate loading message ID for use in catch block
         val loadingMessageId = generateMessageId()
 
         viewModelScope.launch {
             try {
-                // 添加用户消息 - 使用唯一 ID
+                // Add user message - use unique ID
                 val userNottiMessage = NottiMessage(
                     id = generateMessageId(),
                     content = userMessage.trim(),
@@ -224,7 +230,7 @@ Output ONLY valid JSON!
                 )
                 addMessage(userNottiMessage)
 
-                // 添加加载中的 AI 消息
+                // Add loading AI message
                 val loadingMessage = NottiMessage(
                     id = loadingMessageId,
                     content = "",
@@ -235,26 +241,26 @@ Output ONLY valid JSON!
 
                 _isLoading.value = true
 
-                // 构建包含真实数据的提示
+                // Build prompt with real data
                 val enrichedMessage = buildEnrichedPrompt(userMessage)
 
                 Log.d(TAG, "Enriched prompt: $enrichedMessage")
 
-                // 调用 Gemini API
+                // Call Gemini API
                 val response = chat.sendMessage(enrichedMessage)
                 val aiResponse = response.text ?: """{"type":"text","message":"Sorry, I couldn't generate a response.","cardData":null}"""
 
                 Log.d(TAG, "AI Response: $aiResponse")
 
-                // 解析 AI 的 JSON 响应
+                // Parse AI's JSON response
                 val parsedResponse = parseAIResponse(aiResponse)
 
                 Log.d(TAG, "Parsed response: intent=${parsedResponse.intent}, hasCardData=${parsedResponse.cardData != null}")
 
-                // 根据意图类型处理响应
+                // Handle response based on intent type
                 when {
                     parsedResponse.intent == "shuttle" && parsedResponse.cardData != null -> {
-                        // 校车卡片 - 使用 AI 生成的卡片数据
+                        // Shuttle card - use AI-generated card data
                         val shuttleCard = NottiMessage(
                             id = generateMessageId(),
                             content = "",
@@ -263,7 +269,7 @@ Output ONLY valid JSON!
                             cardData = parsedResponse.cardData
                         )
                         removeMessage(loadingMessageId)
-                        addMessage(shuttleCard)
+                        // Add text message first, then card
                         addMessage(
                             NottiMessage(
                                 id = generateMessageId(),
@@ -272,9 +278,10 @@ Output ONLY valid JSON!
                                 isLoading = false
                             )
                         )
+                        addMessage(shuttleCard)
                     }
                     parsedResponse.intent == "shuttle" && parsedResponse.cardData == null -> {
-                        // 校车意图但 AI 没生成卡片数据 - 使用本地数据作为后备
+                        // Shuttle intent but AI didn't generate card data - use local data as fallback
                         val cardData = createShuttleCardData()
                         val shuttleCard = NottiMessage(
                             id = generateMessageId(),
@@ -284,7 +291,7 @@ Output ONLY valid JSON!
                             cardData = cardData
                         )
                         removeMessage(loadingMessageId)
-                        addMessage(shuttleCard)
+                        // Add text message first, then card
                         addMessage(
                             NottiMessage(
                                 id = generateMessageId(),
@@ -293,9 +300,10 @@ Output ONLY valid JSON!
                                 isLoading = false
                             )
                         )
+                        addMessage(shuttleCard)
                     }
                     parsedResponse.intent == "booking" -> {
-                        // 预订卡片
+                        // Booking card
                         val cardData = parsedResponse.cardData ?: createBookingCardData()
                         val bookingCard = NottiMessage(
                             id = generateMessageId(),
@@ -305,7 +313,7 @@ Output ONLY valid JSON!
                             cardData = cardData
                         )
                         removeMessage(loadingMessageId)
-                        addMessage(bookingCard)
+                        // Add text message first, then card
                         addMessage(
                             NottiMessage(
                                 id = generateMessageId(),
@@ -314,9 +322,10 @@ Output ONLY valid JSON!
                                 isLoading = false
                             )
                         )
+                        addMessage(bookingCard)
                     }
                     else -> {
-                        // 普通文字消息
+                        // Regular text message
                         updateMessage(
                             loadingMessageId,
                             NottiMessage(
@@ -332,14 +341,14 @@ Output ONLY valid JSON!
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending message to Gemini", e)
 
-                // 显示错误消息
+                // Display error message
                 val errorMessage = when {
                     e.message?.contains("API key") == true -> "API configuration error. Please check Firebase setup."
                     e.message?.contains("network") == true -> "Network error. Please check your connection."
                     else -> "Sorry, something went wrong. Please try again."
                 }
 
-                // 使用具体的 loadingMessageId 更新错误状态
+                // Update error state using specific loadingMessageId
                 updateMessage(
                     loadingMessageId,
                     NottiMessage(
@@ -356,21 +365,21 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 解析 AI 的 JSON 响应
-     * 如果 JSON 解析失败，使用关键词检测作为后备方案
+     * Parse AI's JSON response
+     * If JSON parsing fails, use keyword detection as fallback
      */
     private fun parseAIResponse(response: String): NottiAIResponse {
         return try {
-            // 尝试提取 JSON（AI 可能在 JSON 前后添加了其他文本）
+            // Try to extract JSON (AI may have added other text before and after JSON)
             val jsonString = extractJson(response)
             val jsonObject = JSONObject(jsonString)
 
-            // 支持多种格式
+            // Support multiple formats
             val intent = jsonObject.optString("intent", null)
                 ?: mapTypeToIntent(jsonObject.optString("type", "general"))
             val message = jsonObject.optString("message", response)
 
-            // 解析 cardData
+            // Parse card data
             val cardData = if (jsonObject.has("cardData") && !jsonObject.isNull("cardData")) {
                 parseCardData(jsonObject.getJSONObject("cardData"))
             } else null
@@ -379,13 +388,13 @@ Output ONLY valid JSON!
             NottiAIResponse(intent, message, cardData)
         } catch (e: Exception) {
             Log.w(TAG, "JSON parse failed, using keyword detection: ${e.message}")
-            // 回退：使用关键词检测意图（cardData 为 null，使用本地生成）
+            // Fallback: use keyword detection for intent (cardData is null, use locally generated)
             detectIntentFromText(response)
         }
     }
 
     /**
-     * 解析卡片数据
+     * Parse card data
      */
     private fun parseCardData(json: JSONObject): NottiCardData {
         val title = json.optString("title", "")
@@ -411,7 +420,7 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 将旧的 type 格式映射到新的 intent 格式
+     * Map old type format to new intent format
      */
     private fun mapTypeToIntent(type: String): String {
         return when (type.lowercase()) {
@@ -422,25 +431,25 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 从文本中检测意图（关键词匹配后备方案）
+     * Detect intent from text (keyword matching fallback method)
      */
     private fun detectIntentFromText(text: String): NottiAIResponse {
         val lowerText = text.lowercase()
 
-        // 校车关键词
+        // Shuttle bus keywords
         val shuttleKeywords = listOf(
-            "shuttle", "bus", "校车", "班车", "transport",
+            "shuttle", "bus", "shuttle", "shuttle", "transport",
             "tbs", "kajang", "ktm", "mrt", "tts", "the square",
             "ioi", "lotus", "semenyih", "mosque", "route",
-            "schedule", "timetable", "departure", "时刻", "几点"
+            "schedule", "timetable", "departure", "schedule", "what time"
         )
 
-        // 预订关键词
+        // Booking keywords
         val bookingKeywords = listOf(
-            "book", "booking", "reserve", "预订", "订场",
+            "book", "booking", "reserve", "booking", "book court",
             "basketball", "badminton", "tennis", "squash", "football",
-            "篮球", "羽毛球", "网球", "court", "facility", "sports",
-            "运动", "场地", "available"
+            "basketball", "badminton", "tennis", "court", "facility", "sports",
+            "sports", "court", "available"
         )
 
         val intent = when {
@@ -449,7 +458,7 @@ Output ONLY valid JSON!
             else -> "general"
         }
 
-        // 清理响应文本（移除可能的 JSON 残留）
+        // Clean response text (remove potential JSON remnants)
         val cleanMessage = text
             .replace(Regex("```json\\s*"), "")
             .replace(Regex("```\\s*"), "")
@@ -458,21 +467,21 @@ Output ONLY valid JSON!
             .ifEmpty { text }
 
         Log.d(TAG, "Keyword detection: intent=$intent")
-        // cardData 为 null，将使用本地生成的数据
+        // cardData is null, will use locally generated data
         return NottiAIResponse(intent, cleanMessage, null)
     }
 
     /**
-     * 从响应中提取 JSON 对象
+     * Extract JSON object from response
      */
     private fun extractJson(response: String): String {
-        // 移除可能的 markdown 代码块标记
+        // Remove potential markdown code block markers
         var cleaned = response
             .replace(Regex("```json\\s*"), "")
             .replace(Regex("```\\s*"), "")
             .trim()
 
-        // 尝试找到 JSON 对象的开始和结束
+        // Try to find the start and end of JSON object
         val startIndex = cleaned.indexOf('{')
         val endIndex = cleaned.lastIndexOf('}')
 
@@ -484,17 +493,17 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 移除消息
+     * Remove message
      */
     private fun removeMessage(messageId: String) {
         val currentMessages = _messages.value?.toMutableList() ?: mutableListOf()
         currentMessages.removeAll { it.id == messageId }
         _messages.value = currentMessages
-        // 不在 removeMessage 时保存，因为通常会紧跟其他消息操作
+        // Don't save when removing because it usually follows other message operations
     }
 
     /**
-     * 处理快捷操作
+     * Handle quick actions
      */
     fun handleQuickAction(action: QuickAction) {
         val message = when (action) {
@@ -510,7 +519,7 @@ Output ONLY valid JSON!
         val currentMessages = _messages.value?.toMutableList() ?: mutableListOf()
         currentMessages.add(message)
         _messages.value = currentMessages
-        // 只有非 loading 消息才保存到本地
+        // Only non-loading messages are saved locally
         if (shouldSave && !message.isLoading) {
             saveChatHistory()
         }
@@ -522,7 +531,7 @@ Output ONLY valid JSON!
         if (index != -1) {
             currentMessages[index] = newMessage
             _messages.value = currentMessages
-            // 更新完成后保存（如果不是 loading 状态）
+            // Save after update (if not in loading state)
             if (!newMessage.isLoading) {
                 saveChatHistory()
             }
@@ -530,7 +539,7 @@ Output ONLY valid JSON!
     }
 
     /**
-     * 清空聊天记录
+     * Clear chat history
      */
     fun clearChat() {
         _messages.value = listOf(
@@ -539,7 +548,7 @@ Output ONLY valid JSON!
                 isFromUser = false
             )
         )
-        // 清空后保存（只有欢迎消息）
+        // Save after clearing (only welcome message)
         saveChatHistory()
     }
 
@@ -547,14 +556,14 @@ Output ONLY valid JSON!
         SHUTTLE, BOOKING, EVENTS, HELP
     }
 
-    // ==================== 数据增强功能 ====================
+    // ==================== Data enrichment functionality ====================
 
     /**
-     * 构建增强的提示
-     * 提供完整的上下文信息，包括时刻表数据，让 AI 能准确生成卡片
+     * Build enriched prompt
+     * Provides complete context information including schedule data for accurate AI card generation
      */
     private suspend fun buildEnrichedPrompt(userMessage: String): String {
-        // 获取当前时间上下文
+        // Get current time context
         val calendar = Calendar.getInstance()
         val dateFormat = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.ENGLISH)
         val shortDateFormat = SimpleDateFormat("MMM d", Locale.ENGLISH)
@@ -570,7 +579,7 @@ Output ONLY valid JSON!
             DayType.WEEKEND -> "Weekend"
         }
 
-        // 获取明天的日期和类型
+        // Get tomorrow's date and type
         val tomorrowCalendar = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
         val tomorrowDate = dateFormat.format(tomorrowCalendar.time)
         val tomorrowShortDate = shortDateFormat.format(tomorrowCalendar.time)
@@ -585,7 +594,7 @@ Output ONLY valid JSON!
             DayType.WEEKEND -> "Weekend"
         }
 
-        // 获取完整的校车时刻表数据
+        // Get complete shuttle schedule data
         val shuttleData = getFullShuttleScheduleData()
 
         return """
@@ -606,7 +615,7 @@ $shuttleData
 $userMessage
 
 [INSTRUCTIONS]
-1. Determine TARGET DATE from user's message (今天/today → TODAY, 明天/tomorrow → TOMORROW)
+1. Determine TARGET DATE from user's message (today → TODAY, tomorrow → TOMORROW)
 2. Use the TARGET DATE's day type to filter routes (only include routes with service on that day)
 3. Generate cardData with subtitle format: "$tomorrowShortDate · $tomorrowDayTypeName (Tomorrow)" for tomorrow
 4. ONLY output valid JSON with intent, message, and cardData
@@ -614,13 +623,13 @@ $userMessage
     }
 
     /**
-     * 获取完整的校车时刻表数据（供 AI 使用）
+     * Get complete shuttle schedule data (for AI use)
      */
     private fun getFullShuttleScheduleData(): String {
         val scheduleBuilder = StringBuilder()
 
         for (route in shuttleRoutes) {
-            scheduleBuilder.appendLine("【${route.routeId}】${route.routeName}: ${route.description}")
+            scheduleBuilder.appendLine("[${route.routeId}] ${route.routeName}: ${route.description}")
 
             // Weekday schedule
             if (route.weekdaySchedule != null) {
@@ -677,7 +686,7 @@ $userMessage
     }
 
     /**
-     * 获取今天的校车时刻表上下文
+     * Get today's shuttle schedule context
      */
     private fun getShuttleScheduleContext(): String {
         val dayType = getCurrentDayType()
@@ -705,7 +714,7 @@ $userMessage
                 DayType.WEEKEND -> route.weekendSchedule
             }
 
-            scheduleBuilder.appendLine("【${route.routeName}】${route.description}")
+            scheduleBuilder.appendLine("[${route.routeName}] ${route.description}")
 
             if (schedule != null) {
                 if (schedule.departureFromCampus.isNotEmpty()) {
@@ -728,7 +737,7 @@ $userMessage
     }
 
     /**
-     * 获取当前日期类型
+     * Get current day type
      */
     private fun getCurrentDayType(): DayType {
         val calendar = Calendar.getInstance()
@@ -740,7 +749,7 @@ $userMessage
     }
 
     /**
-     * 获取预订可用性上下文
+     * Get booking availability context
      */
     private suspend fun getBookingAvailabilityContext(): String {
         return try {
@@ -776,12 +785,12 @@ $userMessage
             contextBuilder.appendLine()
 
             if (bookedSlots.isEmpty()) {
-                contextBuilder.appendLine("✅ All time slots are currently available for booking!")
+                contextBuilder.appendLine("All time slots are currently available for booking!")
                 contextBuilder.appendLine("Available time slots: ${timeSlots.joinToString(", ")}")
             } else {
                 contextBuilder.appendLine("Currently booked slots:")
                 bookedSlots.forEach { slot ->
-                    contextBuilder.appendLine("  ❌ ${slot["facilityName"]} - ${formatBookingTime(slot)}")
+                    contextBuilder.appendLine("  ${slot["facilityName"]} - ${formatBookingTime(slot)}")
                 }
                 contextBuilder.appendLine()
                 contextBuilder.appendLine("Users can book available slots through the Booking section of the app.")
@@ -803,7 +812,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
     }
 
     /**
-     * 从 Firebase 获取已预订的时段
+     * Get booked time slots from Firebase
      */
     private suspend fun getBookedSlotsFromFirebase(): List<Map<String, Any>> {
         return suspendCancellableCoroutine { continuation ->
@@ -824,7 +833,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                         for (child in snapshot.children) {
                             val booking = child.value as? Map<String, Any> ?: continue
                             val status = booking["status"] as? String ?: ""
-                            // 只包含已确认或待处理的预订
+                            // Only include confirmed or pending bookings
                             if (status == "CONFIRMED" || status == "PENDING") {
                                 bookings.add(booking)
                             }
@@ -841,7 +850,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
     }
 
     /**
-     * 格式化预订时间显示
+     * Format booking time display
      */
     private fun formatBookingTime(booking: Map<String, Any>): String {
         val startTime = booking["startTime"] as? Long ?: return "Unknown time"
@@ -858,11 +867,11 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
     }
 
     /**
-     * 加载校车时刻表数据
+     * Load shuttle schedule data
      */
     private fun loadShuttleRoutes(): List<ShuttleRoute> {
         return listOf(
-            // Route #A: UNM TBS UNM
+            // Route A: UNM TBS UNM
             ShuttleRoute(
                 routeId = "A",
                 routeName = "Route A",
@@ -878,7 +887,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 weekendSchedule = null
             ),
 
-            // Route #B: UNM Kj KTM/MRT UNM
+            // Route B: UNM Kajang KTM/MRT UNM
             ShuttleRoute(
                 routeId = "B",
                 routeName = "Route B",
@@ -917,7 +926,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 specialNote = "Passes MRT Sg Jernih before Kajang KTM"
             ),
 
-            // Route #C1: UNM TTS UNM
+            // Route C1: UNM TTS UNM
             ShuttleRoute(
                 routeId = "C1",
                 routeName = "Route C1",
@@ -949,11 +958,11 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 weekendSchedule = null
             ),
 
-            // Route #C2: TTS UNM
+            // Route C2: TTS UNM
             ShuttleRoute(
                 routeId = "C2",
                 routeName = "Route C2",
-                description = "TTS → UNM (Morning)",
+                description = "TTS to UNM (Morning)",
                 weekdaySchedule = RouteSchedule(
                     departureFromCampus = emptyList(),
                     returnToCampus = listOf("8:00am", "8:30am")
@@ -969,7 +978,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 specialNote = "Weekend service goes via TTS to IOI City Mall"
             ),
 
-            // Route #D: UNM LOTUS Semenyih UNM
+            // Route D: UNM LOTUS Semenyih UNM
             ShuttleRoute(
                 routeId = "D",
                 routeName = "Route D",
@@ -988,11 +997,11 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 )
             ),
 
-            // Route #E1: Friday Prayer Route
+            // Route E1: Friday Prayer Route
             ShuttleRoute(
                 routeId = "E1",
                 routeName = "Route E1",
-                description = "UNM ↔ Al-Itt'a Mosque ↔ TTS",
+                description = "UNM ↔ Al-Itta Mosque ↔ TTS",
                 weekdaySchedule = null,
                 fridaySchedule = RouteSchedule(
                     departureFromCampus = listOf("12:45pm", "1:00pm", "1:15pm"),
@@ -1002,7 +1011,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 specialNote = "Friday Prayer Service Only"
             ),
 
-            // Route #E2: Friday Prayer Route
+            // Route E2: Friday Prayer Route
             ShuttleRoute(
                 routeId = "E2",
                 routeName = "Route E2",
@@ -1016,7 +1025,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
                 specialNote = "Friday Prayer Service Only"
             ),
 
-            // Route #G: UNM-IOI
+            // Route G: UNM-IOI
             ShuttleRoute(
                 routeId = "G",
                 routeName = "Route G",
@@ -1032,10 +1041,10 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
         )
     }
 
-    // ==================== 卡片生成功能 ====================
+    // ==================== Card generation functionality ====================
 
     /**
-     * 创建校车时刻表卡片数据
+     * Create shuttle schedule card data
      */
     private fun createShuttleCardData(): NottiCardData {
         val dayType = getCurrentDayType()
@@ -1049,7 +1058,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
         val dateFormat = SimpleDateFormat("MMM d", Locale.ENGLISH)
         val currentDate = dateFormat.format(calendar.time)
 
-        // 构建路线项目列表
+        // Build route items list
         val routeItems = mutableListOf<NottiCardItem>()
 
         for (route in shuttleRoutes) {
@@ -1060,11 +1069,11 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
             }
 
             if (schedule != null) {
-                // 获取即将出发的时间（最多显示4个）
+                // Get upcoming departure times (show max 4)
                 val nextDepartures = if (schedule.departureFromCampus.isNotEmpty()) {
-                    "→ ${schedule.departureFromCampus.take(4).joinToString(", ")}"
+                    "to ${schedule.departureFromCampus.take(4).joinToString(", ")}"
                 } else if (schedule.returnToCampus.isNotEmpty()) {
-                    "← ${schedule.returnToCampus.take(4).joinToString(", ")}"
+                    "from ${schedule.returnToCampus.take(4).joinToString(", ")}"
                 } else {
                     "No service"
                 }
@@ -1087,7 +1096,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
     }
 
     /**
-     * 创建预订卡片数据
+     * Create booking card data
      */
     private suspend fun createBookingCardData(): NottiCardData {
         val bookedSlots = try {
@@ -1100,7 +1109,7 @@ To book: Go to Booking section in the app > Select a facility > Choose date and 
         val dateFormat = SimpleDateFormat("MMM d", Locale.ENGLISH)
         val today = dateFormat.format(calendar.time)
 
-        // 构建已预订时段列表
+        // Build booked time slots list
         val bookedItems = bookedSlots.map { slot ->
             NottiCardItem(
                 label = slot["facilityName"]?.toString() ?: "Unknown",

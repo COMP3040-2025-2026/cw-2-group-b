@@ -9,10 +9,10 @@ import kotlinx.coroutines.tasks.await
 /**
  * Firebase Booking Repository
  *
- * 直接从 Firebase Realtime Database 读取和创建预订数据
- * 不再依赖 Spring Boot 后端 API
+ * Reads and creates booking data directly from Firebase Realtime Database.
+ * No longer depends on Spring Boot backend API.
  *
- * Firebase 数据结构：
+ * Firebase data structure:
  * bookings/{bookingId}: {
  *   userId: "student1",
  *   userName: "Alice Wong",
@@ -27,14 +27,14 @@ import kotlinx.coroutines.tasks.await
  */
 class FirebaseBookingRepository {
 
-    // ⚠️ 重要：必须指定数据库 URL，因为数据库在 asia-southeast1 区域
+    // Important: Must specify database URL as database is in asia-southeast1 region
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val bookingsRef: DatabaseReference = database.getReference("bookings")
 
     /**
-     * 创建新的预订
-     * @param booking 预订数据
-     * @return Result<String> 预订ID或错误
+     * Create new booking
+     * @param booking Booking data
+     * @return Result<String> Booking ID or error
      */
     suspend fun createBooking(booking: Map<String, Any>): Result<String> {
         return try {
@@ -55,9 +55,9 @@ class FirebaseBookingRepository {
     }
 
     /**
-     * 获取用户的所有预订
-     * @param userId 用户ID
-     * @return Flow<List<Map<String, Any>>> 预订列表流
+     * Get user's all bookings
+     * @param userId User ID
+     * @return Flow<List<Map<String, Any>>> Booking list flow
      */
     fun getUserBookings(userId: String): Flow<List<Map<String, Any>>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -71,7 +71,7 @@ class FirebaseBookingRepository {
                     bookings.add(bookingWithId)
                 }
 
-                // 按创建时间倒序排列
+                // Sort by creation time descending
                 bookings.sortByDescending { it["createdAt"] as? Long ?: 0L }
                 trySend(bookings)
             }
@@ -89,8 +89,8 @@ class FirebaseBookingRepository {
     }
 
     /**
-     * 取消预订
-     * @param bookingId 预订ID
+     * Cancel booking
+     * @param bookingId Booking ID
      * @return Result<Unit>
      */
     suspend fun cancelBooking(bookingId: String): Result<Unit> {
@@ -108,8 +108,8 @@ class FirebaseBookingRepository {
     }
 
     /**
-     * 删除预订记录（从数据库中完全删除）
-     * @param bookingId 预订ID
+     * Delete booking record (completely remove from database)
+     * @param bookingId Booking ID
      * @return Result<Unit>
      */
     suspend fun deleteBooking(bookingId: String): Result<Unit> {
@@ -124,13 +124,13 @@ class FirebaseBookingRepository {
     }
 
     /**
-     * 获取特定设施在特定日期的所有预订
-     * 使用客户端过滤避免需要 Firebase 索引
+     * Get all bookings for a specific facility on a specific date
+     * Uses client-side filtering to avoid needing Firebase indexes
      *
-     * @param facilityName 场地名称
-     * @param dateStart 日期开始时间戳 (当天00:00:00)
-     * @param dateEnd 日期结束时间戳 (当天23:59:59)
-     * @return Result<List<Map<String, Any>>> 预订列表
+     * @param facilityName Facility name
+     * @param dateStart Date start timestamp (day's 00:00:00)
+     * @param dateEnd Date end timestamp (day's 23:59:59)
+     * @return Result<List<Map<String, Any>>> Booking list
      */
     suspend fun getBookingsByFacilityAndDate(
         facilityName: String,
@@ -138,7 +138,7 @@ class FirebaseBookingRepository {
         dateEnd: Long
     ): Result<List<Map<String, Any>>> {
         return try {
-            // 获取所有预订，然后在客户端过滤（避免需要 Firebase 索引）
+            // Get all bookings, then filter on client side (avoids needing Firebase indexes)
             val snapshot = bookingsRef.get().await()
             val bookings = mutableListOf<Map<String, Any>>()
 
@@ -148,13 +148,13 @@ class FirebaseBookingRepository {
                 val startTime = (booking["startTime"] as? Long) ?: continue
                 val status = booking["status"] as? String ?: ""
 
-                // 匹配设施名称
+                // Match facility name
                 if (bookingFacility != facilityName) continue
 
-                // 跳过已取消的预订
+                // Skip cancelled bookings
                 if (status == "CANCELLED") continue
 
-                // 检查预订是否在指定日期内
+                // Check if booking is within specified date
                 if (startTime >= dateStart && startTime < dateEnd) {
                     val bookingWithId = booking.toMutableMap()
                     bookingWithId["id"] = child.key ?: ""
@@ -165,41 +165,41 @@ class FirebaseBookingRepository {
             Result.success(bookings)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseBookingRepo", "Error getting bookings by date: ${e.message}")
-            // 返回空列表而不是失败，这样用户仍可以尝试预订
+            // Return empty list instead of failure so user can still try to book
             Result.success(emptyList())
         }
     }
 
     /**
-     * 获取特定时间段的可用性
-     * 使用客户端过滤避免需要 Firebase 索引
+     * Get availability for a specific time slot
+     * Uses client-side filtering to avoid needing Firebase indexes
      *
-     * @param facilityName 场地名称
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return Boolean 是否可用
+     * @param facilityName Facility name
+     * @param startTime Start time
+     * @param endTime End time
+     * @return Boolean Whether available
      */
     suspend fun checkAvailability(facilityName: String, startTime: Long, endTime: Long): Boolean {
         return try {
-            // 获取所有预订，然后在客户端过滤
+            // Get all bookings, then filter on client side
             val snapshot = bookingsRef.get().await()
 
-            // 检查是否有冲突的预订
+            // Check for conflicting bookings
             for (child in snapshot.children) {
                 val booking = child.value as? Map<String, Any> ?: continue
                 val bookingFacility = booking["facilityName"] as? String ?: continue
 
-                // 只检查同一设施的预订
+                // Only check bookings for the same facility
                 if (bookingFacility != facilityName) continue
 
                 val bookingStart = (booking["startTime"] as? Long) ?: 0L
                 val bookingEnd = (booking["endTime"] as? Long) ?: 0L
                 val status = booking["status"] as? String ?: ""
 
-                // 跳过已取消的预订
+                // Skip cancelled bookings
                 if (status == "CANCELLED") continue
 
-                // 检查时间冲突
+                // Check for time conflict
                 if (startTime < bookingEnd && endTime > bookingStart) {
                     android.util.Log.d("FirebaseBookingRepo", "Time conflict found with existing booking")
                     return false
@@ -209,7 +209,7 @@ class FirebaseBookingRepository {
             true
         } catch (e: Exception) {
             android.util.Log.e("FirebaseBookingRepo", "Error checking availability: ${e.message}")
-            // 出错时返回 true，允许用户尝试预订
+            // Return true on error to allow user to try booking
             true
         }
     }

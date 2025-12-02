@@ -13,7 +13,7 @@ class InstattCalendarFragment : Fragment() {
     private var _binding: FragmentInstattCalendarBinding? = null
     private val binding get() = _binding!!
 
-    // 使用父 Fragment 的共享 ViewModel
+    // Use parent Fragment's shared ViewModel
     private val viewModel: InstattViewModel by viewModels({ requireParentFragment() })
 
     private lateinit var adapter: DayAdapter
@@ -38,10 +38,10 @@ class InstattCalendarFragment : Fragment() {
     private fun setupDaysList() {
         // Initialize adapter with empty data
         adapter = DayAdapter(daysWithCourses) { position ->
-            // 先更新本地数据状态
+            // Update local data state first
             if (position in daysWithCourses.indices) {
                 daysWithCourses[position].isExpanded = !daysWithCourses[position].isExpanded
-                // 只通知单个 item 变化，触发动画
+                // Only notify single item change to trigger animation
                 adapter.notifyItemChanged(position)
             }
         }
@@ -49,19 +49,19 @@ class InstattCalendarFragment : Fragment() {
     }
 
     private fun observeData() {
-        // 观察预加载的周课表数据
+        // Observe preloaded weekly schedule data
         viewModel.weekCourses.observe(viewLifecycleOwner) { courses ->
             if (courses.isNotEmpty() && daysWithCourses.isEmpty()) {
-                // 只在首次加载时更新全部数据
+                // Only update all data on first load
                 daysWithCourses.clear()
                 daysWithCourses.addAll(courses)
                 adapter.notifyDataSetChanged()
             }
         }
 
-        // 观察加载状态（可选：显示加载指示器）
+        // Observe loading state (optional: show loading indicator)
         viewModel.isWeekCoursesLoading.observe(viewLifecycleOwner) { isLoading ->
-            // 如果布局中有 ProgressBar，可以在这里控制显示/隐藏
+            // If layout has ProgressBar, can control visibility here
             // binding.progressBar?.isVisible = isLoading
         }
     }

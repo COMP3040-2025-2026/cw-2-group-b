@@ -24,7 +24,7 @@ class BookingDetailsFragment : Fragment(R.layout.fragment_booking_details) {
     private var _binding: FragmentBookingDetailsBinding? = null
     private val binding get() = _binding!!
     
-    // 获取 ViewModel
+    // Get ViewModel
     private val viewModel: BookingViewModel by viewModels()
 
     private lateinit var tokenManager: TokenManager

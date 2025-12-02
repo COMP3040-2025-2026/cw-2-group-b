@@ -26,7 +26,7 @@ class DayAdapter(
     private val onToggleExpand: (Int) -> Unit
 ) : RecyclerView.Adapter<DayAdapter.DayViewHolder>() {
 
-    // 记录每个位置的上一次展开状态
+    // Track previous expansion state for each position
     private val previousExpandStates = mutableMapOf<Int, Boolean>()
 
     inner class DayViewHolder(private val binding: ItemDayBinding) :
@@ -53,25 +53,25 @@ class DayAdapter(
                     onToggleExpand(position)
                 }
 
-                // 获取需要动画的内容视图
+                // Get content view for animation
                 val contentView = if (dayWithCourses.courses.isEmpty()) tvNoCourses else rvCourses
 
-                // 每次绑定时都更新 adapter（因为 ViewHolder 会被复用）
+                // Update adapter on each binding (since ViewHolder gets reused)
                 if (dayWithCourses.courses.isNotEmpty()) {
                     coursesAdapter = DayCoursesAdapter(dayWithCourses.courses)
                     rvCourses.adapter = coursesAdapter
                 }
 
-                // 检查是否需要动画（状态变化时）- 使用 adapter 级别的状态跟踪
+                // Check if animation needed (on state change) - use adapter-level state tracking
                 val previousState = previousExpandStates[position]
                 val shouldAnimate = previousState != null && previousState != dayWithCourses.isExpanded
                 previousExpandStates[position] = dayWithCourses.isExpanded
 
                 if (shouldAnimate) {
-                    // 取消之前的动画
+                    // Cancel previous animation
                     currentAnimator?.cancel()
 
-                    // 箭头旋转动画
+                    // Arrow rotation animation
                     val targetRotation = if (dayWithCourses.isExpanded) 180f else 0f
                     ivExpandIcon.animate()
                         .rotation(targetRotation)
@@ -79,14 +79,14 @@ class DayAdapter(
                         .setInterpolator(AccelerateDecelerateInterpolator())
                         .start()
 
-                    // 展开/收起动画
+                    // Expand/collapse animation
                     if (dayWithCourses.isExpanded) {
                         expandView(contentView)
                     } else {
                         collapseView(contentView)
                     }
                 } else {
-                    // 初始状态，不需要动画
+                    // Initial state, no animation needed
                     ivExpandIcon.rotation = if (dayWithCourses.isExpanded) 180f else 0f
 
                     if (dayWithCourses.isExpanded) {
@@ -106,20 +106,20 @@ class DayAdapter(
         }
 
         /**
-         * 平滑展开视图
+         * Smoothly expand view
          */
         private fun expandView(view: View) {
             view.visibility = View.VISIBLE
             view.alpha = 0f
 
-            // 测量视图高度
+            // Measure view height
             view.measure(
                 View.MeasureSpec.makeMeasureSpec(binding.root.width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
             )
             val targetHeight = view.measuredHeight
 
-            // 设置初始高度为 0
+            // Set initial height to 0
             view.layoutParams.height = 0
             view.requestLayout()
 
@@ -142,7 +142,7 @@ class DayAdapter(
         }
 
         /**
-         * 平滑收起视图
+         * Smoothly collapse view
          */
         private fun collapseView(view: View) {
             val initialHeight = view.height
@@ -183,7 +183,7 @@ class DayAdapter(
     override fun getItemCount(): Int = daysWithCourses.size
 
     /**
-     * Update the entire dataset
+     * Update entire dataset
      */
     fun updateData(newData: List<DayWithCourses>) {
         previousExpandStates.clear()
@@ -217,7 +217,7 @@ class DayCoursesAdapter(
                 tvLocation.text = course.location ?: "TBA"
                 tvCourseType.text = course.courseType.displayName
 
-                // Set status indicator (simplified version for calendar view)
+                // Set status indicator (simplified for calendar view)
                 when (course.todayStatus) {
                     com.nottingham.mynottingham.data.model.TodayClassStatus.ATTENDED -> {
                         viewStatusLine.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50"))

@@ -87,10 +87,10 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
     }
 
     private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
-        // 检查是否已取消
+        // Check if already cancelled
         val isCancelled = booking.status.uppercase() == "CANCELLED"
 
-        // 重新计算一下时间，以决定弹窗显示 "Cancel" 还是 "Delete"
+        // Recalculate time to decide whether dialog should show "Cancel" or "Delete"
         val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
         val now = LocalDateTime.now(zoneId)
 
@@ -99,10 +99,10 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
         val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
         val endTime = bookingDateTime.plusHours(1)
 
-        // 判断是否是"删除"操作：已取消或已结束
+        // Determine if this is a "delete" action: already cancelled or already ended
         val isDeleteAction = isCancelled || now.isAfter(endTime)
 
-        // 根据状态设置弹窗文案
+        // Set dialog text based on status
         val title = if (isDeleteAction) "Delete Record" else "Cancel Booking"
         val message = if (isDeleteAction)
             "Do you want to delete this booking record?"
@@ -114,11 +114,11 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
             .setMessage(message)
             .setPositiveButton("Yes") { _, _ ->
                 if (isDeleteAction) {
-                    // 已取消或已结束的预订：从数据库完全删除
+                    // Cancelled or ended booking: completely delete from database
                     viewModel.deleteBooking(booking)
                     Toast.makeText(requireContext(), "Record deleted", Toast.LENGTH_SHORT).show()
                 } else {
-                    // 未开始的预订：取消（将状态改为 CANCELLED）
+                    // Upcoming booking: cancel (change status to CANCELLED)
                     viewModel.cancelBooking(booking)
                     Toast.makeText(requireContext(), "Booking cancelled", Toast.LENGTH_SHORT).show()
                 }

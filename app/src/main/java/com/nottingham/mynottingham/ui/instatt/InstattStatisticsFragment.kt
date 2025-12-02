@@ -15,7 +15,7 @@ class InstattStatisticsFragment : Fragment() {
     private var _binding: FragmentInstattStatisticsBinding? = null
     private val binding get() = _binding!!
 
-    // 使用父 Fragment 的共享 ViewModel
+    // Use parent Fragment's shared ViewModel
     private val viewModel: InstattViewModel by viewModels({ requireParentFragment() })
 
     override fun onCreateView(
@@ -33,18 +33,18 @@ class InstattStatisticsFragment : Fragment() {
     }
 
     /**
-     * 观察预加载的数据
-     * 数据已在 InstattFragment 进入时预加载
+     * Observe preloaded data
+     * Data was preloaded when InstattFragment entered
      */
     private fun observePreloadedData() {
-        // 观察所有唯一课程（用于统计）
+        // Observe all unique courses (for statistics)
         viewModel.allCourses.observe(viewLifecycleOwner) { courses ->
             displayStatistics(courses ?: emptyList())
         }
 
-        // 观察加载状态
+        // Observe loading state
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            // 可以在这里显示加载指示器
+            // Can show loading indicator here
             // binding.progressBar?.isVisible = isLoading
         }
     }

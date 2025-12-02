@@ -15,24 +15,24 @@ class NottiChatStorage(context: Context) {
     companion object {
         private const val PREFS_NAME = "notti_chat_prefs"
         private const val KEY_PREFIX = "chat_history_"
-        private const val MAX_MESSAGES = 100 // 限制存储的最大消息数
+        private const val MAX_MESSAGES = 100 // Limit maximum stored messages
     }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
 
     /**
-     * 保存聊天记录
-     * @param userId 用户ID
-     * @param messages 消息列表
+     * Save chat history
+     * @param userId User ID
+     * @param messages Message list
      */
     fun saveChatHistory(userId: String, messages: List<NottiMessage>) {
         if (userId.isBlank()) return
 
-        // 只保存最近的消息，避免存储过多数据
+        // Only save recent messages to avoid storing too much data
         val messagesToSave = messages.takeLast(MAX_MESSAGES)
 
-        // 过滤掉 loading 状态的消息
+        // Filter out loading status messages
         val filteredMessages = messagesToSave.filter { !it.isLoading }
 
         val json = gson.toJson(filteredMessages)
@@ -40,9 +40,9 @@ class NottiChatStorage(context: Context) {
     }
 
     /**
-     * 加载聊天记录
-     * @param userId 用户ID
-     * @return 消息列表，如果没有记录则返回空列表
+     * Load chat history
+     * @param userId User ID
+     * @return Message list, returns empty list if no records
      */
     fun loadChatHistory(userId: String): List<NottiMessage> {
         if (userId.isBlank()) return emptyList()
@@ -53,14 +53,14 @@ class NottiChatStorage(context: Context) {
             val type = object : TypeToken<List<NottiMessage>>() {}.type
             gson.fromJson(json, type) ?: emptyList()
         } catch (e: Exception) {
-            // 解析失败时返回空列表
+            // Return empty list if parsing fails
             emptyList()
         }
     }
 
     /**
-     * 清除指定用户的聊天记录
-     * @param userId 用户ID
+     * Clear chat history for specific user
+     * @param userId User ID
      */
     fun clearChatHistory(userId: String) {
         if (userId.isBlank()) return
@@ -68,7 +68,7 @@ class NottiChatStorage(context: Context) {
     }
 
     /**
-     * 清除所有用户的聊天记录
+     * Clear chat history for all users
      */
     fun clearAllHistory() {
         prefs.edit().clear().apply()

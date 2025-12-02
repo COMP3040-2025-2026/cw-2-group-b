@@ -11,7 +11,7 @@ import com.nottingham.mynottingham.databinding.FragmentBookingSuccessBinding
 /**
  * Booking Success Fragment
  *
- * 显示预订成功的确认页面，包含预订详情
+ * Display booking success confirmation page with booking details
  */
 class BookingSuccessFragment : Fragment() {
 

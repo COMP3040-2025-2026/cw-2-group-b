@@ -18,7 +18,7 @@ import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.databinding.FragmentProfileBinding
-import com.nottingham.mynottingham.util.AvatarUtils // 导入刚才创建的工具类
+import com.nottingham.mynottingham.util.AvatarUtils // Import the AvatarUtils utility class
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -42,26 +42,26 @@ class ProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupUI()
         loadUserInfo()
-        setupSwitchColors()   // ⭐ 新增：在这里调用颜色设置
-        setupDeliveryMode()   // 配送模式开关
+        setupSwitchColors()   // Call color setup here
+        setupDeliveryMode()   // Delivery mode switch
     }
 
     private fun setupUI() {
-        // 点击头像弹出选择框
+        // Click avatar to show selection dialog
         binding.ivProfileAvatar.setOnClickListener {
             showAvatarSelectionDialog()
         }
-        // 点击注销等其他逻辑保持不变...
+        // Click logout and other logic unchanged...
         binding.btnLogout.setOnClickListener {
             showLogoutConfirmDialog()
         }
     }
 
     private fun loadUserInfo() {
-        // 1. 监听本地存储的头像变化，自动更新 UI
+        // 1. Listen to local avatar changes and auto-update UI
         viewLifecycleOwner.lifecycleScope.launch {
             tokenManager.getAvatar().collect { avatarKey ->
-                // 使用工具类把字符串 "tx1" 变成资源 ID
+                // Use utility class to convert string "tx1" to resource ID
                 val resId = AvatarUtils.getDrawableId(avatarKey)
                 binding.ivProfileAvatar.setImageResource(resId)
             }
@@ -158,7 +158,7 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // 显示底部弹窗
+    // Show bottom sheet dialog
     private fun showAvatarSelectionDialog() {
         val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.dialog_avatar_selection, null)
@@ -167,23 +167,23 @@ class ProfileFragment : Fragment() {
         val gridLayout = view.findViewById<GridLayout>(R.id.grid_avatars)
         val btnCancel = view.findViewById<View>(R.id.btn_cancel_avatar)
 
-        // 动态把 tx1-tx13 添加到网格里
+        // Dynamically add tx1-tx13 to grid
         AvatarUtils.AVATAR_KEYS.forEach { avatarKey ->
             val imageView = ImageView(context).apply {
-                // 设置图片
+                // Set image
                 setImageResource(AvatarUtils.getDrawableId(avatarKey))
-                
-                // 设置布局参数 (宽高、边距)
-                val size = 150 // 像素大小
+
+                // Set layout parameters (width, height, margins)
+                val size = 150 // pixel size
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = size
                     height = size
                     setMargins(20, 20, 20, 20)
                 }
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                background = ContextCompat.getDrawable(context, R.drawable.bg_avatar) // 可选：给个背景
-                
-                // 点击图片触发更新
+                background = ContextCompat.getDrawable(context, R.drawable.bg_avatar) // Optional: add background
+
+                // Click image to trigger update
                 setOnClickListener {
                     updateAvatar(avatarKey)
                     dialog.dismiss()
@@ -196,9 +196,9 @@ class ProfileFragment : Fragment() {
         dialog.show()
     }
 
-    // 核心逻辑：更新头像到 Firebase
+    // Core logic: update avatar to Firebase
     private fun updateAvatar(avatarKey: String) {
-        // 1. 乐观更新：先显示给用户看，不用等网络
+        // 1. Optimistic update: show to user immediately, no need to wait for network
         binding.ivProfileAvatar.setImageResource(AvatarUtils.getDrawableId(avatarKey))
 
         lifecycleScope.launch {
@@ -207,17 +207,17 @@ class ProfileFragment : Fragment() {
 
                 if (userIdString == null) return@launch
 
-                // 2. 使用 Firebase 更新头像
+                // 2. Update avatar using Firebase
                 val firebaseUserRepo = FirebaseUserRepository()
                 val updates = mapOf("profileImageUrl" to avatarKey)
                 val result = firebaseUserRepo.updateUserProfile(userIdString, updates)
 
                 if (result.isSuccess) {
-                    // 3. 成功后保存到本地 TokenManager
+                    // 3. Save to local TokenManager after success
                     tokenManager.saveAvatar(avatarKey)
                     Toast.makeText(context, "Avatar updated!", Toast.LENGTH_SHORT).show()
                 } else {
-                    // 失败回滚
+                    // Revert on failure
                     Toast.makeText(context, "Update failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                     // Revert the avatar change
                     val oldAvatar = tokenManager.getAvatar().first()
@@ -233,7 +233,7 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // ⭐⭐⭐ Switch 滑块颜色设置
+    // Switch slider color configuration
     private fun setupSwitchColors() {
 
         val green = ContextCompat.getColor(requireContext(), R.color.primary)      // thumb checked
@@ -258,7 +258,7 @@ class ProfileFragment : Fragment() {
             intArrayOf(greenLight, grayLight)
         )
 
-        // 设置 Delivery Mode Switch 的颜色
+        // Set Delivery Mode Switch colors
         binding.switchDelivery.apply {
             thumbTintList = thumbStateList
             trackTintList = trackStateList

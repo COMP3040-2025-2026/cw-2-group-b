@@ -10,11 +10,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nottingham.mynottingham.data.local.TokenManager
+import com.nottingham.mynottingham.data.repository.FirebaseErrandRepository
 import com.nottingham.mynottingham.databinding.FragmentErrandHomeBinding
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 import androidx.fragment.app.activityViewModels
+import java.text.NumberFormat
+import java.util.Locale
 
 class ErrandHomeFragment : Fragment() {
 
@@ -24,7 +27,9 @@ class ErrandHomeFragment : Fragment() {
         ErrandViewModelFactory(requireActivity().application)
     }
     private lateinit var tokenManager: TokenManager
+    private val errandRepository = FirebaseErrandRepository()
     private var isDeliveryMode = false
+    private var currentUserId = ""
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,6 +63,7 @@ class ErrandHomeFragment : Fragment() {
     private fun setupDeliveryModeUI() {
         viewLifecycleOwner.lifecycleScope.launch {
             isDeliveryMode = tokenManager.getDeliveryMode().first()
+            currentUserId = tokenManager.getUserId().first() ?: ""
 
             if (isDeliveryMode) {
                 // Rider mode
@@ -65,6 +71,11 @@ class ErrandHomeFragment : Fragment() {
                 binding.layoutCategories.visibility = View.GONE  // Hide categories for riders
                 binding.tvAvailableTasks.text = "Available Tasks"
                 binding.tvSubtitle.text = "Accept tasks, earn rewards"
+
+                // Load and observe balance from Firebase
+                if (currentUserId.isNotEmpty()) {
+                    observeBalance()
+                }
             } else {
                 // Normal user mode
                 binding.cardBalance.visibility = View.GONE
@@ -73,6 +84,26 @@ class ErrandHomeFragment : Fragment() {
                 binding.tvSubtitle.text = "Post tasks, get things done"
             }
         }
+    }
+
+    /**
+     * Observe rider balance from Firebase in real-time
+     */
+    private fun observeBalance() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            errandRepository.getRiderBalanceFlow(currentUserId).collect { balance ->
+                if (_binding != null) {
+                    binding.tvBalanceAmount.text = formatCurrency(balance)
+                }
+            }
+        }
+    }
+
+    /**
+     * Format balance as currency string
+     */
+    private fun formatCurrency(amount: Double): String {
+        return String.format(Locale.US, "RM %.2f", amount)
     }
 
     private fun setupRecyclerView() {
@@ -218,6 +249,12 @@ class ErrandHomeFragment : Fragment() {
     private fun showWithdrawConfirmDialog() {
         val currentBalance = binding.tvBalanceAmount.text.toString()
 
+        // Check if balance is zero
+        if (currentBalance == "RM 0.00") {
+            Toast.makeText(context, "No balance to withdraw", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Withdraw Balance")
             .setMessage("Withdraw $currentBalance to your payment app?\n\nThis will clear your balance.")
@@ -229,14 +266,35 @@ class ErrandHomeFragment : Fragment() {
     }
 
     /**
-     * Perform withdraw - clear balance
-     * In production, this would integrate with payment gateway
+     * Perform withdraw - sync with Firebase
+     * Clears balance in database and updates UI
      */
     private fun performWithdraw() {
-        // TODO: In production, integrate with payment gateway API
-        // For now, just clear the balance display
-        binding.tvBalanceAmount.text = "RM 0.00"
-        Toast.makeText(context, "Withdrawal successful! Balance transferred to your payment app.", Toast.LENGTH_LONG).show()
+        if (currentUserId.isEmpty()) {
+            Toast.makeText(context, "User not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = errandRepository.withdrawBalance(currentUserId)
+
+            result.onSuccess { withdrawnAmount ->
+                Toast.makeText(
+                    context,
+                    "Withdrawal successful! ${formatCurrency(withdrawnAmount)} transferred to your payment app.",
+                    Toast.LENGTH_LONG
+                ).show()
+                // Balance will auto-update via the Flow observer
+            }
+
+            result.onFailure { e ->
+                Toast.makeText(
+                    context,
+                    "Withdrawal failed: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     override fun onDestroyView() {

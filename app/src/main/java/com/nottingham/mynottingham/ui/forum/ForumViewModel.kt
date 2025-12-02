@@ -11,11 +11,11 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Forum (post list) screen
- * ✅ Migrated to Firebase - real-time post updates
+ * Migrated to Firebase - real-time post updates
  */
 class ForumViewModel(application: Application) : BaseViewModel(application) {
 
-    // ✅ 替换为 Firebase Repository
+    // Replaced with Firebase Repository
     private val repository = FirebaseForumRepository()
     private val tokenManager = TokenManager(application)
 
@@ -23,7 +23,7 @@ class ForumViewModel(application: Application) : BaseViewModel(application) {
     private val _currentUserId = MutableStateFlow<String>("")
 
     init {
-        // 初始化时获取用户 ID
+        // Get user ID during initialization
         viewModelScope.launch {
             tokenManager.getUserId().collect { uid ->
                 _currentUserId.value = uid ?: ""
@@ -31,23 +31,23 @@ class ForumViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    // ✅ 核心修改：组合 currentCategory 和 currentUserId 来生成帖子流
-    // Firebase 返回 ForumPost 模型（不再使用 Room 的 ForumPostEntity）
-    // 注意：论坛帖子是公开的，即使 userId 为空也应该能加载（userId 只用于检查点赞状态）
+    // Core change: Combine currentCategory and currentUserId to generate post flow
+    // Firebase returns ForumPost model (no longer using Room's ForumPostEntity)
+    // Note: Forum posts are public, should be able to load even if userId is empty (userId is only used to check like status)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val posts: Flow<List<ForumPost>> = combine(_currentCategory, _currentUserId) { category, userId ->
         Pair(category, userId)
     }.flatMapLatest { (category, userId) ->
-        // 即使 userId 为空也加载帖子（公开内容），userId 只用于点赞状态检查
+        // Load posts even if userId is empty (public content), userId is only used to check like status
         repository.getPostsFlow(category, userId)
     }
 
     /**
-     * ✅ 修改：Firebase 是实时的，不需要手动 loadPosts
-     * 这个方法现在主要用于处理"刷新"动作（虽然 Flow 会自动更新，但保留接口兼容性）
+     * Change: Firebase is real-time, no need to manually call loadPosts
+     * This method is now mainly used to handle "refresh" action (Flow will auto-update, but keep interface compatibility)
      */
     fun loadPosts(token: String, category: String? = null, refresh: Boolean = false) {
-        // Firebase Flow 自动处理数据，这里可以留空，或者重置一些 UI 状态
+        // Firebase Flow handles data automatically, can be empty here or reset some UI state
         if (category != _currentCategory.value) {
             filterByCategory(category)
         }
@@ -57,19 +57,19 @@ class ForumViewModel(application: Application) : BaseViewModel(application) {
         _currentCategory.value = category
     }
 
-    // ✅ 保留兼容旧代码的 Long ID 方法
+    // Keep backward compatibility with Long ID method
     fun likePost(token: String, postId: Long) {
         likePost(postId.toString())
     }
 
-    // 新方法适配 Firebase String ID
+    // New method adapted for Firebase String ID
     fun likePost(postId: String) {
         viewModelScope.launch {
             repository.toggleLikePost(postId, _currentUserId.value)
         }
     }
 
-    // ✅ 保留兼容旧代码的 Long ID 方法
+    // Keep backward compatibility with Long ID method
     fun deletePost(token: String, postId: Long) {
          deletePost(postId.toString())
     }
@@ -82,6 +82,6 @@ class ForumViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun cleanOldCache() {
-        // Firebase 不需要手动清理本地缓存，SDK 会处理
+        // Firebase doesn't need manual local cache cleanup, SDK handles it
     }
 }

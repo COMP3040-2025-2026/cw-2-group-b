@@ -35,10 +35,10 @@ class TeacherInstattFragment : Fragment() {
     // Backend integration
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    // 🔴 修复：将 teacherId 从 Long 改为 String，以支持 Firebase UID
+    // Fix: Changed teacherId from Long to String to support Firebase UID
     private var teacherId: String = ""
 
-    // 移除轮询机制 - 改用 Firebase 实时监听
+    // Removed polling mechanism - using Firebase real-time listeners instead
     // private val handler = Handler(Looper.getMainLooper())
     // private var isPolling = false
 
@@ -59,10 +59,10 @@ class TeacherInstattFragment : Fragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            // 🔴 修复：直接获取 String 类型的 Firebase UID，不要转换为 Long
+            // Fix: Get String type Firebase UID directly, do not convert to Long
             teacherId = tokenManager.getUserId().first() ?: ""
 
-            // 🔴 修复：检查是否为空字符串
+            // Fix: Check if string is empty
             if (teacherId.isEmpty()) {
                 Toast.makeText(
                     context,
@@ -73,7 +73,7 @@ class TeacherInstattFragment : Fragment() {
             }
 
             loadTodayCourses()
-            // 移除轮询 - Firebase 实时监听会自动更新
+            // Removed polling - Firebase real-time listeners will auto-update
             // startPolling()
         }
     }
@@ -93,7 +93,7 @@ class TeacherInstattFragment : Fragment() {
             onCourseClick = { course ->
                 showCourseManagementDialog(course)
             },
-            onMoreOptionsClick = { course ->  // ✅ 新增：三个点按钮回调
+            onMoreOptionsClick = { course ->  // New: Three dot button callback
                 showCourseManagementDialog(course)
             }
         )
@@ -172,16 +172,16 @@ class TeacherInstattFragment : Fragment() {
 
         when (course.signInStatus) {
             SignInStatus.LOCKED, SignInStatus.CLOSED -> {
-                // Unlock sign-in via Firebase - 实时生效
-                // LOCKED 和 CLOSED 状态都允许重新开启签到
+                // Unlock sign-in via Firebase - takes effect in real-time
+                // Both LOCKED and CLOSED states allow re-opening sign-in
                 lifecycleScope.launch {
-                    val result = repository.unlockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID
+                    val result = repository.unlockSession(teacherId, course.id, today)  // Use String ID directly
 
                     result.onSuccess { isFirstTime ->
                         val message = if (isFirstTime) {
-                            "✅ Session unlocked for ${course.courseName}\n📊 This is session #${course.attendedClasses + 1}"
+                            "Session unlocked for ${course.courseName}\nThis is session #${course.attendedClasses + 1}"
                         } else {
-                            "✅ Session re-opened for ${course.courseName}\n⏱️ Auto-locks in 20 minutes"
+                            "Session re-opened for ${course.courseName}\nAuto-locks in 20 minutes"
                         }
 
                         Toast.makeText(
@@ -190,8 +190,8 @@ class TeacherInstattFragment : Fragment() {
                             Toast.LENGTH_LONG
                         ).show()
 
-                        // Firebase 会自动通知所有学生端，无需手动刷新
-                        // 但为了更新本地 UI，仍然刷新一次
+                        // Firebase will auto-notify all student clients, no manual refresh needed
+                        // But refresh locally to update UI
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -204,9 +204,9 @@ class TeacherInstattFragment : Fragment() {
             }
             SignInStatus.UNLOCKED, SignInStatus.SIGNED -> {
                 // SIGNED is student-specific, teacher treats it as UNLOCKED
-                // Lock sign-in via Firebase - 实时生效
+                // Lock sign-in via Firebase - takes effect in real-time
                 lifecycleScope.launch {
-                    val result = repository.lockSession(teacherId, course.id, today)  // ✅ 直接使用 String ID
+                    val result = repository.lockSession(teacherId, course.id, today)  // Use String ID directly
 
                     result.onSuccess {
                         Toast.makeText(
@@ -215,7 +215,7 @@ class TeacherInstattFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
 
-                        // Firebase 会自动通知所有学生端，无需手动刷新
+                        // Firebase will auto-notify all student clients, no manual refresh needed
                         loadTodayCourses()
                     }.onFailure { error ->
                         Toast.makeText(
@@ -229,7 +229,7 @@ class TeacherInstattFragment : Fragment() {
         }
     }
 
-    // 移除轮询机制 - 已被 Firebase 实时监听取代
+    // Removed polling mechanism - replaced by Firebase real-time listeners
     // private fun startPolling() { ... }
     // private fun stopPolling() { ... }
 
@@ -407,10 +407,10 @@ class TeacherInstattFragment : Fragment() {
     private fun showCourseManagementDialog(course: Course) {
         val bottomSheet = CourseManagementBottomSheet.newInstance(course)
 
-        // 🔴 修复：设置回调监听器，当session状态改变时刷新主界面
+        // Fix: Set callback listener to refresh main screen when session status changes
         bottomSheet.onSessionStatusChanged = {
             loadTodayCourses()
-            android.util.Log.d("TeacherInstatt", "🔄 Refreshing course list after session status change")
+            android.util.Log.d("TeacherInstatt", "Refreshing course list after session status change")
         }
 
         bottomSheet.show(parentFragmentManager, "CourseManagementBottomSheet")
@@ -418,8 +418,8 @@ class TeacherInstattFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // stopPolling() - 已移除轮询
-        // Firebase Flow 会在 lifecycleScope 结束时自动清理
+        // stopPolling() - polling has been removed
+        // Firebase Flow will auto-cleanup when lifecycleScope ends
         _binding = null
     }
 }

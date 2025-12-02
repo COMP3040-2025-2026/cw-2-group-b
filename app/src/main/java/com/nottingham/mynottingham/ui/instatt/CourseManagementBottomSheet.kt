@@ -30,13 +30,13 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
     private val repository = InstattRepository()
     private lateinit var tokenManager: TokenManager
-    // 🔴 修复：将 teacherId 从 Long 改为 String，以支持 Firebase UID
+    // Fix: Changed teacherId from Long to String to support Firebase UID
     private var teacherId: String = ""
 
     private lateinit var course: Course
     private lateinit var studentAdapter: StudentAttendanceAdapter
 
-    // 🔴 新增：监听器，用于通知父界面刷新
+    // New: Listener to notify parent screen to refresh
     var onSessionStatusChanged: (() -> Unit)? = null
 
     override fun onCreateView(
@@ -64,10 +64,10 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         // Initialize TokenManager and retrieve actual user ID
         tokenManager = TokenManager(requireContext())
         lifecycleScope.launch {
-            // 🔴 修复：直接获取 String 类型的 Firebase UID，不要转换为 Long
+            // Fix: Get String type Firebase UID directly, do not convert to Long
             teacherId = tokenManager.getUserId().first() ?: ""
 
-            // 🔴 修复：检查是否为空字符串
+            // Fix: Check if string is empty
             if (teacherId.isEmpty()) {
                 Toast.makeText(
                     requireContext(),
@@ -177,14 +177,14 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
             java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
-        // 使用 Firebase Flow 实时监听学生签到名单
+        // Use Firebase Flow to real-time listen to student sign-in list
         lifecycleScope.launch {
             repository.getStudentAttendanceList(
                 teacherId,
-                course.id,  // ✅ 修复：直接使用 String ID
+                course.id,  // Use String ID directly
                 today
             ).collect { students ->
-                // 每当有学生签到，这里会自动收到更新
+                // Auto-receive updates whenever a student signs in
                 binding.progressBar.visibility = View.GONE
 
                 if (students.isEmpty()) {
@@ -208,7 +208,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.unlockSession(teacherId, course.id, today)  // ✅ 修复：直接使用 String ID
+            val result = repository.unlockSession(teacherId, course.id, today)  // Use String ID directly
 
             result.onSuccess {
                 Toast.makeText(
@@ -219,13 +219,13 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 course.signInStatus = SignInStatus.UNLOCKED
                 updateSessionStatusUI()
 
-                // 🔴 修复：通知父界面刷新课程列表
+                // Fix: Notify parent screen to refresh course list
                 onSessionStatusChanged?.invoke()
 
-                // 添加调试日志
+                // Add debug log
                 android.util.Log.d(
                     "CourseManagement",
-                    "✅ Session ${course.id} unlocked, Firebase updated at sessions/${course.id}_$today"
+                    "Session ${course.id} unlocked, Firebase updated at sessions/${course.id}_$today"
                 )
             }.onFailure { error ->
                 Toast.makeText(
@@ -234,7 +234,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-                android.util.Log.e("CourseManagement", "❌ Failed to unlock: ${error.message}", error)
+                android.util.Log.e("CourseManagement", "Failed to unlock: ${error.message}", error)
             }
         }
     }
@@ -248,7 +248,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         }
 
         lifecycleScope.launch {
-            val result = repository.lockSession(teacherId, course.id, today)  // ✅ 修复：直接使用 String ID
+            val result = repository.lockSession(teacherId, course.id, today)  // Use String ID directly
 
             result.onSuccess {
                 Toast.makeText(
@@ -259,12 +259,12 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                 course.signInStatus = SignInStatus.LOCKED
                 updateSessionStatusUI()
 
-                // 🔴 修复：通知父界面刷新课程列表
+                // Fix: Notify parent screen to refresh course list
                 onSessionStatusChanged?.invoke()
 
                 android.util.Log.d(
                     "CourseManagement",
-                    "✅ Session ${course.id} locked, Firebase updated"
+                    "Session ${course.id} locked, Firebase updated"
                 )
             }.onFailure { error ->
                 Toast.makeText(
@@ -273,7 +273,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-                android.util.Log.e("CourseManagement", "❌ Failed to lock: ${error.message}", error)
+                android.util.Log.e("CourseManagement", "Failed to lock: ${error.message}", error)
             }
         }
     }
@@ -289,7 +289,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
         lifecycleScope.launch {
             val result = repository.markAttendance(
                 teacherId = teacherId,
-                studentUid = student.studentId,  // 🔴 修复：使用 studentUid 参数名
+                studentUid = student.studentId,  // Fix: Use studentUid parameter name
                 courseScheduleId = course.id,
                 date = today,
                 status = status.name,
@@ -300,7 +300,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
 
             result.onSuccess { isFirstMark ->
                 val message = if (isFirstMark) {
-                    "Marked ${student.studentName} as ${status.name}\n📊 Session #${course.totalClasses + 1} started"
+                    "Marked ${student.studentName} as ${status.name}\nSession #${course.totalClasses + 1} started"
                 } else {
                     "Marked ${student.studentName} as ${status.name}"
                 }
@@ -309,7 +309,7 @@ class CourseManagementBottomSheet : BottomSheetDialogFragment() {
                     message,
                     Toast.LENGTH_SHORT
                 ).show()
-                // Firebase 会自动通知所有监听者，无需手动刷新
+                // Firebase will auto-notify all listeners, no manual refresh needed
             }.onFailure { error ->
                 Toast.makeText(
                     requireContext(),

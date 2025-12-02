@@ -16,7 +16,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
 
     private val errandRepository = FirebaseErrandRepository()
 
-    // 6个固定菜品数据
+    // 6 fixed menu items
     val menuItems = listOf(
         MenuItem("1", "noodles", "Beef Noodle Soup", "Traditional beef noodle with rich broth", 12.50, R.drawable.bsn),
         MenuItem("2", "noodles", "Fried Noodles", "Stir-fried noodles with vegetables", 10.00, R.drawable.fn),
@@ -51,15 +51,15 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         _menuListWithHeaders.value = combinedList
     }
 
-    // 购物车状态: Map<ItemId, Count>，用于 UI 快速响应
+    // Cart state: Map<ItemId, Count> for quick UI response
     private val _cartQuantities = MutableLiveData<Map<String, Int>>(emptyMap())
     val cartQuantities: LiveData<Map<String, Int>> = _cartQuantities
 
-    // 购物车详细信息 (用于计算总价和下单)
+    // Cart details (for calculating total price and placing order)
     private val _cartItems = MutableLiveData<List<CartItem>>(emptyList())
     val cartItems: LiveData<List<CartItem>> = _cartItems
-    
-    // 价格详情
+
+    // Price details
     private val _subtotal = MutableLiveData(0.0)
     val subtotal: LiveData<Double> = _subtotal
 
@@ -68,7 +68,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
 
     private val _totalPrice = MutableLiveData(0.0)
     val totalPrice: LiveData<Double> = _totalPrice
-    
+
     private val _totalCount = MutableLiveData(0)
     val totalCount: LiveData<Int> = _totalCount
 
@@ -124,7 +124,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 count += qty
                 itemsList.add(CartItem(menuItem, qty))
 
-                // New delivery fee logic based on category
+                // Delivery fee logic based on category
                 when (menuItem.category) {
                     "noodles", "rice" -> baseDeliveryFee += 2.0 * qty
                     "drinks" -> baseDeliveryFee += 1.0 * qty
@@ -155,7 +155,7 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
         if (items.isEmpty()) return
 
         viewModelScope.launch {
-            // Description only contains order items and contact
+            // Description contains order items and contact information
             val sb = StringBuilder()
             items.forEach {
                 sb.append("${it.menuItem.name} x${it.quantity}\n")

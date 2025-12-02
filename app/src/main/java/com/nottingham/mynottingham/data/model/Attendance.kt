@@ -22,7 +22,7 @@ data class Course(
     val endTime: String? = null,
     val location: String? = null,
     val courseType: CourseType = CourseType.LECTURE,
-    var todayStatus: TodayClassStatus? = null,  // 🔴 改为 var 以支持实时更新
+    var todayStatus: TodayClassStatus? = null,  // Changed to var to support real-time updates
     // Sign-in system fields (for teacher/student interaction)
     var signInStatus: SignInStatus = SignInStatus.LOCKED,
     var signInUnlockedAt: Long? = null,  // Timestamp when unlocked

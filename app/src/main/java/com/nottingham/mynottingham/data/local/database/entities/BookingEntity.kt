@@ -10,12 +10,12 @@ import java.util.UUID
 @Entity(tableName = "bookings")
 data class BookingEntity(
     @PrimaryKey
-    val id: String = UUID.randomUUID().toString(), // 自动生成唯一ID
+    val id: String = UUID.randomUUID().toString(), // Auto-generated unique ID
     val userId: String,
-    val userName: String,       // 新增：预定人名字
-    val facilityName: String,   // 设施名称 (例如 "Badminton Court 1")
-    val bookingDate: String,    // 格式 "yyyy-MM-dd"
-    val timeSlot: Int,          // 新增：整数时间段 (例如 10 代表 10:00-11:00)
+    val userName: String,       // New: Booking person's name
+    val facilityName: String,   // Facility name (e.g. "Badminton Court 1")
+    val bookingDate: String,    // Format "yyyy-MM-dd"
+    val timeSlot: Int,          // New: Integer time slot (e.g. 10 represents 10:00-11:00)
     val status: String = "confirmed",
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -9,10 +9,10 @@ import kotlinx.coroutines.tasks.await
 /**
  * Firebase Errand Repository
  *
- * 直接从 Firebase Realtime Database 读取和管理跑腿任务数据
- * 不再依赖 Spring Boot 后端 API
+ * Reads and manages errand task data directly from Firebase Realtime Database.
+ * No longer depends on Spring Boot backend API.
  *
- * Firebase 数据结构：
+ * Firebase data structure:
  * errands/{errandId}: {
  *   title: "Pickup Food from Cafeteria",
  *   description: "Need lunch from main cafeteria",
@@ -31,14 +31,121 @@ import kotlinx.coroutines.tasks.await
  */
 class FirebaseErrandRepository {
 
-    // ⚠️ 重要：必须指定数据库 URL，因为数据库在 asia-southeast1 区域
+    // Important: Must specify database URL as database is in asia-southeast1 region
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val errandsRef: DatabaseReference = database.getReference("errands")
+    private val usersRef: DatabaseReference = database.getReference("users")
+
+    // ==================== Balance Methods ====================
 
     /**
-     * 创建新的跑腿任务
-     * @param errand 任务数据
-     * @return Result<String> 任务ID或错误
+     * Get rider balance
+     * @param userId User ID
+     * @return Result<Double> Balance amount
+     */
+    suspend fun getRiderBalance(userId: String): Result<Double> {
+        return try {
+            val snapshot = usersRef.child(userId).child("errandBalance").get().await()
+            val balance = snapshot.getValue(Double::class.java) ?: 0.0
+            Result.success(balance)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error getting rider balance: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Observe rider balance in real-time
+     * @param userId User ID
+     * @return Flow<Double> Balance flow
+     */
+    fun getRiderBalanceFlow(userId: String): Flow<Double> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val balance = snapshot.getValue(Double::class.java) ?: 0.0
+                trySend(balance)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("FirebaseErrandRepo", "Error listening to balance: ${error.message}")
+                trySend(0.0)
+            }
+        }
+
+        usersRef.child(userId).child("errandBalance").addValueEventListener(listener)
+
+        awaitClose {
+            usersRef.child(userId).child("errandBalance").removeEventListener(listener)
+        }
+    }
+
+    /**
+     * Add to rider balance (called when order is completed)
+     * @param userId User ID
+     * @param amount Amount to add
+     * @return Result<Double> New balance
+     */
+    suspend fun addToRiderBalance(userId: String, amount: Double): Result<Double> {
+        return try {
+            val balanceRef = usersRef.child(userId).child("errandBalance")
+            val snapshot = balanceRef.get().await()
+            val currentBalance = snapshot.getValue(Double::class.java) ?: 0.0
+            val newBalance = currentBalance + amount
+
+            balanceRef.setValue(newBalance).await()
+
+            // Also update total earned
+            val totalEarnedRef = usersRef.child(userId).child("errandTotalEarned")
+            val totalEarnedSnapshot = totalEarnedRef.get().await()
+            val currentTotalEarned = totalEarnedSnapshot.getValue(Double::class.java) ?: 0.0
+            totalEarnedRef.setValue(currentTotalEarned + amount).await()
+
+            android.util.Log.d("FirebaseErrandRepo", "Added $amount to balance. New balance: $newBalance")
+            Result.success(newBalance)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error adding to balance: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Withdraw balance (clear balance)
+     * @param userId User ID
+     * @return Result<Double> Withdrawn amount
+     */
+    suspend fun withdrawBalance(userId: String): Result<Double> {
+        return try {
+            val balanceRef = usersRef.child(userId).child("errandBalance")
+            val snapshot = balanceRef.get().await()
+            val currentBalance = snapshot.getValue(Double::class.java) ?: 0.0
+
+            if (currentBalance <= 0) {
+                return Result.failure(Exception("No balance to withdraw"))
+            }
+
+            // Clear balance
+            balanceRef.setValue(0.0).await()
+
+            // Update total withdrawn
+            val totalWithdrawnRef = usersRef.child(userId).child("errandTotalWithdrawn")
+            val totalWithdrawnSnapshot = totalWithdrawnRef.get().await()
+            val currentTotalWithdrawn = totalWithdrawnSnapshot.getValue(Double::class.java) ?: 0.0
+            totalWithdrawnRef.setValue(currentTotalWithdrawn + currentBalance).await()
+
+            android.util.Log.d("FirebaseErrandRepo", "Withdrawn $currentBalance")
+            Result.success(currentBalance)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseErrandRepo", "Error withdrawing balance: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ==================== Errand Methods ====================
+
+    /**
+     * Create new errand task
+     * @param errand Task data
+     * @return Result<String> Task ID or error
      */
     suspend fun createErrand(errand: Map<String, Any>): Result<String> {
         return try {
@@ -59,8 +166,8 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取所有可用的跑腿任务（状态为 PENDING）
-     * @return Flow<List<Map<String, Any>>> 任务列表流
+     * Get all available errands (PENDING status)
+     * @return Flow<List<Map<String, Any>>> Task list flow
      */
     fun getAvailableErrands(): Flow<List<Map<String, Any>>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -78,7 +185,7 @@ class FirebaseErrandRepository {
                     }
                 }
 
-                // 按时间倒序排列
+                // Sort by timestamp descending
                 errands.sortByDescending { it["timestamp"] as? Long ?: 0L }
                 trySend(errands)
             }
@@ -96,9 +203,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取用户发布的跑腿任务
-     * @param userId 用户ID
-     * @return Flow<List<Map<String, Any>>> 任务列表流
+     * Get errands posted by user
+     * @param userId User ID
+     * @return Flow<List<Map<String, Any>>> Task list flow
      */
     fun getUserRequestedErrands(userId: String): Flow<List<Map<String, Any>>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -129,9 +236,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取用户接受的跑腿任务
-     * @param userId 用户ID
-     * @return Flow<List<Map<String, Any>>> 任务列表流
+     * Get errands accepted by user (as provider)
+     * @param userId User ID
+     * @return Flow<List<Map<String, Any>>> Task list flow
      */
     fun getUserProvidedErrands(userId: String): Flow<List<Map<String, Any>>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -162,11 +269,11 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 接受跑腿任务
-     * @param errandId 任务ID
-     * @param providerId 接受者ID
-     * @param providerName 接受者姓名
-     * @param providerAvatar 接受者头像 (可选)
+     * Accept errand task
+     * @param errandId Task ID
+     * @param providerId Provider ID
+     * @param providerName Provider name
+     * @param providerAvatar Provider avatar (optional)
      * @return Result<Unit>
      */
     suspend fun acceptErrand(
@@ -193,8 +300,8 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 开始配送（状态从 ACCEPTED 变为 DELIVERING）
-     * @param errandId 任务ID
+     * Start delivering (status changes from ACCEPTED to DELIVERING)
+     * @param errandId Task ID
      * @return Result<Unit>
      */
     suspend fun startDelivering(errandId: String): Result<Unit> {
@@ -212,9 +319,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取骑手当前活跃订单数量（ACCEPTED 或 DELIVERING 状态）
-     * @param providerId 骑手ID
-     * @return Result<Int> 活跃订单数
+     * Get rider's current active order count (ACCEPTED or DELIVERING status)
+     * @param providerId Rider ID
+     * @return Result<Int> Active order count
      */
     suspend fun getActiveErrandCount(providerId: String): Result<Int> {
         return try {
@@ -237,17 +344,34 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 完成跑腿任务
-     * @param errandId 任务ID
+     * Complete errand task and add reward to rider balance
+     * @param errandId Task ID
      * @return Result<Unit>
      */
     suspend fun completeErrand(errandId: String): Result<Unit> {
         return try {
+            // First get the errand to get providerId and reward
+            val errandSnapshot = errandsRef.child(errandId).get().await()
+            val errand = errandSnapshot.value as? Map<String, Any>
+                ?: return Result.failure(Exception("Errand not found"))
+
+            val providerId = errand["providerId"] as? String
+                ?: return Result.failure(Exception("No provider assigned"))
+            val reward = (errand["reward"] as? Number)?.toDouble() ?: 0.0
+
+            // Update errand status
             val updates = mapOf(
                 "status" to "COMPLETED",
                 "completedAt" to System.currentTimeMillis()
             )
             errandsRef.child(errandId).updateChildren(updates).await()
+
+            // Add reward to rider's balance
+            if (reward > 0) {
+                addToRiderBalance(providerId, reward)
+                android.util.Log.d("FirebaseErrandRepo", "Added reward $reward to rider $providerId")
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("FirebaseErrandRepo", "Error completing errand: ${e.message}")
@@ -256,8 +380,8 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 取消跑腿任务
-     * @param errandId 任务ID
+     * Cancel errand task
+     * @param errandId Task ID
      * @return Result<Unit>
      */
     suspend fun cancelErrand(errandId: String): Result<Unit> {
@@ -275,9 +399,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取单个跑腿任务详情
-     * @param errandId 任务ID
-     * @return Result<Map<String, Any>?> 任务数据或null
+     * Get single errand task details
+     * @param errandId Task ID
+     * @return Result<Map<String, Any>?> Task data or null
      */
     suspend fun getErrandById(errandId: String): Result<Map<String, Any>?> {
         return try {
@@ -301,9 +425,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 放弃任务（接单者放弃，任务回到可用池）
-     * 骑手可以在任何状态下取消（ACCEPTED 或 DELIVERING）
-     * @param errandId 任务ID
+     * Drop errand (provider drops task, returns to available pool)
+     * Rider can drop at any status (ACCEPTED or DELIVERING)
+     * @param errandId Task ID
      * @return Result<Unit>
      */
     suspend fun dropErrand(errandId: String): Result<Unit> {
@@ -325,8 +449,8 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 删除跑腿任务（发布者永久删除）
-     * @param errandId 任务ID
+     * Delete errand (permanent deletion by poster)
+     * @param errandId Task ID
      * @return Result<Unit>
      */
     suspend fun deleteErrand(errandId: String): Result<Unit> {
@@ -340,9 +464,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 更新跑腿任务
-     * @param errandId 任务ID
-     * @param updates 更新的字段Map
+     * Update errand task
+     * @param errandId Task ID
+     * @param updates Map of fields to update
      * @return Result<Unit>
      */
     suspend fun updateErrand(errandId: String, updates: Map<String, Any>): Result<Unit> {
@@ -356,9 +480,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 获取用户的历史任务（COMPLETED 或 CANCELLED 状态）
-     * @param userId 用户ID
-     * @return Flow<List<Map<String, Any>>> 历史任务列表流
+     * Get user's history errands (COMPLETED or CANCELLED status)
+     * @param userId User ID
+     * @return Flow<List<Map<String, Any>>> History errands list flow
      */
     fun getUserHistoryErrands(userId: String): Flow<List<Map<String, Any>>> = callbackFlow {
         val listener = object : ValueEventListener {
@@ -402,9 +526,9 @@ class FirebaseErrandRepository {
     }
 
     /**
-     * 清理过期的历史任务（超过指定天数）
-     * @param daysOld 天数（默认7天）
-     * @return Result<Int> 删除的任务数量
+     * Cleanup expired history errands (older than specified days)
+     * @param daysOld Number of days (default 7)
+     * @return Result<Int> Number of deleted errands
      */
     suspend fun cleanupOldErrands(daysOld: Int = 7): Result<Int> {
         return try {

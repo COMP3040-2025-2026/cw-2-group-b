@@ -9,20 +9,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import kotlin.math.min
-import kotlin.math.sqrt
 
 /**
  * Repository for compressing images to Base64 Data URI
  *
- * 直接将图片压缩成 Base64 Data URI 格式，可以直接存储到 Firebase Realtime Database
- * 无需任何第三方图床服务
+ * Compresses images directly to Base64 Data URI format for storage in Firebase Realtime Database.
+ * No third-party image hosting service required.
  */
 class ImageUploadRepository {
 
     /**
      * Compress image and convert to Base64 Data URI
-     * 返回格式: data:image/jpeg;base64,xxxxx
-     * 可以直接用于 Glide 加载或存储到数据库
+     * Return format: data:image/jpeg;base64,xxxxx
+     * Can be used directly with Glide or stored in database
      */
     suspend fun uploadImage(
         context: Context,
@@ -145,13 +144,13 @@ class ImageUploadRepository {
     }
 
     companion object {
-        // 最大图片尺寸（宽或高）
+        // Maximum image dimension (width or height)
         private const val MAX_IMAGE_DIMENSION = 800
 
-        // 目标最大文件大小（150KB，Base64后约200KB，适合存储到数据库）
+        // Target maximum file size (150KB, ~200KB after Base64, suitable for database storage)
         private const val MAX_IMAGE_SIZE_BYTES = 150 * 1024
 
-        // 压缩质量范围
+        // Compression quality range
         private const val INITIAL_QUALITY = 80
         private const val MIN_QUALITY = 30
 

@@ -61,13 +61,13 @@ class ForumFragment : Fragment() {
             onPostClick = { post ->
                 // Navigate to post detail
                 val bundle = Bundle().apply {
-                    // ⚠️ 修复：Firebase ID 是 String 类型
+                    // Fixed: Firebase ID is String type
                     putString("postId", post.id)
                 }
                 findNavController().navigate(R.id.action_forum_to_post_detail, bundle)
             },
             onLikeClick = { post ->
-                // ⚠️ 修复：Firebase 实现不需要 Token，只需要 ID
+                // Fixed: Firebase implementation doesn't need Token, only ID
                 viewModel.likePost(post.id)
             }
         )
@@ -137,7 +137,7 @@ class ForumFragment : Fragment() {
         viewModel.error.observe(viewLifecycleOwner) { error ->
             error?.let {
                 // Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-                // 暂时忽略错误显示，避免频繁弹窗
+                // Temporarily ignore error display to avoid frequent dialogs
                 viewModel.clearError()
             }
         }
@@ -146,7 +146,7 @@ class ForumFragment : Fragment() {
     private fun loadPosts(refresh: Boolean = true) {
         lifecycleScope.launch {
             val token = tokenManager.getToken().first() ?: ""
-            // Firebase 实际上不需要这个 token 来加载公开帖子
+            // Firebase actually doesn't need this token to load public posts
             viewModel.loadPosts(token, if (currentCategory == "All") null else currentCategory, refresh)
         }
     }

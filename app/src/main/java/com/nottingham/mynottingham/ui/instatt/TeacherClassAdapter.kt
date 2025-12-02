@@ -12,7 +12,7 @@ class TeacherClassAdapter(
     private val courses: List<Course>,
     private val onToggleSignIn: (Course) -> Unit,
     private val onCourseClick: (Course) -> Unit,
-    private val onMoreOptionsClick: (Course) -> Unit  // ✅ 新增：三个点按钮回调
+    private val onMoreOptionsClick: (Course) -> Unit  // New: Three dot button callback
 ) : RecyclerView.Adapter<TeacherClassAdapter.TeacherClassViewHolder>() {
 
     inner class TeacherClassViewHolder(private val binding: ItemTeacherClassBinding) :
@@ -67,7 +67,7 @@ class TeacherClassAdapter(
                 onToggleSignIn(course)
             }
 
-            // ✅ 三个点按钮点击 - 打开学生管理对话框
+            // Three dot button click - opens student management dialog
             binding.ivMoreOptions.setOnClickListener {
                 onMoreOptionsClick(course)
             }

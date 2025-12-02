@@ -7,7 +7,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.nottingham.mynottingham.data.model.ChatMessage
+import com.nottingham.mynottingham.data.model.Contact
 import com.nottingham.mynottingham.data.model.GroupInfo
 import com.nottingham.mynottingham.data.model.GroupMember
 import com.nottingham.mynottingham.data.model.GroupRole
@@ -26,6 +31,16 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
     private val firebaseRepo = FirebaseMessageRepository()
     private val userRepo = FirebaseUserRepository()
     private val imageUploadRepo = ImageUploadRepository()
+    private val database = FirebaseDatabase.getInstance(Constants.FIREBASE_DATABASE_URL)
+
+    // Membership status for group chats (to detect when user is removed)
+    private val _membershipStatus = MutableLiveData<String>("MEMBER")
+    val membershipStatus: LiveData<String> = _membershipStatus
+    private var membershipListener: ValueEventListener? = null
+
+    // Available contacts for adding to group
+    private val _availableContacts = MutableLiveData<List<Contact>>()
+    val availableContacts: LiveData<List<Contact>> = _availableContacts
 
     private val _uploadingImage = MutableLiveData<Boolean>()
     val uploadingImage: LiveData<Boolean> = _uploadingImage
@@ -211,6 +226,106 @@ class ChatDetailViewModel(application: Application) : AndroidViewModel(applicati
 
     override fun onCleared() {
         super.onCleared()
+        // Remove membership listener
+        membershipListener?.let { listener ->
+            database.getReference("conversations")
+                .child(conversationId)
+                .child("participants")
+                .child(currentUserId)
+                .removeEventListener(listener)
+        }
+    }
+
+    /**
+     * Observe group membership status in real-time
+     * Detects when current user is removed from the group
+     */
+    fun observeGroupMembership() {
+        if (conversationId.isEmpty() || currentUserId.isEmpty()) return
+
+        val participantRef = database.getReference("conversations")
+            .child(conversationId)
+            .child("participants")
+            .child(currentUserId)
+
+        membershipListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) {
+                    _membershipStatus.postValue("REMOVED")
+                    Log.d(TAG, "User has been removed from group")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Error observing membership: ${error.message}")
+            }
+        }
+
+        participantRef.addValueEventListener(membershipListener!!)
+    }
+
+    /**
+     * Load available contacts (users not already in the group)
+     */
+    fun loadAvailableContacts(existingMemberIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                val result = userRepo.getAllUsers()
+                result.onSuccess { users ->
+                    val contacts = users
+                        .filter { user ->
+                            user.id != currentUserId && !existingMemberIds.contains(user.id)
+                        }
+                        .map { user ->
+                            Contact(
+                                id = user.id,
+                                name = user.name,
+                                avatar = user.profileImageUrl,
+                                program = user.program,
+                                year = user.year,
+                                isOnline = false
+                            )
+                        }
+                    _availableContacts.value = contacts
+                }
+                result.onFailure { e ->
+                    Log.e(TAG, "Failed to load contacts: ${e.message}")
+                    _error.value = "Failed to load contacts"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading contacts", e)
+                _error.value = "Error loading contacts"
+            }
+        }
+    }
+
+    /**
+     * Add multiple members to group
+     */
+    fun addGroupMembers(userIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                val groupName = _groupInfo.value?.name ?: "Group"
+                var successCount = 0
+                var failCount = 0
+
+                userIds.forEach { userId ->
+                    val result = firebaseRepo.addGroupMember(conversationId, userId, groupName)
+                    result.onSuccess { successCount++ }
+                    result.onFailure { failCount++ }
+                }
+
+                if (successCount > 0) {
+                    _operationSuccess.value = "$successCount member(s) added"
+                    loadGroupInfo()
+                }
+                if (failCount > 0) {
+                    _error.value = "Failed to add $failCount member(s)"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error adding members"
+            }
+        }
     }
 
     // ========== User Profile Methods ==========

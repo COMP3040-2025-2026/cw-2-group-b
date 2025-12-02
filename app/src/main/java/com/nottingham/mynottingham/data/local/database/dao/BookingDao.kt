@@ -6,11 +6,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BookingDao {
-    // 获取当前用户的所有预定（用于"My Bookings"页面）
+    // Get all bookings for current user (for "My Bookings" page)
     @Query("SELECT * FROM bookings WHERE userId = :userId AND status != 'deleted' ORDER BY bookingDate DESC, timeSlot ASC")
     fun getUserBookings(userId: String): Flow<List<BookingEntity>>
 
-    // 【修复核心】：获取指定设施、指定日期的所有预定（用于把已定时间置灰）
+    // Core fix: Get all bookings for specific facility and date (to gray out booked time slots)
     @Query("SELECT * FROM bookings WHERE facilityName = :facilityName AND bookingDate = :date AND status = 'confirmed'")
     suspend fun getBookingsByFacilityAndDate(facilityName: String, date: String): List<BookingEntity>
 
@@ -19,9 +19,9 @@ interface BookingDao {
 
     @Delete
     suspend fun deleteBooking(booking: BookingEntity)
-    
+
     @Update
     suspend fun updateBooking(booking: BookingEntity)
-    
-    // 如果需要其他方法保留即可
+
+    // Add other methods as needed
 }

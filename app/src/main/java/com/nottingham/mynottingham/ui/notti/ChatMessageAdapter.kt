@@ -97,12 +97,12 @@ class NottiMessageAdapter(
             binding.tvMessage.text = message.content
             binding.progressLoading.isVisible = message.isLoading
 
-            // 如果正在加载，显示 "Thinking..."
+            // If loading, show "Thinking..."
             if (message.isLoading) {
                 binding.tvMessage.text = "Thinking..."
             }
 
-            // 错误状态显示红色
+            // Error state shows red color
             if (message.isError) {
                 binding.tvMessage.setTextColor(
                     binding.root.context.getColor(android.R.color.holo_red_dark)
@@ -125,7 +125,7 @@ class NottiMessageAdapter(
             binding.tvTitle.text = cardData.title
             binding.tvSubtitle.text = cardData.subtitle
 
-            // 设置路线列表
+            // Set route list
             binding.rvRoutes.layoutManager = LinearLayoutManager(binding.root.context)
             binding.rvRoutes.adapter = RouteItemAdapter(cardData.items)
         }
@@ -141,14 +141,14 @@ class NottiMessageAdapter(
             binding.tvTitle.text = cardData.title
             binding.tvSubtitle.text = cardData.subtitle
 
-            // 显示预订状态
+            // Display booking status
             if (cardData.items.isEmpty()) {
-                binding.tvStatus.text = "✅ All time slots are available!"
+                binding.tvStatus.text = "All time slots are available!"
                 binding.tvStatus.setBackgroundColor(binding.root.context.getColor(R.color.green_light))
                 binding.tvStatus.setTextColor(binding.root.context.getColor(R.color.green_dark))
                 binding.rvBookedSlots.visibility = View.GONE
             } else {
-                binding.tvStatus.text = "⚠️ Some slots are booked:"
+                binding.tvStatus.text = "Some slots are booked:"
                 binding.tvStatus.setBackgroundColor(binding.root.context.getColor(R.color.orange_light))
                 binding.tvStatus.setTextColor(binding.root.context.getColor(R.color.orange_dark))
                 binding.rvBookedSlots.visibility = View.VISIBLE
@@ -162,7 +162,7 @@ class NottiMessageAdapter(
         }
     }
 
-    // 路线项目适配器
+    // Route item adapter
     class RouteItemAdapter(
         private val items: List<NottiCardItem>
     ) : RecyclerView.Adapter<RouteItemAdapter.ViewHolder>() {
@@ -185,7 +185,7 @@ class NottiMessageAdapter(
             holder.tvName.text = item.label
             holder.tvTimes.text = item.value
 
-            // 根据路线设置颜色
+            // Set color based on route
             val color = getRouteColor(item.icon ?: "")
             holder.tvBadge.setBackgroundColor(color)
         }
@@ -207,7 +207,7 @@ class NottiMessageAdapter(
         }
     }
 
-    // 已预订时段适配器
+    // Booked time slot adapter
     class BookedSlotAdapter(
         private val items: List<NottiCardItem>
     ) : RecyclerView.Adapter<BookedSlotAdapter.ViewHolder>() {
@@ -231,7 +231,7 @@ class NottiMessageAdapter(
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
-            holder.tvSlot.text = "❌ ${item.label}: ${item.value}"
+            holder.tvSlot.text = "${item.label}: ${item.value}"
         }
 
         override fun getItemCount() = items.size

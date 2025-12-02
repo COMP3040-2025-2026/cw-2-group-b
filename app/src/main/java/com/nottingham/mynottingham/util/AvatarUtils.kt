@@ -3,13 +3,13 @@ package com.nottingham.mynottingham.util
 import com.nottingham.mynottingham.R
 
 object AvatarUtils {
-    // 对应你 drawable 里的文件名: tx1.png ~ tx13.png
+    // Corresponding drawable file names: tx1.png ~ tx13.png
     val AVATAR_KEYS = listOf(
-        "tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7", 
+        "tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
         "tx8", "tx9", "tx10", "tx11", "tx12", "tx13"
     )
 
-    // 核心方法：把数据库存的字符串转成 Android 图片资源 ID
+    // Core method: Convert database string to Android drawable resource ID
     fun getDrawableId(avatarKey: String?): Int {
         return when (avatarKey) {
             "tx1" -> R.drawable.tx1

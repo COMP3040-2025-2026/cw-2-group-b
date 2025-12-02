@@ -19,52 +19,52 @@ import java.time.temporal.TemporalAdjusters
 import java.util.*
 
 /**
- * InstattViewModel - 共享 ViewModel 用于预加载课程数据
+ * InstattViewModel - Shared ViewModel for preloading course data
  *
- * 优化策略：
- * - 在进入 INSTATT 模块时并行加载所有数据
- * - HOME、CALENDAR、STATISTICS 都直接使用预加载的数据，无需等待
+ * Optimization strategy:
+ * - Parallel load all data when entering INSTATT module
+ * - HOME, CALENDAR, STATISTICS use preloaded data directly without waiting
  */
 class InstattViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = InstattRepository()
 
-    // 今日课程数据（HOME tab）
+    // Today's course data (HOME tab)
     private val _todayCourses = MutableLiveData<List<Course>>()
     val todayCourses: LiveData<List<Course>> = _todayCourses
 
-    // 周课表数据（CALENDAR tab）
+    // Weekly course data (CALENDAR tab)
     private val _weekCourses = MutableLiveData<List<DayWithCourses>>()
     val weekCourses: LiveData<List<DayWithCourses>> = _weekCourses
 
-    // 统计数据 - 所有唯一课程（STATISTICS tab）
+    // Statistics data - all unique courses (STATISTICS tab)
     private val _allCourses = MutableLiveData<List<Course>>()
     val allCourses: LiveData<List<Course>> = _allCourses
 
-    // 加载状态
+    // Loading state
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // 兼容旧代码
+    // Backward compatibility with old code
     private val _isWeekCoursesLoading = MutableLiveData<Boolean>()
     val isWeekCoursesLoading: LiveData<Boolean> = _isWeekCoursesLoading
 
-    // 记录是否已经加载过（避免重复加载）
+    // Flag to track if data has been loaded (prevent duplicate loading)
     private var hasLoadedAllData = false
     private var hasLoadedWeekCourses = false
 
-    // 当前日期信息
+    // Current date information
     private var currentDate: String = ""
     private var currentDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
 
     /**
-     * 预加载所有数据（推荐使用）
-     * 并行加载今日课程、周课表、统计数据
+     * Preload all data (recommended)
+     * Parallel load today's courses, weekly schedule, and statistics data
      */
     fun preloadAllData(studentId: String) {
-        // 如果已经加载过，不重复加载
+        // Skip if already loaded
         if (hasLoadedAllData && _todayCourses.value?.isNotEmpty() == true) {
-            Log.d("InstattViewModel", "📋 All data already loaded, skipping")
+            Log.d("InstattViewModel", "All data already loaded, skipping")
             return
         }
 
@@ -72,9 +72,9 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
             try {
                 _isLoading.value = true
                 _isWeekCoursesLoading.value = true
-                Log.d("InstattViewModel", "📥 Preloading all INSTATT data for student: $studentId")
+                Log.d("InstattViewModel", "Preloading all INSTATT data for student: $studentId")
 
-                // 计算当前日期信息
+                // Calculate current date information
                 val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
                 val today = LocalDate.now()
                 currentDate = today.format(dateFormatter)
@@ -85,7 +85,7 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
                 val tempDaysWithCourses = mutableListOf<DayWithCourses>()
                 var todayCoursesResult: List<Course> = emptyList()
 
-                // 并行加载每天的课程
+                // Parallel load courses for each day
                 val deferredResults = weekDates.map { (dayOfWeek, date) ->
                     async {
                         val result = repository.getStudentCourses(studentId, date)
@@ -93,19 +93,19 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                // 等待所有请求完成
+                // Wait for all requests to complete
                 val results = deferredResults.awaitAll()
 
-                // 处理结果
+                // Process results
                 for ((dayOfWeek, date, allDayCourses) in results) {
                     val courses = allDayCourses.filter { it.dayOfWeek == dayOfWeek }
 
-                    // 收集今日课程
+                    // Collect today's courses
                     if (dayOfWeek == currentDayOfWeek) {
                         todayCoursesResult = courses
                     }
 
-                    // 收集所有唯一课程（用于统计）
+                    // Collect all unique courses (for statistics)
                     courses.forEach { course ->
                         allCoursesMap[course.courseCode] = course
                     }
@@ -120,7 +120,7 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
                     )
                 }
 
-                // 更新所有数据
+                // Update all data
                 _todayCourses.value = todayCoursesResult
                 _weekCourses.value = tempDaysWithCourses
                 _allCourses.value = allCoursesMap.values.toList()
@@ -128,9 +128,9 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
                 hasLoadedAllData = true
                 hasLoadedWeekCourses = true
 
-                Log.d("InstattViewModel", "✅ All data preloaded: today=${todayCoursesResult.size}, week=${tempDaysWithCourses.size} days, unique=${allCoursesMap.size} courses")
+                Log.d("InstattViewModel", "All data preloaded: today=${todayCoursesResult.size}, week=${tempDaysWithCourses.size} days, unique=${allCoursesMap.size} courses")
             } catch (e: Exception) {
-                Log.e("InstattViewModel", "❌ Error preloading data", e)
+                Log.e("InstattViewModel", "Error preloading data", e)
                 _todayCourses.value = emptyList()
                 _weekCourses.value = emptyList()
                 _allCourses.value = emptyList()
@@ -142,7 +142,7 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 获取当前星期几
+     * Get current day of week
      */
     private fun getDayOfWeek(date: LocalDate): DayOfWeek {
         return when (date.dayOfWeek) {
@@ -157,16 +157,16 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 预加载周课表数据（兼容旧代码）
-     * 在进入 INSTATT 模块时调用
+     * Preload weekly course data (backward compatibility)
+     * Called when entering INSTATT module
      */
     fun preloadWeekCourses(studentId: String) {
-        // 直接调用 preloadAllData，统一处理
+        // Call preloadAllData directly for unified handling
         preloadAllData(studentId)
     }
 
     /**
-     * 强制刷新所有数据
+     * Force refresh all data
      */
     fun refreshAllData(studentId: String) {
         hasLoadedAllData = false
@@ -175,24 +175,24 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 强制刷新周课表数据（兼容旧代码）
+     * Force refresh weekly course data (backward compatibility)
      */
     fun refreshWeekCourses(studentId: String) {
         refreshAllData(studentId)
     }
 
     /**
-     * 获取当前日期
+     * Get current date
      */
     fun getCurrentDate(): String = currentDate
 
     /**
-     * 获取当前星期
+     * Get current day of week
      */
     fun getCurrentDayOfWeek(): DayOfWeek = currentDayOfWeek
 
     /**
-     * 更新某一天的展开状态
+     * Toggle expansion state for a day
      */
     fun toggleDayExpansion(position: Int) {
         _weekCourses.value?.let { days ->
@@ -207,7 +207,7 @@ class InstattViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 计算当前周每天的日期 (Monday-Sunday)
+     * Calculate each day's date for current week (Monday-Sunday)
      */
     private fun calculateCurrentWeekDates(): Map<DayOfWeek, String> {
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())

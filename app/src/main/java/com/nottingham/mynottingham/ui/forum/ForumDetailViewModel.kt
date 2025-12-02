@@ -15,11 +15,11 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for Forum Detail screen
- * ✅ Migrated to Firebase - real-time post and comments
+ * Migrated to Firebase - real-time post and comments
  */
 class ForumDetailViewModel(application: Application) : AndroidViewModel(application) {
 
-    // ✅ 替换为 Firebase Repository
+    // Replaced with Firebase Repository
     private val repository = FirebaseForumRepository()
     private val tokenManager = TokenManager(application)
     private var currentUserId: String = ""
@@ -53,7 +53,7 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // ✅ 保留兼容旧代码的 Long ID 方法
+    // Keep backward compatibility with Long ID method
     fun getPostFlow(postId: Long): Flow<ForumPost?> {
         return _post
     }
@@ -62,7 +62,7 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         return _comments
     }
 
-    // ✅ 修改：使用 String ID
+    // Change: Use String ID
     fun loadPostDetail(token: String, postId: Long) {
         loadPostDetail(postId.toString())
     }
@@ -71,12 +71,12 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _loading.value = true
 
-            // 确保 currentUserId 已获取（等待 init 完成或重新获取）
+            // Ensure currentUserId is retrieved (wait for init to complete or re-fetch)
             if (currentUserId.isEmpty()) {
                 currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
             }
 
-            // 1. 监听帖子详情
+            // 1. Listen to post details
             repository.getPostDetailFlow(postId, currentUserId).collect {
                 _post.value = it
                 _loading.value = false
@@ -84,20 +84,20 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         viewModelScope.launch {
-            // 确保 currentUserId 已获取
+            // Ensure currentUserId is retrieved
             if (currentUserId.isEmpty()) {
                 currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
             }
 
-            // 2. 监听评论
+            // 2. Listen to comments
             repository.getCommentsFlow(postId, currentUserId).collect {
                 _comments.value = it
             }
         }
 
-        // 3. 增加浏览量 (每个用户只计算一次)
+        // 3. Increment view count (counted only once per user)
         viewModelScope.launch {
-            // 确保 currentUserId 已获取
+            // Ensure currentUserId is retrieved
             if (currentUserId.isEmpty()) {
                 currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
             }
@@ -106,7 +106,7 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // ✅ 保留兼容旧代码的 Long ID 方法
+    // Keep backward compatibility with Long ID method
     fun sendComment(token: String, postId: Long, content: String) {
         sendComment(postId.toString(), content)
     }
@@ -133,7 +133,7 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // ✅ 保留兼容旧代码的方法
+    // Keep backward compatibility with method
     fun likePost(token: String, postId: Long) {
         likePost(postId.toString())
     }
@@ -142,21 +142,21 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch { repository.toggleLikePost(postId, currentUserId) }
     }
 
-    // ✅ 保留兼容旧代码的方法
+    // Keep backward compatibility with method
     fun likeComment(token: String, commentId: Long) {
         likeComment(commentId.toString())
     }
 
     fun likeComment(commentId: String) {
-        // Firebase 需要同时知道 postId 和 commentId，但旧接口没有 postId
-        // 为了兼容，我们需要从当前帖子获取 postId
+        // Firebase needs to know both postId and commentId, but old interface doesn't have postId
+        // For compatibility, we need to get postId from current post
         val postId = _post.value?.id ?: return
         viewModelScope.launch {
             repository.toggleLikeComment(commentId, postId, currentUserId)
         }
     }
 
-    // ✅ 保留兼容旧代码的方法
+    // Keep backward compatibility with method
     fun deletePost(token: String, postId: Long) {
         deletePost(postId.toString())
     }

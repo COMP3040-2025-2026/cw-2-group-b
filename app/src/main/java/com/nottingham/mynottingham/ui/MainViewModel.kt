@@ -94,7 +94,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Notifications for Requester (发布者收到的通知)
+     * Notifications for Requester (notifications received by order creator)
      */
     private fun handleRequesterNotification(title: String, newStatus: String) {
         val (notificationTitle, notificationBody) = when (newStatus) {
@@ -109,7 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Notifications for Runner (送货人收到的通知)
+     * Notifications for Runner (notifications received by delivery person)
      * Runners generally don't need notifications for actions they perform themselves (like accepting),
      * but they need to know if the Requester cancels the order.
      */

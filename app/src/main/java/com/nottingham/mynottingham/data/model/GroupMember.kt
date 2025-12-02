@@ -19,9 +19,9 @@ data class GroupMember(
  * Group role enum
  */
 enum class GroupRole {
-    OWNER,   // 群主 - can do everything
-    ADMIN,   // 管理员 - can add/remove members, edit group name
-    MEMBER   // 普通成员
+    OWNER,   // Group owner - can do everything
+    ADMIN,   // Administrator - can add/remove members, edit group name
+    MEMBER   // Regular member
 }
 
 /**

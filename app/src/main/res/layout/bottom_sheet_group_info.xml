@@ -143,17 +143,6 @@
             app:icon="@drawable/ic_exit"
             app:iconTint="@color/error" />
 
-        <!-- Transfer Ownership (for owner only) -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_transfer_ownership"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Transfer Ownership"
-            android:visibility="gone"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            app:icon="@drawable/ic_transfer" />
-
         <!-- Dissolve Group (for owner only) -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dissolve_group"

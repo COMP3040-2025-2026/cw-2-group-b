@@ -85,26 +85,9 @@ class ChatMessageAdapter(
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
 
-                // Handle image messages
-                if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
-                    Log.d("ChatMessageAdapter", "Loading sent image: ${message.imageUrl}")
-                    ivMessageImage.visibility = View.VISIBLE
-                    tvMessage.visibility = View.GONE
-                    Glide.with(itemView.context)
-                        .load(message.imageUrl)
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.ic_image)
-                        .error(R.drawable.ic_image)
-                        .into(ivMessageImage)
-
-                    // Click to view full image
-                    ivMessageImage.setOnClickListener {
-                        ImageViewerDialog(itemView.context, message.imageUrl).show()
-                    }
-                } else {
-                    ivMessageImage.visibility = View.GONE
-                    ivMessageImage.setOnClickListener(null)
-                    tvMessage.visibility = View.VISIBLE
+                // Handle image messages using helper
+                bindImageMessage(message, itemView, ivMessageImage, tvMessage, "Loading sent image")
+                if (message.messageType != "IMAGE" || message.imageUrl.isNullOrEmpty()) {
                     tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "[Image]"
                 }
             }
@@ -121,26 +104,9 @@ class ChatMessageAdapter(
                 tvTimestamp.text = formatTimestamp(message.timestamp)
                 ivAvatar.setImageResource(AvatarUtils.getDrawableId(message.senderAvatar))
 
-                // Handle image messages
-                if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
-                    Log.d("ChatMessageAdapter", "Loading received image: ${message.imageUrl}")
-                    ivMessageImage.visibility = View.VISIBLE
-                    tvMessage.visibility = View.GONE
-                    Glide.with(itemView.context)
-                        .load(message.imageUrl)
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.ic_image)
-                        .error(R.drawable.ic_image)
-                        .into(ivMessageImage)
-
-                    // Click to view full image
-                    ivMessageImage.setOnClickListener {
-                        ImageViewerDialog(itemView.context, message.imageUrl).show()
-                    }
-                } else {
-                    ivMessageImage.visibility = View.GONE
-                    ivMessageImage.setOnClickListener(null)
-                    tvMessage.visibility = View.VISIBLE
+                // Handle image messages using helper
+                bindImageMessage(message, itemView, ivMessageImage, tvMessage, "Loading received image")
+                if (message.messageType != "IMAGE" || message.imageUrl.isNullOrEmpty()) {
                     tvMessage.text = if (message.message.isNotBlank()) message.message.trim() else "?"
                 }
             }
@@ -149,6 +115,39 @@ class ChatMessageAdapter(
 
     private fun formatTimestamp(timestamp: Long): String {
         return timeFormatter.format(Date(timestamp))
+    }
+
+    /**
+     * Helper function to handle image message loading
+     * Extracts common image loading logic from both sent and received message ViewHolders
+     */
+    private fun bindImageMessage(
+        message: ChatMessage,
+        itemView: View,
+        ivMessageImage: android.widget.ImageView,
+        tvMessage: android.widget.TextView,
+        logPrefix: String
+    ) {
+        if (message.messageType == "IMAGE" && !message.imageUrl.isNullOrEmpty()) {
+            Log.d("ChatMessageAdapter", "$logPrefix: ${message.imageUrl}")
+            ivMessageImage.visibility = View.VISIBLE
+            tvMessage.visibility = View.GONE
+            Glide.with(itemView.context)
+                .load(message.imageUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.ic_image)
+                .error(R.drawable.ic_image)
+                .into(ivMessageImage)
+
+            // Click to view full image
+            ivMessageImage.setOnClickListener {
+                ImageViewerDialog(itemView.context, message.imageUrl).show()
+            }
+        } else {
+            ivMessageImage.visibility = View.GONE
+            ivMessageImage.setOnClickListener(null)
+            tvMessage.visibility = View.VISIBLE
+        }
     }
 }
 

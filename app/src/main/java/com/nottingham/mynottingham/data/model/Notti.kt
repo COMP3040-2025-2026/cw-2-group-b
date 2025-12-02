@@ -2,7 +2,7 @@ package com.nottingham.mynottingham.data.model
 
 /**
  * Notti AI chat message data model
- * 用于 Notti AI 助手的消息显示
+ * For Notti AI assistant message display
  */
 data class NottiMessage(
     val id: String = System.currentTimeMillis().toString(),
@@ -12,7 +12,7 @@ data class NottiMessage(
     val isLoading: Boolean = false,
     val isError: Boolean = false,
     val messageType: NottiMessageType = NottiMessageType.TEXT,
-    // 卡片数据
+    // Card data
     val cardData: NottiCardData? = null
 )
 
@@ -23,7 +23,7 @@ enum class NottiMessageType {
 }
 
 /**
- * 卡片数据封装
+ * Card data wrapper
  */
 data class NottiCardData(
     val title: String,
@@ -32,7 +32,7 @@ data class NottiCardData(
 )
 
 /**
- * 卡片内的单个项目
+ * Individual item within card
  */
 data class NottiCardItem(
     val label: String,

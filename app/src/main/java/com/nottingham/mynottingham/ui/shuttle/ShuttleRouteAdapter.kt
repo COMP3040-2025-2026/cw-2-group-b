@@ -15,16 +15,16 @@ import com.nottingham.mynottingham.databinding.ItemShuttleRouteBinding
 /**
  * Adapter for displaying shuttle routes in RecyclerView
  *
- * 改动：
- * - 默认隐藏时间（layoutSchedule），点击整行切换展开/收起
- * - 使用 expandedRouteIds 保存展开状态，列表刷新时可以保留已展开项
+ * Changes:
+ * - Time (layoutSchedule) hidden by default, click to toggle expand/collapse
+ * - Use expandedRouteIds to save expand state, preserve expanded items when list refreshes
  */
 class ShuttleRouteAdapter(
     private val dayType: DayType,
     private val onRouteClick: (ShuttleRoute) -> Unit = {}
 ) : ListAdapter<ShuttleRoute, ShuttleRouteAdapter.RouteViewHolder>(RouteDiffCallback()) {
 
-    // 保存已展开的 routeId（可以保留展开状态）
+    // Save expanded routeIds (to preserve expand state)
     private val expandedRouteIds = mutableSetOf<String>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RouteViewHolder {
@@ -117,7 +117,7 @@ class ShuttleRouteAdapter(
 
                 // Toggle expand/collapse when clicking the item
                 root.setOnClickListener {
-                    // toggle expanded set
+                    // Toggle expand/collapse state
                     val pos = bindingAdapterPosition
                     if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
 
@@ -127,10 +127,10 @@ class ShuttleRouteAdapter(
                         expandedRouteIds.add(route.routeId)
                     }
 
-                    // notify item to rebind and reflect expanded/collapsed UI
+                    // Notify item to rebind and reflect expand/collapse UI
                     notifyItemChanged(pos)
 
-                    // keep existing callback behavior (e.g., toast) if caller wants it
+                    // Keep existing callback behavior (e.g., toast) if caller wants it
                     onRouteClick(route)
                 }
             }

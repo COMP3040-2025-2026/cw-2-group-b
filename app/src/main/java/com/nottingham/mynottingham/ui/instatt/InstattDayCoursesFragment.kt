@@ -31,7 +31,7 @@ class InstattDayCoursesFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var dayOfWeek: DayOfWeek
 
-    // 使用父 Fragment 的共享 ViewModel
+    // Use parent Fragment's shared ViewModel
     private val viewModel: InstattViewModel by viewModels({ requireParentFragment() })
 
     private val repository = InstattRepository()
@@ -39,7 +39,7 @@ class InstattDayCoursesFragment : Fragment() {
     private var studentId: String = ""
     private var studentName: String = ""
 
-    // 记录是否已开始监听 Firebase
+    // Track if Firebase listeners have started
     private var hasStartedListeners = false
 
     companion object {
@@ -99,35 +99,35 @@ class InstattDayCoursesFragment : Fragment() {
             studentId = tokenManager.getUserId().first() ?: ""
             studentName = tokenManager.getFullName().first() ?: "Student"
 
-            android.util.Log.d("InstattStudent", "👤 Student ID: $studentId, Name: $studentName")
+            android.util.Log.d("InstattStudent", "Student ID: $studentId, Name: $studentName")
 
             if (studentId.isEmpty()) {
                 Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
-            // 观察预加载的今日课程数据
+            // Observe preloaded today's course data
             observePreloadedData()
         }
     }
 
     /**
-     * 观察预加载的数据
-     * 数据已在 InstattFragment 进入时预加载
+     * Observe preloaded data
+     * Data was preloaded when InstattFragment entered
      */
     private fun observePreloadedData() {
-        // 观察今日课程
+        // Observe today's courses
         viewModel.todayCourses.observe(viewLifecycleOwner) { courses ->
             if (courses != null && !hasStartedListeners) {
-                android.util.Log.d("InstattStudent", "📚 Got ${courses.size} preloaded courses for today")
+                android.util.Log.d("InstattStudent", "Got ${courses.size} preloaded courses for today")
 
-                // 过滤当天的课程
+                // Filter today's courses
                 val filteredCourses = courses.filter { it.dayOfWeek == dayOfWeek }
-                android.util.Log.d("InstattStudent", "📅 Filtered to ${filteredCourses.size} courses for $dayOfWeek")
+                android.util.Log.d("InstattStudent", "Filtered to ${filteredCourses.size} courses for $dayOfWeek")
 
                 displayCourses(filteredCourses)
 
-                // 获取当前日期
+                // Get current date
                 val today = viewModel.getCurrentDate().ifEmpty {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
@@ -137,7 +137,7 @@ class InstattDayCoursesFragment : Fragment() {
                     }
                 }
 
-                // 启动 Firebase 实时监听（仅一次）
+                // Start Firebase real-time listeners (only once)
                 if (filteredCourses.isNotEmpty()) {
                     startFirebaseListeners(filteredCourses, today)
                     hasStartedListeners = true
@@ -145,15 +145,15 @@ class InstattDayCoursesFragment : Fragment() {
             }
         }
 
-        // 观察加载状态
+        // Observe loading state
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            // 可以在这里显示加载指示器
+            // Can show loading indicator here
             // binding.progressBar?.isVisible = isLoading
         }
     }
 
-    // 保留 loadCourses 作为后备方案（当预加载数据不可用时）
-    // 通常情况下会使用 observePreloadedData 获取预加载的数据
+    // Keep loadCourses as fallback (when preloaded data is unavailable)
+    // Normally use observePreloadedData to get preloaded data
 
     private fun loadCoursesFallback() {
         val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -164,7 +164,7 @@ class InstattDayCoursesFragment : Fragment() {
         }
 
         lifecycleScope.launch {
-            android.util.Log.d("InstattStudent", "📚 Fallback: Loading courses for studentId: $studentId")
+            android.util.Log.d("InstattStudent", "Fallback: Loading courses for studentId: $studentId")
             val result = repository.getStudentCourses(studentId, today)
 
             result.onSuccess { courses ->
@@ -172,7 +172,7 @@ class InstattDayCoursesFragment : Fragment() {
                 displayCourses(filteredCourses)
                 startFirebaseListeners(filteredCourses, today)
             }.onFailure { error ->
-                android.util.Log.e("InstattStudent", "❌ Failed to load courses: ${error.message}", error)
+                android.util.Log.e("InstattStudent", "Failed to load courses: ${error.message}", error)
                 Toast.makeText(context, "Failed to load courses", Toast.LENGTH_SHORT).show()
             }
         }
@@ -186,7 +186,7 @@ class InstattDayCoursesFragment : Fragment() {
             binding.rvCourses.isVisible = true
             binding.layoutEmpty.isVisible = false
 
-            // ✅ 使用本地时间
+            // Use local time
             val currentTime = getCurrentTime()
 
             // Use TodayClassAdapter for today's view with sign-in callback
@@ -198,25 +198,25 @@ class InstattDayCoursesFragment : Fragment() {
     }
 
     /**
-     * 实时监听 Firebase 签到状态变化
-     * 当教师 unlock session 时，学生端按钮立即变亮
+     * Real-time listen to Firebase sign-in status changes
+     * When teacher unlocks session, student side button lights up immediately
      *
-     * ✅ Firebase sessions 已支持字符串 ID (如 "comp2001_1_2025-11-24")
-     * ✅ 实时监听已启用 - 教师 unlock 时学生端立即更新
-     * ✅ 已签到的课程不再响应 unlock/lock 状态变化
+     * Firebase sessions already support string IDs (e.g., "comp2001_1_2025-11-24")
+     * Real-time listening enabled - student side updates immediately when teacher unlocks
+     * Already signed courses no longer respond to lock/unlock status changes
      */
     private fun startFirebaseListeners(courses: List<Course>, date: String) {
         android.util.Log.d(
             "InstattStudent",
-            "🔥 Starting Firebase real-time listeners for ${courses.size} courses"
+            "Starting Firebase real-time listeners for ${courses.size} courses"
         )
 
         courses.forEach { course ->
-            // ✅ 如果学生已经签到，不需要监听锁定状态变化
+            // If student already signed, no need to listen to lock status changes
             if (course.hasStudentSigned || course.signInStatus == SignInStatus.SIGNED) {
                 android.util.Log.d(
                     "InstattStudent",
-                    "✅ ${course.courseCode} already signed, skipping listener"
+                    "${course.courseCode} already signed, skipping listener"
                 )
                 return@forEach
             }
@@ -224,18 +224,18 @@ class InstattDayCoursesFragment : Fragment() {
             lifecycleScope.launch {
                 android.util.Log.d(
                     "InstattStudent",
-                    "👂 Listening to session lock status for ${course.courseCode} (id: ${course.id})"
+                    "Listening to session lock status for ${course.courseCode} (id: ${course.id})"
                 )
 
                 repository.listenToSessionLockStatus(
                     courseScheduleId = course.id,
                     date = date
                 ).collect { isLocked ->
-                    // ✅ 再次检查：如果在监听过程中学生已签到，停止响应状态变化
+                    // Check again: if student signed during listening, stop responding to status changes
                     if (course.hasStudentSigned || course.signInStatus == SignInStatus.SIGNED) {
                         android.util.Log.d(
                             "InstattStudent",
-                            "✅ ${course.courseCode} signed during listening, ignoring lock status"
+                            "${course.courseCode} signed during listening, ignoring lock status"
                         )
                         return@collect
                     }
@@ -245,20 +245,20 @@ class InstattDayCoursesFragment : Fragment() {
 
                     android.util.Log.d(
                         "InstattStudent",
-                        "🔄 ${course.courseCode}: $oldSignInStatus -> $newSignInStatus (isLocked=$isLocked)"
+                        "${course.courseCode}: $oldSignInStatus -> $newSignInStatus (isLocked=$isLocked)"
                     )
 
                     if (oldSignInStatus != newSignInStatus) {
                         course.signInStatus = newSignInStatus
 
-                        // 当session解锁时，将todayStatus设置为IN_PROGRESS（显示铅笔图标）
-                        // 当session锁定时，恢复为UPCOMING
+                        // When session unlocks, set todayStatus to IN_PROGRESS (show pencil icon)
+                        // When session locks, restore to UPCOMING
                         if (!isLocked) {
                             course.todayStatus = TodayClassStatus.IN_PROGRESS
-                            android.util.Log.d("InstattStudent", "✏️ Set todayStatus to IN_PROGRESS")
+                            android.util.Log.d("InstattStudent", "Set todayStatus to IN_PROGRESS")
                         } else if (isLocked && course.todayStatus == TodayClassStatus.IN_PROGRESS) {
                             course.todayStatus = TodayClassStatus.UPCOMING
-                            android.util.Log.d("InstattStudent", "🔒 Set todayStatus back to UPCOMING")
+                            android.util.Log.d("InstattStudent", "Set todayStatus back to UPCOMING")
                         }
 
                         binding.rvCourses.adapter?.notifyDataSetChanged()
@@ -269,7 +269,7 @@ class InstattDayCoursesFragment : Fragment() {
     }
 
     private fun handleSignIn(course: Course) {
-        // ✅ 使用本地日期
+        // Use local date
         val today = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
             LocalDate.now().format(dateFormatter)
@@ -277,7 +277,7 @@ class InstattDayCoursesFragment : Fragment() {
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
         }
 
-        // 显示 loading 提示
+        // Show loading hint
         Toast.makeText(
             context,
             "Signing in...",
@@ -285,55 +285,55 @@ class InstattDayCoursesFragment : Fragment() {
         ).show()
 
         lifecycleScope.launch {
-            // ✅ 修复：直接使用 Firebase UID (String)，不再需要转换为 Long
+            // Fix: Use Firebase UID (String) directly, no need to convert to Long
             android.util.Log.d(
                 "InstattStudent",
-                "📝 Attempting sign-in: studentId=$studentId, course=${course.id}, date=$today"
+                "Attempting sign-in: studentId=$studentId, course=${course.id}, date=$today"
             )
 
-            // ✅ 使用 Firebase 签到 - 毫秒级响应
+            // Use Firebase sign-in - millisecond-level response
             val result = repository.signIn(
-                studentUid = studentId,  // 🔴 直接使用 String UID
+                studentUid = studentId,  // Use String UID directly
                 courseScheduleId = course.id,
                 date = today,
                 studentName = studentName,
-                matricNumber = null, // 可以从 TokenManager 获取学号
-                email = null // 可以从 TokenManager 获取邮箱
+                matricNumber = null, // Can get from TokenManager
+                email = null // Can get from TokenManager
             )
 
             result.onSuccess {
                 Toast.makeText(
                     context,
-                    "✅ Signed in to ${course.courseName}",
+                    "Signed in to ${course.courseName}",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                android.util.Log.d("InstattStudent", "✅ Sign-in successful!")
+                android.util.Log.d("InstattStudent", "Sign-in successful!")
 
-                // 更新本地状态为已签到
+                // Update local state to signed
                 course.todayStatus = TodayClassStatus.ATTENDED
                 course.signInStatus = SignInStatus.SIGNED
                 course.hasStudentSigned = true
 
-                // 刷新 ViewModel 数据以更新统计
+                // Refresh ViewModel data to update statistics
                 viewModel.refreshAllData(studentId)
 
                 binding.rvCourses.adapter?.notifyDataSetChanged()
             }.onFailure { error ->
                 Toast.makeText(
                     context,
-                    "❌ Sign-in failed: ${error.message}",
+                    "Sign-in failed: ${error.message}",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                android.util.Log.e("InstattStudent", "❌ Sign-in failed: ${error.message}", error)
+                android.util.Log.e("InstattStudent", "Sign-in failed: ${error.message}", error)
             }
         }
     }
 
-    // 移除轮询机制 - 已被 Firebase 实时监听取代
-    // 如果需要实时监听课程签到状态，可以在这里添加 Firebase Flow 监听
-    // 例如：监听所有今日课程的 isLocked 状态变化
+    // Removed polling mechanism - replaced by Firebase real-time listeners
+    // If real-time listening to course sign-in status is needed, can add Firebase Flow listener here
+    // Example: listen to isLocked status changes for all today's courses
 
     private fun getMockCourses(day: DayOfWeek): List<Course> {
         // Mock data - in real app, this would come from database or API
@@ -523,8 +523,8 @@ class InstattDayCoursesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // stopPolling() - 已移除轮询
-        // Firebase Flow 会在 lifecycleScope 结束时自动清理
+        // stopPolling() - polling has been removed
+        // Firebase Flow will auto-cleanup when lifecycleScope ends
         _binding = null
     }
 }

@@ -23,7 +23,7 @@ class InstattFragment : Fragment() {
     private var currentTab = InstattTab.HOME
     private lateinit var tokenManager: TokenManager
 
-    // 共享 ViewModel 用于预加载数据
+    // Shared ViewModel for preloading data
     private val viewModel: InstattViewModel by viewModels()
 
     enum class InstattTab {
@@ -72,7 +72,7 @@ class InstattFragment : Fragment() {
                         positionIndicator(currentTab, false)
                     }
 
-                    // 预加载所有数据（今日课程、周课表、统计数据）
+                    // Preload all data (today's courses, weekly schedule, statistics)
                     val studentId = tokenManager.getUserId().first() ?: ""
                     if (studentId.isNotEmpty()) {
                         viewModel.preloadAllData(studentId)

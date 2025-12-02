@@ -12,7 +12,7 @@ import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId // [新增] 导入 ZoneId
+import java.time.ZoneId // Import ZoneId
 
 class SportsBookingAdapter(
     private var bookings: List<BookingEntity>,
@@ -48,7 +48,7 @@ class SportsBookingAdapter(
             val timeString = String.format("%02d:00", booking.timeSlot)
             tvDateTime.text = "${booking.bookingDate} at $timeString"
 
-            // 如果已取消，显示 CANCELLED 状态和 Delete 按钮
+            // If already cancelled, show CANCELLED status and Delete button
             if (booking.status.uppercase() == "CANCELLED") {
                 tvStatus.text = "CANCELLED"
                 tvStatus.setTextColor(Color.RED)
@@ -70,14 +70,14 @@ class SportsBookingAdapter(
                 val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
                 val now = LocalDateTime.now(zoneId)
 
-                // 预定结束时间：开始后1小时
+                // Booking end time: 1 hour after start
                 val endTime = bookingDateTime.plusHours(1)
 
                 when {
                     now.isAfter(endTime) -> {
-                        // 预定已结束 - 显示 Finished，按钮变为 Delete
+                        // Booking finished - show Finished, button becomes Delete
                         tvStatus.text = "FINISHED"
-                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // 绿色
+                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // Green
                         btnCancel.visibility = View.VISIBLE
                         btnCancel.isEnabled = true
                         btnCancel.text = "Delete"
@@ -87,15 +87,15 @@ class SportsBookingAdapter(
                         }
                     }
                     now.isAfter(bookingDateTime) -> {
-                        // 正在进行中 - 显示 In Progress，隐藏按钮
+                        // In progress - show In Progress, hide button
                         tvStatus.text = "IN PROGRESS"
-                        tvStatus.setTextColor(Color.parseColor("#FF9800")) // 橙色
+                        tvStatus.setTextColor(Color.parseColor("#FF9800")) // Orange
                         btnCancel.visibility = View.GONE
                     }
                     else -> {
-                        // 未开始 - 显示 Confirmed，按钮为 Cancel
+                        // Not started - show Confirmed, button is Cancel
                         tvStatus.text = "CONFIRMED"
-                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // 绿色
+                        tvStatus.setTextColor(Color.parseColor("#4CAF50")) // Green
                         btnCancel.visibility = View.VISIBLE
                         btnCancel.isEnabled = true
                         btnCancel.text = "Cancel"

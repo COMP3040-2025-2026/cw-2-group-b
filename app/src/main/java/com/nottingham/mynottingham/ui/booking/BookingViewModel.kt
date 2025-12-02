@@ -17,59 +17,59 @@ import java.time.ZoneId
 /**
  * BookingViewModel - Firebase Migration Edition
  *
- * 完全使用 Firebase Realtime Database 管理场地预订
- * 不再依赖本地 Room 数据库
+ * Fully uses Firebase Realtime Database to manage facility bookings
+ * No longer relies on local Room database
  *
- * 优势：
- * - 实时同步：多设备自动同步预订状态
- * - 冲突检测：服务器端验证时间冲突
- * - 数据持久化：云端备份，不怕丢失
+ * Advantages:
+ * - Real-time sync: Automatic multi-device booking status synchronization
+ * - Conflict detection: Server-side validation of time conflicts
+ * - Data persistence: Cloud backup, no data loss
  */
 class BookingViewModel(application: Application) : AndroidViewModel(application) {
 
     private val firebaseBookingRepo = FirebaseBookingRepository()
 
-    // 用于观察当前选定日期的已被预定列表
+    // For observing already booked slots on the selected date
     private val _occupiedSlots = MutableLiveData<List<BookingEntity>>()
     val occupiedSlots: LiveData<List<BookingEntity>> = _occupiedSlots
 
-    // 用于观察用户的所有预订
+    // For observing all user bookings
     private val _userBookings = MutableLiveData<List<BookingEntity>>()
     val userBookings: LiveData<List<BookingEntity>> = _userBookings
 
-    // 加载状态
+    // Loading state
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
     /**
-     * 加载某设施在某天的预定情况
-     * 从 Firebase 查询特定日期的预订
+     * Load bookings for a facility on a specific day
+     * Query Firebase for bookings on specific date
      */
     fun loadOccupiedSlots(facilityName: String, date: String) {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                Log.d("BookingViewModel", "📥 Loading occupied slots for $facilityName on $date")
+                Log.d("BookingViewModel", "Loading occupied slots for $facilityName on $date")
 
-                // 计算当天的时间范围
+                // Calculate time range for the day
                 val bookingDate = LocalDate.parse(date)
                 val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
                 val dateStart = bookingDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
                 val dateEnd = bookingDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
 
-                // 从 Firebase 查询
+                // Query from Firebase
                 val result = firebaseBookingRepo.getBookingsByFacilityAndDate(facilityName, dateStart, dateEnd)
 
                 result.onSuccess { bookings ->
                     val bookingEntities = bookings.mapNotNull { mapToBookingEntity(it) }
-                    Log.d("BookingViewModel", "✅ Found ${bookingEntities.size} occupied slots")
+                    Log.d("BookingViewModel", "Found ${bookingEntities.size} occupied slots")
                     _occupiedSlots.value = bookingEntities
                 }.onFailure { e ->
-                    Log.e("BookingViewModel", "❌ Error loading occupied slots: ${e.message}")
+                    Log.e("BookingViewModel", "Error loading occupied slots: ${e.message}")
                     _occupiedSlots.value = emptyList()
                 }
             } catch (e: Exception) {
-                Log.e("BookingViewModel", "❌ Error loading occupied slots", e)
+                Log.e("BookingViewModel", "Error loading occupied slots", e)
                 _occupiedSlots.value = emptyList()
             } finally {
                 _isLoading.value = false
@@ -78,7 +78,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 保存预定到 Firebase
+     * Save booking to Firebase
      */
     fun saveBooking(
         facilityName: String,
@@ -90,9 +90,9 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     ) {
         viewModelScope.launch {
             try {
-                Log.d("BookingViewModel", "📤 Creating booking: $facilityName on $date at $timeSlot:00")
+                Log.d("BookingViewModel", "Creating booking: $facilityName on $date at $timeSlot:00")
 
-                // 计算时间戳
+                // Calculate timestamp
                 val bookingDate = LocalDate.parse(date)
                 val bookingTime = LocalTime.of(timeSlot, 0)
                 val bookingDateTime = LocalDateTime.of(bookingDate, bookingTime)
@@ -100,15 +100,15 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 val startTime = bookingDateTime.atZone(zoneId).toInstant().toEpochMilli()
                 val endTime = bookingDateTime.plusHours(1).atZone(zoneId).toInstant().toEpochMilli()
 
-                // 检查可用性
+                // Check availability
                 val isAvailable = firebaseBookingRepo.checkAvailability(facilityName, startTime, endTime)
                 if (!isAvailable) {
-                    Log.e("BookingViewModel", "❌ Time slot is already booked")
-                    // TODO: 通知 UI 显示错误消息
+                    Log.e("BookingViewModel", "Time slot is already booked")
+                    // TODO: Notify UI to show error message
                     return@launch
                 }
 
-                // 创建预订数据
+                // Create booking data
                 val bookingData = mapOf(
                     "userId" to userId,
                     "userName" to userName,
@@ -122,89 +122,89 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
 
                 if (result.isSuccess) {
                     val bookingId = result.getOrNull()
-                    Log.d("BookingViewModel", "✅ Booking created successfully: $bookingId")
+                    Log.d("BookingViewModel", "Booking created successfully: $bookingId")
 
-                    // 刷新预订列表
+                    // Refresh bookings list
                     loadOccupiedSlots(facilityName, date)
                     onSuccess()
                 } else {
-                    Log.e("BookingViewModel", "❌ Failed to create booking: ${result.exceptionOrNull()?.message}")
+                    Log.e("BookingViewModel", "Failed to create booking: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("BookingViewModel", "❌ Error creating booking", e)
+                Log.e("BookingViewModel", "Error creating booking", e)
             }
         }
     }
 
     /**
-     * 获取当前用户的所有预定（实时监听）
+     * Get all bookings for current user (real-time listening)
      */
     fun getUserBookings(userId: String) {
         viewModelScope.launch {
             try {
-                Log.d("BookingViewModel", "📥 Loading bookings for user: $userId")
+                Log.d("BookingViewModel", "Loading bookings for user: $userId")
 
-                // 使用 Firebase Flow 实时监听
+                // Use Firebase Flow for real-time listening
                 firebaseBookingRepo.getUserBookings(userId).collect { firebaseBookings ->
-                    // 转换为 BookingEntity
+                    // Convert to BookingEntity
                     val bookingEntities = firebaseBookings.mapNotNull { mapToBookingEntity(it) }
 
-                    Log.d("BookingViewModel", "✅ Loaded ${bookingEntities.size} bookings")
+                    Log.d("BookingViewModel", "Loaded ${bookingEntities.size} bookings")
                     _userBookings.postValue(bookingEntities)
                 }
             } catch (e: Exception) {
-                Log.e("BookingViewModel", "❌ Error loading user bookings", e)
+                Log.e("BookingViewModel", "Error loading user bookings", e)
                 _userBookings.postValue(emptyList())
             }
         }
     }
 
     /**
-     * 取消预定（将状态改为 CANCELLED）
+     * Cancel booking (change status to CANCELLED)
      */
     fun cancelBooking(booking: BookingEntity) {
         viewModelScope.launch {
             try {
-                Log.d("BookingViewModel", "🚫 Cancelling booking: ${booking.id}")
+                Log.d("BookingViewModel", "Cancelling booking: ${booking.id}")
 
                 val result = firebaseBookingRepo.cancelBooking(booking.id)
 
                 if (result.isSuccess) {
-                    Log.d("BookingViewModel", "✅ Booking cancelled successfully")
-                    // Firebase Flow 会自动更新列表
+                    Log.d("BookingViewModel", "Booking cancelled successfully")
+                    // Firebase Flow will automatically update the list
                 } else {
-                    Log.e("BookingViewModel", "❌ Failed to cancel booking: ${result.exceptionOrNull()?.message}")
+                    Log.e("BookingViewModel", "Failed to cancel booking: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("BookingViewModel", "❌ Error cancelling booking", e)
+                Log.e("BookingViewModel", "Error cancelling booking", e)
             }
         }
     }
 
     /**
-     * 删除预定记录（从数据库完全删除）
+     * Delete booking record (completely delete from database)
      */
     fun deleteBooking(booking: BookingEntity) {
         viewModelScope.launch {
             try {
-                Log.d("BookingViewModel", "🗑️ Deleting booking: ${booking.id}")
+                Log.d("BookingViewModel", "Deleting booking: ${booking.id}")
 
                 val result = firebaseBookingRepo.deleteBooking(booking.id)
 
                 if (result.isSuccess) {
-                    Log.d("BookingViewModel", "✅ Booking deleted successfully")
-                    // Firebase Flow 会自动更新列表
+                    Log.d("BookingViewModel", "Booking deleted successfully")
+                    // Firebase Flow will automatically update the list
                 } else {
-                    Log.e("BookingViewModel", "❌ Failed to delete booking: ${result.exceptionOrNull()?.message}")
+                    Log.e("BookingViewModel", "Failed to delete booking: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("BookingViewModel", "❌ Error deleting booking", e)
+                Log.e("BookingViewModel", "Error deleting booking", e)
             }
         }
     }
 
     /**
-     * 将 Firebase Map 数据转换为 BookingEntity
+     * Convert Firebase Map data to BookingEntity
      */
     private fun mapToBookingEntity(firebaseData: Map<String, Any>): BookingEntity? {
         return try {
@@ -215,7 +215,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
             val startTime = firebaseData["startTime"] as? Long ?: 0L
             val status = firebaseData["status"] as? String ?: "PENDING"
 
-            // 从 timestamp 转换为日期和时间槽
+            // Convert from timestamp to date and time slot
             val zoneId = ZoneId.of("Asia/Kuala_Lumpur")
             val dateTime = LocalDateTime.ofInstant(
                 java.time.Instant.ofEpochMilli(startTime),
@@ -225,7 +225,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
             val timeSlot = dateTime.hour
 
             BookingEntity(
-                id = id, // Firebase 生成的真实 ID
+                id = id, // Real ID generated by Firebase
                 userId = userId,
                 userName = userName,
                 facilityName = facilityName,
@@ -240,7 +240,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 根据设施名称获取类型
+     * Get facility type based on facility name
      */
     private fun getFacilityType(facilityName: String): String {
         return when {

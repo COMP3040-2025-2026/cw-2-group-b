@@ -72,11 +72,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = true
                 _error.value = null
 
-                Log.d(TAG, "🔐 Starting Firebase Auth login for user: $username")
+                Log.d(TAG, "Starting Firebase Auth login for user: $username")
 
                 // Step 1: Convert username to email format
                 val email = convertUsernameToEmail(username)
-                Log.d(TAG, "📧 Converted username to email: $email")
+                Log.d(TAG, "Converted username to email: $email")
 
                 // Step 2: Authenticate with Firebase Auth
                 val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
@@ -84,24 +84,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (firebaseUser == null) {
                     _error.value = "Authentication failed: User is null"
-                    Log.e(TAG, "❌ Firebase user is null after authentication")
+                    Log.e(TAG, "Firebase user is null after authentication")
                     return@launch
                 }
 
                 val uid = firebaseUser.uid
-                Log.d(TAG, "✅ Firebase Auth successful! UID: $uid")
+                Log.d(TAG, "Firebase Auth successful! UID: $uid")
 
                 // Step 3: Fetch user profile from Realtime Database
                 val userResult = firebaseUserRepo.getUserProfileOnce(uid)
                 if (userResult.isFailure) {
                     _error.value = "Failed to load user profile: ${userResult.exceptionOrNull()?.message}"
-                    Log.e(TAG, "❌ Failed to fetch user profile from database", userResult.exceptionOrNull())
+                    Log.e(TAG, "Failed to fetch user profile from database", userResult.exceptionOrNull())
                     return@launch
                 }
 
                 val user = userResult.getOrNull() ?: run {
                     _error.value = "User data is null"
-                    Log.e(TAG, "❌ User data is null")
+                    Log.e(TAG, "User data is null")
                     return@launch
                 }
 
@@ -121,32 +121,32 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 tokenManager.saveToken(idToken)
                 tokenManager.saveUserInfo(uid, user.username, userType)
                 tokenManager.saveFullName(user.name)
-                tokenManager.saveEmail(user.email) // ✅ 保存邮箱
+                tokenManager.saveEmail(user.email) // Save email
 
-                // ✅ 保存完整的用户信息
+                // Save complete user information
                 if (userType == "STUDENT") {
-                    tokenManager.saveStudentId(user.studentId) // 保存学号
-                    tokenManager.saveFaculty(user.faculty)     // 保存学院
-                    tokenManager.saveMajor(user.program)        // 保存专业 (User.program -> TokenManager.major)
-                    tokenManager.saveYearOfStudy(user.year.toString()) // 保存年级
+                    tokenManager.saveStudentId(user.studentId) // Save student ID
+                    tokenManager.saveFaculty(user.faculty)     // Save faculty
+                    tokenManager.saveMajor(user.program)        // Save major (User.program -> TokenManager.major)
+                    tokenManager.saveYearOfStudy(user.year.toString()) // Save year of study
                 } else if (userType == "TEACHER") {
-                    tokenManager.saveEmployeeId(user.studentId) // 教师的 studentId 字段存的是 Employee ID
-                    tokenManager.saveDepartment(user.faculty)   // 教师的 faculty 字段存的是 Department
-                    // ✅ 保存教师专属字段
+                    tokenManager.saveEmployeeId(user.studentId) // Teacher's studentId field stores Employee ID
+                    tokenManager.saveDepartment(user.faculty)   // Teacher's faculty field stores Department
+                    // Save teacher-specific fields
                     user.title?.let { tokenManager.saveTitle(it) }
                     user.officeRoom?.let { tokenManager.saveOfficeRoom(it) }
                 }
 
-                // ✅ 保存头像 URL (如果有)
+                // Save avatar URL (if available)
                 user.profileImageUrl?.let { tokenManager.saveAvatar(it) }
 
-                // ✅ 保存骑手模式状态 (从 Firebase 同步)
+                // Save delivery mode status (synced from Firebase)
                 val deliveryMode = user.deliveryMode ?: false
                 tokenManager.setDeliveryMode(deliveryMode)
-                Log.d(TAG, "🚴 Delivery mode loaded: $deliveryMode")
+                Log.d(TAG, "Delivery mode loaded: $deliveryMode")
 
-                Log.d(TAG, "✅ Login successful: ${user.username} ($userType) | UID: $uid")
-                Log.d(TAG, "👤 User info: ${user.name} | Email: ${user.email}")
+                Log.d(TAG, "Login successful: ${user.username} ($userType) | UID: $uid")
+                Log.d(TAG, "User info: ${user.name} | Email: ${user.email}")
 
                 // Step 5: Create default conversations (optional)
                 try {
@@ -158,24 +158,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Step 6: Setup presence for online status tracking
                 firebaseUserRepo.setupPresence(uid)
-                Log.d(TAG, "🟢 Presence system initialized for user: $uid")
+                Log.d(TAG, "Presence system initialized for user: $uid")
 
                 // Step 7: Save FCM token for push notifications
                 FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
                     MyFirebaseMessagingService.saveTokenToFirebase(fcmToken)
-                    Log.d(TAG, "📲 FCM token saved for push notifications")
+                    Log.d(TAG, "FCM token saved for push notifications")
                 }
 
                 _loginSuccess.value = true
 
             } catch (e: FirebaseAuthInvalidUserException) {
-                Log.e(TAG, "❌ User not found", e)
+                Log.e(TAG, "User not found", e)
                 _error.value = "User not found. Please check your username."
             } catch (e: FirebaseAuthInvalidCredentialsException) {
-                Log.e(TAG, "❌ Invalid password", e)
+                Log.e(TAG, "Invalid password", e)
                 _error.value = "Invalid password. Please try again."
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Login error", e)
+                Log.e(TAG, "Login error", e)
                 _error.value = "Login error: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -226,13 +226,13 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             val userId = firebaseAuth.currentUser?.uid
             if (!userId.isNullOrEmpty()) {
                 firebaseUserRepo.setOffline(userId)
-                Log.d(TAG, "🔴 User set to offline: $userId")
+                Log.d(TAG, "User set to offline: $userId")
             }
             // Remove FCM token to stop receiving notifications
             MyFirebaseMessagingService.removeTokenFromFirebase()
             firebaseAuth.signOut()
             tokenManager.clearToken()
-            Log.d(TAG, "🚪 User logged out successfully")
+            Log.d(TAG, "User logged out successfully")
         }
     }
 

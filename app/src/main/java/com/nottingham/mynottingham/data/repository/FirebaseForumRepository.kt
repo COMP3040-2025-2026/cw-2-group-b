@@ -12,10 +12,10 @@ import kotlinx.coroutines.tasks.await
 /**
  * Firebase Forum Repository
  *
- * 直接从 Firebase Realtime Database 读取和管理论坛数据
- * 不再依赖 Spring Boot 后端 API
+ * Reads and manages forum data directly from Firebase Realtime Database.
+ * No longer depends on Spring Boot backend API.
  *
- * Firebase 数据结构：
+ * Firebase data structure:
  * posts/{postId}/
  *   - authorId: string
  *   - authorName: string
@@ -45,7 +45,7 @@ import kotlinx.coroutines.tasks.await
 class FirebaseForumRepository {
 
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
-    // 修正路径：数据库中实际使用 forum_posts 和 forum_comments
+    // Note: Database uses forum_posts and forum_comments as actual paths
     private val postsRef: DatabaseReference = database.getReference("forum_posts")
     private val postLikesRef: DatabaseReference = database.getReference("forum_post_likes")
     private val postCommentsRef: DatabaseReference = database.getReference("forum_comments")
@@ -53,11 +53,11 @@ class FirebaseForumRepository {
     private val postViewsRef: DatabaseReference = database.getReference("forum_post_views")
 
     /**
-     * 获取所有帖子（实时监听）
-     * @param category 分类筛选（可选）
-     * @return Flow<List<ForumPost>> 帖子列表流
+     * Get all posts (real-time listener)
+     * @param category Category filter (optional)
+     * @return Flow<List<ForumPost>> Post list flow
      *
-     * 🔴 修复：从 users 表动态获取作者头像
+     * Fix: Dynamically fetch author avatar from users table
      */
     fun getPostsFlow(category: String? = null, currentUserId: String): Flow<List<ForumPost>> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -69,7 +69,7 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态和头像
+                // Use coroutine for async like status and avatar queries
                 launch {
                     val posts = mutableListOf<ForumPost>()
 
@@ -78,17 +78,17 @@ class FirebaseForumRepository {
                             val postId = child.key ?: return@forEach
                             val authorId = child.child("authorId").getValue(String::class.java) ?: ""
                             val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                            // 优先从帖子读取头像，如果没有则从 users 表获取
+                            // Prefer reading avatar from post, fallback to users table
                             var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val postCategory = child.child("category").getValue(String::class.java) ?: "GENERAL"
                             val title = child.child("title").getValue(String::class.java) ?: ""
                             val content = child.child("content").getValue(String::class.java) ?: ""
                             val imageUrl = child.child("imageUrl").getValue(String::class.java)
-                            // 读取 tags 数组
+                            // Read tags array
                             val tags = child.child("tags").children.mapNotNull {
                                 it.getValue(String::class.java)
                             }.takeIf { it.isNotEmpty() }
-                            // 读取置顶状态
+                            // Read pinned status
                             val isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false
                             val pinnedAt = child.child("pinnedAt").getValue(Long::class.java)
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
@@ -98,7 +98,7 @@ class FirebaseForumRepository {
                                 ?: child.child("timestamp").getValue(Long::class.java) ?: 0L
                             val updatedAt = child.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                            // 🔴 如果帖子没有头像字段，从 users 表获取
+                            // If post has no avatar field, fetch from users table
                             if (authorAvatar == null && authorId.isNotEmpty()) {
                                 try {
                                     val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
@@ -108,14 +108,14 @@ class FirebaseForumRepository {
                                 }
                             }
 
-                            // 检查当前用户是否点赞（异步查询）
+                            // Check if current user liked (async query)
                             val isLiked = if (currentUserId.isNotEmpty()) {
                                 isPostLiked(postId, currentUserId)
                             } else {
                                 false
                             }
 
-                            // 分类过滤
+                            // Category filter
                             if (category == null || postCategory == category) {
                                 posts.add(
                                     ForumPost(
@@ -144,7 +144,7 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // 排序：置顶帖子优先（按置顶时间倒序），然后是普通帖子（按创建时间倒序）
+                    // Sort: pinned posts first (by pinned time desc), then normal posts (by created time desc)
                     val sortedPosts = posts.sortedWith(
                         compareByDescending<ForumPost> { it.isPinned }
                             .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
@@ -167,12 +167,12 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 获取单个帖子详情（实时监听）
-     * @param postId 帖子ID
-     * @param currentUserId 当前用户ID
-     * @return Flow<ForumPost?> 帖子详情流
+     * Get single post details (real-time listener)
+     * @param postId Post ID
+     * @param currentUserId Current user ID
+     * @return Flow<ForumPost?> Post details flow
      *
-     * 🔴 修复：从 users 表动态获取作者头像
+     * Fix: Dynamically fetch author avatar from users table
      */
     fun getPostDetailFlow(postId: String, currentUserId: String): Flow<ForumPost?> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -184,7 +184,7 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态和头像
+                // Use coroutine for async like status and avatar queries
                 launch {
                     try {
                         val authorId = snapshot.child("authorId").getValue(String::class.java) ?: ""
@@ -194,11 +194,11 @@ class FirebaseForumRepository {
                         val title = snapshot.child("title").getValue(String::class.java) ?: ""
                         val content = snapshot.child("content").getValue(String::class.java) ?: ""
                         val imageUrl = snapshot.child("imageUrl").getValue(String::class.java)
-                        // 读取 tags 数组
+                        // Read tags array
                         val tags = snapshot.child("tags").children.mapNotNull {
                             it.getValue(String::class.java)
                         }.takeIf { it.isNotEmpty() }
-                        // 读取置顶状态
+                        // Read pinned status
                         val isPinned = snapshot.child("isPinned").getValue(Boolean::class.java) ?: false
                         val pinnedAt = snapshot.child("pinnedAt").getValue(Long::class.java)
                         val likes = snapshot.child("likes").getValue(Int::class.java) ?: 0
@@ -208,7 +208,7 @@ class FirebaseForumRepository {
                             ?: snapshot.child("timestamp").getValue(Long::class.java) ?: 0L
                         val updatedAt = snapshot.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                        // 🔴 如果帖子没有头像字段，从 users 表获取
+                        // If post has no avatar field, fetch from users table
                         if (authorAvatar == null && authorId.isNotEmpty()) {
                             try {
                                 val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
@@ -218,7 +218,7 @@ class FirebaseForumRepository {
                             }
                         }
 
-                        // 检查当前用户是否点赞（异步查询）
+                        // Check if current user liked (async query)
                         val isLiked = if (currentUserId.isNotEmpty()) {
                             isPostLiked(postId, currentUserId)
                         } else {
@@ -267,12 +267,12 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 获取帖子的评论列表（实时监听）
-     * @param postId 帖子ID
-     * @param currentUserId 当前用户ID
-     * @return Flow<List<ForumComment>> 评论列表流
+     * Get post's comment list (real-time listener)
+     * @param postId Post ID
+     * @param currentUserId Current user ID
+     * @return Flow<List<ForumComment>> Comment list flow
      *
-     * 🔴 修复：从 users 表动态获取作者头像
+     * Fix: Dynamically fetch author avatar from users table
      */
     fun getCommentsFlow(postId: String, currentUserId: String): Flow<List<ForumComment>> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -284,7 +284,7 @@ class FirebaseForumRepository {
                     return
                 }
 
-                // 使用协程来异步查询点赞状态和头像
+                // Use coroutine for async like status and avatar queries
                 launch {
                     val comments = mutableListOf<ForumComment>()
 
@@ -298,7 +298,7 @@ class FirebaseForumRepository {
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
                             val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
 
-                            // 🔴 如果评论没有头像字段，从 users 表获取
+                            // If comment has no avatar field, fetch from users table
                             if (authorAvatar == null && authorId.isNotEmpty()) {
                                 try {
                                     val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
@@ -308,7 +308,7 @@ class FirebaseForumRepository {
                                 }
                             }
 
-                            // 检查当前用户是否点赞了该评论（异步查询）
+                            // Check if current user liked this comment (async query)
                             val isLiked = if (currentUserId.isNotEmpty()) {
                                 isCommentLiked(commentId, currentUserId)
                             } else {
@@ -333,7 +333,7 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // 按时间正序排列（旧的在前）
+                    // Sort by time ascending (oldest first)
                     comments.sortBy { it.createdAt }
                     trySend(comments)
                 }
@@ -353,15 +353,15 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 创建新帖子
-     * @param authorId 作者ID
-     * @param authorName 作者名称
-     * @param authorAvatar 作者头像
-     * @param category 分类
-     * @param title 标题
-     * @param content 内容
-     * @param imageUrl 图片URL（可选）
-     * @return Result<String> 帖子ID或错误
+     * Create new post
+     * @param authorId Author ID
+     * @param authorName Author name
+     * @param authorAvatar Author avatar
+     * @param category Category
+     * @param title Title
+     * @param content Content
+     * @param imageUrl Image URL (optional)
+     * @return Result<String> Post ID or error
      */
     suspend fun createPost(
         authorId: String,
@@ -419,11 +419,11 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 更新帖子
-     * @param postId 帖子ID
-     * @param title 新标题
-     * @param content 新内容
-     * @return Result<Unit> 成功或错误
+     * Update post
+     * @param postId Post ID
+     * @param title New title
+     * @param content New content
+     * @return Result<Unit> Success or error
      */
     suspend fun updatePost(
         postId: String,
@@ -451,7 +451,7 @@ class FirebaseForumRepository {
             if (isPinned != null) {
                 updates["isPinned"] = isPinned
                 if (isPinned) {
-                    // 设置置顶时间（如果之前没有置顶时间，则设置为当前时间）
+                    // Set pinned time (if no previous pinned time, set to current time)
                     updates["pinnedAt"] = System.currentTimeMillis()
                 }
             }
@@ -465,19 +465,19 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 删除帖子
-     * @param postId 帖子ID
-     * @return Result<Unit> 成功或错误
+     * Delete post
+     * @param postId Post ID
+     * @return Result<Unit> Success or error
      */
     suspend fun deletePost(postId: String): Result<Unit> {
         return try {
-            // 删除帖子
+            // Delete post
             postsRef.child(postId).removeValue().await()
 
-            // 删除帖子的点赞记录
+            // Delete post's like records
             postLikesRef.child(postId).removeValue().await()
 
-            // 删除帖子的评论
+            // Delete post's comments
             postCommentsRef.child(postId).removeValue().await()
 
             Result.success(Unit)
@@ -488,10 +488,10 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 点赞/取消点赞帖子
-     * @param postId 帖子ID
-     * @param userId 用户ID
-     * @return Result<Boolean> 是否已点赞
+     * Like/unlike post
+     * @param postId Post ID
+     * @param userId User ID
+     * @return Result<Boolean> Whether liked
      */
     suspend fun toggleLikePost(postId: String, userId: String): Result<Boolean> {
         return try {
@@ -499,20 +499,20 @@ class FirebaseForumRepository {
             val snapshot = likeRef.get().await()
 
             if (snapshot.exists()) {
-                // 取消点赞
+                // Unlike
                 likeRef.removeValue().await()
 
-                // 减少点赞数
+                // Decrease like count
                 val postRef = postsRef.child(postId).child("likes")
                 val currentLikes = postRef.get().await().getValue(Int::class.java) ?: 0
                 postRef.setValue(maxOf(0, currentLikes - 1)).await()
 
                 Result.success(false)
             } else {
-                // 点赞
+                // Like
                 likeRef.setValue(true).await()
 
-                // 增加点赞数
+                // Increase like count
                 val postRef = postsRef.child(postId).child("likes")
                 val currentLikes = postRef.get().await().getValue(Int::class.java) ?: 0
                 postRef.setValue(currentLikes + 1).await()
@@ -526,13 +526,13 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 创建评论
-     * @param postId 帖子ID
-     * @param authorId 作者ID
-     * @param authorName 作者名称
-     * @param authorAvatar 作者头像
-     * @param content 评论内容
-     * @return Result<String> 评论ID或错误
+     * Create comment
+     * @param postId Post ID
+     * @param authorId Author ID
+     * @param authorName Author name
+     * @param authorAvatar Author avatar
+     * @param content Comment content
+     * @return Result<String> Comment ID or error
      */
     suspend fun createComment(
         postId: String,
@@ -560,7 +560,7 @@ class FirebaseForumRepository {
 
             newCommentRef.setValue(commentData).await()
 
-            // 增加帖子的评论计数
+            // Increase post's comment count
             val postCommentsCountRef = postsRef.child(postId).child("comments")
             val currentCount = postCommentsCountRef.get().await().getValue(Int::class.java) ?: 0
             postCommentsCountRef.setValue(currentCount + 1).await()
@@ -573,11 +573,11 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 点赞/取消点赞评论
-     * @param commentId 评论ID
-     * @param postId 帖子ID
-     * @param userId 用户ID
-     * @return Result<Boolean> 是否已点赞
+     * Like/unlike comment
+     * @param commentId Comment ID
+     * @param postId Post ID
+     * @param userId User ID
+     * @return Result<Boolean> Whether liked
      */
     suspend fun toggleLikeComment(commentId: String, postId: String, userId: String): Result<Boolean> {
         return try {
@@ -585,20 +585,20 @@ class FirebaseForumRepository {
             val snapshot = likeRef.get().await()
 
             if (snapshot.exists()) {
-                // 取消点赞
+                // Unlike
                 likeRef.removeValue().await()
 
-                // 减少点赞数
+                // Decrease like count
                 val commentRef = postCommentsRef.child(postId).child(commentId).child("likes")
                 val currentLikes = commentRef.get().await().getValue(Int::class.java) ?: 0
                 commentRef.setValue(maxOf(0, currentLikes - 1)).await()
 
                 Result.success(false)
             } else {
-                // 点赞
+                // Like
                 likeRef.setValue(true).await()
 
-                // 增加点赞数
+                // Increase like count
                 val commentRef = postCommentsRef.child(postId).child(commentId).child("likes")
                 val currentLikes = commentRef.get().await().getValue(Int::class.java) ?: 0
                 commentRef.setValue(currentLikes + 1).await()
@@ -612,25 +612,25 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 增加帖子浏览量（每个用户只计算一次）
-     * @param postId 帖子ID
-     * @param userId 用户ID
+     * Increment post view count (counted once per user)
+     * @param postId Post ID
+     * @param userId User ID
      */
     suspend fun incrementViews(postId: String, userId: String): Result<Unit> {
         if (userId.isEmpty()) {
-            return Result.success(Unit) // 未登录用户不计算浏览量
+            return Result.success(Unit) // Logged-out users don't count towards views
         }
 
         return try {
             val userViewRef = postViewsRef.child(postId).child(userId)
             val hasViewed = userViewRef.get().await().exists()
 
-            // 只有首次访问才增加浏览量
+            // Only increment on first visit
             if (!hasViewed) {
-                // 标记该用户已访问
+                // Mark user as having viewed
                 userViewRef.setValue(true).await()
 
-                // 增加浏览量计数
+                // Increment view count
                 val viewsRef = postsRef.child(postId).child("views")
                 val currentViews = viewsRef.get().await().getValue(Int::class.java) ?: 0
                 viewsRef.setValue(currentViews + 1).await()
@@ -644,10 +644,10 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 检查用户是否点赞了帖子
-     * @param postId 帖子ID
-     * @param userId 用户ID
-     * @return Boolean 是否点赞
+     * Check if user liked a post
+     * @param postId Post ID
+     * @param userId User ID
+     * @return Boolean Whether liked
      */
     suspend fun isPostLiked(postId: String, userId: String): Boolean {
         return try {
@@ -659,10 +659,10 @@ class FirebaseForumRepository {
     }
 
     /**
-     * 检查用户是否点赞了评论
-     * @param commentId 评论ID
-     * @param userId 用户ID
-     * @return Boolean 是否点赞
+     * Check if user liked a comment
+     * @param commentId Comment ID
+     * @param userId User ID
+     * @return Boolean Whether liked
      */
     suspend fun isCommentLiked(commentId: String, userId: String): Boolean {
         return try {

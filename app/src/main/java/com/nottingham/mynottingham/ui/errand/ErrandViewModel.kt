@@ -14,14 +14,14 @@ import kotlinx.coroutines.launch
 /**
  * ErrandViewModel - Firebase Migration Edition
  *
- * 完全使用 Firebase Realtime Database 管理跑腿任务
- * 不再依赖 Spring Boot 后端 API
+ * Fully uses Firebase Realtime Database to manage errand tasks
+ * No longer relies on Spring Boot backend API
  *
- * 功能：
- * - 实时加载可用任务 (PENDING 状态)
- * - 创建新任务
- * - 接受任务 (TODO: 需要添加UI)
- * - 完成任务 (TODO: 需要添加UI)
+ * Features:
+ * - Real-time loading of available tasks (PENDING status)
+ * - Create new task
+ * - Accept task (TODO: Need to add UI)
+ * - Complete task (TODO: Need to add UI)
  */
 class ErrandViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -36,11 +36,11 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * 实时加载可用任务 (PENDING 状态)
+     * Real-time loading of available tasks (PENDING status)
      *
-     * 根据配送模式过滤：
-     * - 配送模式 OFF (普通用户): 只看自己发布的订单
-     * - 配送模式 ON (骑手): 看别人发布的订单 (可接单)
+     * Filter based on delivery mode:
+     * - Delivery mode OFF (regular user): Only see own published orders
+     * - Delivery mode ON (delivery rider): See others' published orders (can accept)
      */
     fun loadTasks() {
         viewModelScope.launch {
@@ -48,35 +48,35 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 val currentUserId = tokenManager.getUserId().first() ?: ""
                 val isDeliveryMode = tokenManager.getDeliveryMode().first()
 
-                Log.d("ErrandViewModel", "📥 Loading tasks from Firebase... (deliveryMode=$isDeliveryMode, userId=$currentUserId)")
+                Log.d("ErrandViewModel", "Loading tasks from Firebase... (deliveryMode=$isDeliveryMode, userId=$currentUserId)")
 
-                // 使用 Firebase Flow 实时监听
+                // Use Firebase Flow for real-time listening
                 firebaseErrandRepo.getAvailableErrands().collect { firebaseErrands ->
-                    // 转换 Firebase 数据为 ErrandTask
+                    // Convert Firebase data to ErrandTask
                     val allTasks = firebaseErrands.mapNotNull { mapToErrandTask(it) }
 
-                    // 根据配送模式过滤任务
+                    // Filter tasks based on delivery mode
                     val filteredTasks = if (isDeliveryMode) {
-                        // 骑手模式：显示别人发布的订单（排除自己的）
+                        // Delivery mode: Show others' published orders (exclude own)
                         allTasks.filter { it.requesterId != currentUserId }
                     } else {
-                        // 普通用户模式：只显示自己发布的订单
+                        // Regular user mode: Only show own published orders
                         allTasks.filter { it.requesterId == currentUserId }
                     }
 
-                    Log.d("ErrandViewModel", "✅ Loaded ${filteredTasks.size} tasks (filtered from ${allTasks.size})")
+                    Log.d("ErrandViewModel", "Loaded ${filteredTasks.size} tasks (filtered from ${allTasks.size})")
                     _tasks.postValue(filteredTasks)
                 }
             } catch (e: Exception) {
-                Log.e("ErrandViewModel", "❌ Error loading tasks", e)
-                // 发生错误时显示空列表
+                Log.e("ErrandViewModel", "Error loading tasks", e)
+                // Show empty list on error
                 _tasks.postValue(emptyList())
             }
         }
     }
 
     /**
-     * 创建新任务
+     * Create new task
      */
     fun addTask(task: ErrandTask) {
         viewModelScope.launch {
@@ -85,7 +85,7 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 val userName = tokenManager.getFullName().first() ?: "Unknown User"
                 val userAvatar = tokenManager.getAvatar().first() ?: ""
 
-                Log.d("ErrandViewModel", "📤 Creating new task: ${task.title}")
+                Log.d("ErrandViewModel", "Creating new task: ${task.title}")
 
                 val errandData = mapOf<String, Any>(
                     "title" to task.title,
@@ -104,18 +104,18 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (result.isSuccess) {
                     val errandId = result.getOrNull()
-                    Log.d("ErrandViewModel", "✅ Task created successfully: $errandId")
+                    Log.d("ErrandViewModel", "Task created successfully: $errandId")
                 } else {
-                    Log.e("ErrandViewModel", "❌ Failed to create task: ${result.exceptionOrNull()?.message}")
+                    Log.e("ErrandViewModel", "Failed to create task: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("ErrandViewModel", "❌ Error creating task", e)
+                Log.e("ErrandViewModel", "Error creating task", e)
             }
         }
     }
 
     /**
-     * 接受任务（供其他用户使用）
+     * Accept task (for other users)
      */
     fun acceptTask(taskId: String) {
         viewModelScope.launch {
@@ -123,44 +123,44 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 val userId = tokenManager.getUserId().first() ?: ""
                 val userName = tokenManager.getFullName().first() ?: "Unknown User"
 
-                Log.d("ErrandViewModel", "📥 Accepting task: $taskId")
+                Log.d("ErrandViewModel", "Accepting task: $taskId")
 
                 val result = firebaseErrandRepo.acceptErrand(taskId, userId, userName)
 
                 if (result.isSuccess) {
-                    Log.d("ErrandViewModel", "✅ Task accepted successfully")
+                    Log.d("ErrandViewModel", "Task accepted successfully")
                 } else {
-                    Log.e("ErrandViewModel", "❌ Failed to accept task: ${result.exceptionOrNull()?.message}")
+                    Log.e("ErrandViewModel", "Failed to accept task: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("ErrandViewModel", "❌ Error accepting task", e)
+                Log.e("ErrandViewModel", "Error accepting task", e)
             }
         }
     }
 
     /**
-     * 完成任务
+     * Complete task
      */
     fun completeTask(taskId: String) {
         viewModelScope.launch {
             try {
-                Log.d("ErrandViewModel", "✅ Completing task: $taskId")
+                Log.d("ErrandViewModel", "Completing task: $taskId")
 
                 val result = firebaseErrandRepo.completeErrand(taskId)
 
                 if (result.isSuccess) {
-                    Log.d("ErrandViewModel", "✅ Task completed successfully")
+                    Log.d("ErrandViewModel", "Task completed successfully")
                 } else {
-                    Log.e("ErrandViewModel", "❌ Failed to complete task: ${result.exceptionOrNull()?.message}")
+                    Log.e("ErrandViewModel", "Failed to complete task: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e("ErrandViewModel", "❌ Error completing task", e)
+                Log.e("ErrandViewModel", "Error completing task", e)
             }
         }
     }
 
     /**
-     * 将 Firebase Map 数据转换为 ErrandTask
+     * Convert Firebase Map data to ErrandTask
      */
     private fun mapToErrandTask(firebaseData: Map<String, Any>): ErrandTask? {
         return try {

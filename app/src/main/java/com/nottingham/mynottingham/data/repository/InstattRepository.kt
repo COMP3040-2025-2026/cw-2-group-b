@@ -13,12 +13,12 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 /**
- * InstattRepository - 统一管理签到系统的数据访问
+ * InstattRepository - Unified management of attendance system data access
  *
- * 架构设计（已迁移到 Firebase）：
- * - 课程查询（getTeacherCourses, getStudentCourses）：✅ 使用 Firebase Realtime Database
- * - 实时签到操作（unlock/lock/signIn）：✅ 使用 Firebase Realtime Database
- * - 实时监听（学生名单、锁定状态）：✅ 通过 Flow 实现响应式更新
+ * Architecture design (migrated to Firebase):
+ * - Course queries (getTeacherCourses, getStudentCourses): Using Firebase Realtime Database
+ * - Real-time attendance operations (unlock/lock/signIn): Using Firebase Realtime Database
+ * - Real-time listeners (student list, lock status): Implementing reactive updates through Flow
  */
 class InstattRepository {
 
@@ -27,8 +27,8 @@ class InstattRepository {
     private val firebaseCourseRepo = FirebaseCourseRepository()
 
     /**
-     * 获取服务器时间 - 使用 Firebase 服务器时间偏移量
-     * Firebase 提供 .info/serverTimeOffset 来计算服务器与本地时间的差值
+     * Get server time - uses Firebase server time offset
+     * Firebase provides .info/serverTimeOffset to calculate the difference between server and local time
      */
     suspend fun getSystemTime(): Long {
         return withContext(Dispatchers.IO) {
@@ -37,7 +37,7 @@ class InstattRepository {
                 val offset = offsetRef.get().await().getValue(Long::class.java) ?: 0L
                 System.currentTimeMillis() + offset
             } catch (e: Exception) {
-                // 如果无法获取服务器时间，降级使用本地时间
+                // If unable to get server time, fall back to local time
                 android.util.Log.w("InstattRepository", "Failed to get server time offset, using local time", e)
                 System.currentTimeMillis()
             }
@@ -45,84 +45,84 @@ class InstattRepository {
     }
 
     /**
-     * ✅ 已迁移：使用 Firebase 获取教师课程
+     * Migrated: Get teacher courses using Firebase
      */
     suspend fun getTeacherCourses(teacherId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
-            // 直接调用 FirebaseCourseRepository
+            // Directly call FirebaseCourseRepository
             firebaseCourseRepo.getTeacherCourses(teacherId, date)
         }
     }
 
     /**
-     * ✅ 已迁移：使用 Firebase 获取学生课程
+     * Migrated: Get student courses using Firebase
      */
     suspend fun getStudentCourses(studentId: String, date: String): Result<List<Course>> {
         return withContext(Dispatchers.IO) {
-            // 直接调用 FirebaseCourseRepository
+            // Directly call FirebaseCourseRepository
             firebaseCourseRepo.getStudentCourses(studentId, date)
         }
     }
 
     /**
-     * 教师开启签到 - 使用 Firebase 实现实时更新
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
-     * ✅ 新增：返回是否首次unlock（用于增加课程总数）
+     * Teacher unlocks attendance - uses Firebase for real-time updates
+     * FIX: Changed courseScheduleId to String to support Firebase ID
+     * NEW: Returns whether this is first unlock (used to increment total classes)
      *
-     * @return Result<Boolean> - true表示首次unlock，false表示重复unlock
+     * @return Result<Boolean> - true indicates first unlock, false indicates repeat unlock
      */
     suspend fun unlockSession(teacherId: String, courseScheduleId: String, date: String): Result<Boolean> {
         return withContext(Dispatchers.IO) {
-            // 直接使用 Firebase，不再调用后端 API
-            // 注意：firebaseManager 不需要 teacherId
+            // Use Firebase directly, no longer calling backend API
+            // Note: firebaseManager does not need teacherId
             firebaseManager.unlockSession(courseScheduleId, date)
         }
     }
 
     /**
-     * 教师关闭签到 - 使用 Firebase 实现实时更新
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
-     * ✅ 新增：自动将所有未签到学生标记为 ABSENT
+     * Teacher locks attendance - uses Firebase for real-time updates
+     * FIX: Changed courseScheduleId to String to support Firebase ID
+     * NEW: Automatically marks all unsigned students as ABSENT
      */
     suspend fun lockSession(teacherId: String, courseScheduleId: String, date: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            // 获取所有选课学生列表
+            // Get list of all enrolled students
             val courseId = courseScheduleId.substringBefore("_")
             val enrolledResult = firebaseCourseRepo.getEnrolledStudents(courseId)
             val enrolledStudents = enrolledResult.getOrNull() ?: emptyList()
 
             android.util.Log.d(
                 "InstattRepository",
-                "🔒 Locking session $courseScheduleId with ${enrolledStudents.size} enrolled students"
+                "Locking session $courseScheduleId with ${enrolledStudents.size} enrolled students"
             )
 
-            // 锁定 session 并自动标记未签到学生为缺席
+            // Lock session and automatically mark unsigned students as absent
             firebaseManager.lockSession(courseScheduleId, date, enrolledStudents)
         }
     }
 
     /**
-     * 学生签到 - 使用 Firebase 实现毫秒级响应
-     * ✅ 修复：支持 String UID（Firebase UID）
+     * Student sign-in - uses Firebase for millisecond-level response
+     * FIX: Supports String UID (Firebase UID)
      * @param studentUid Firebase UID (String)
-     * @param studentName 学生姓名（从 TokenManager 获取）
-     * @param matricNumber 学号（可选）
-     * @param email 邮箱（可选）
+     * @param studentName Student name (obtained from TokenManager)
+     * @param matricNumber Student ID (optional)
+     * @param email Email (optional)
      */
     suspend fun signIn(
-        studentUid: String,  // 🔴 改为 String UID
+        studentUid: String,  // Changed to String UID
         courseScheduleId: String,
         date: String,
-        studentName: String = "Student", // 默认值，调用时应传入真实姓名
+        studentName: String = "Student", // Default value, should pass real name when calling
         matricNumber: String? = null,
         email: String? = null
     ): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            // 直接写入 Firebase，无需等待后端响应
+            // Write directly to Firebase, no need to wait for backend response
             firebaseManager.signIn(
                 courseScheduleId = courseScheduleId,
                 date = date,
-                studentUid = studentUid,  // 🔴 传递 String UID
+                studentUid = studentUid,  // Pass String UID
                 studentName = studentName,
                 matricNumber = matricNumber,
                 email = email
@@ -131,66 +131,66 @@ class InstattRepository {
     }
 
     /**
-     * 获取学生签到名单 - 返回 Flow 实现实时监听
-     * 当学生签到时，教师端会自动收到更新
+     * Get student attendance list - returns Flow for real-time listening
+     * Teacher side automatically receives updates when students sign in
      *
-     * 数据合并策略（已优化为 Firebase 优先）：
-     * 1. 从 Firebase 获取所有已注册学生名单（基础数据）
-     * 2. 实时监听 Firebase 签到数据（实时更新）
-     * 3. 将 Firebase 数据覆盖到学生名单上，未签到学生保持 ABSENT 状态
+     * Data merge strategy (optimized to Firebase-first):
+     * 1. Get all enrolled student list from Firebase (base data)
+     * 2. Listen to Firebase attendance data in real-time (real-time updates)
+     * 3. Overlay Firebase data on student list, unsigned students remain ABSENT status
      *
-     * 优点：
-     * - 教师能看到完整班级名册（包括未签到学生）
-     * - Firebase 实时更新签到状态（毫秒级响应）
-     * - 完全不依赖后端 MySQL 服务器
+     * Advantages:
+     * - Teacher can see complete class roster (including unsigned students)
+     * - Firebase real-time attendance status updates (millisecond-level response)
+     * - Completely independent of backend MySQL server
      *
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * FIX: Changed courseScheduleId to String to support Firebase ID
      */
     fun getStudentAttendanceList(
         teacherId: String,  // Firebase UID
         courseScheduleId: String,
         date: String
     ): Flow<List<StudentAttendance>> = flow {
-        // Step 1: 从 course ID 中提取纯课程代码（去掉 schedule number）
-        // 例如: "comp2001_1" -> "comp2001"
+        // Step 1: Extract pure course code from course ID (remove schedule number)
+        // Example: "comp2001_1" -> "comp2001"
         val courseId = courseScheduleId.substringBefore("_")
 
-        // Step 2: 尝试从 Firebase 获取已注册学生名单（一次性查询）
+        // Step 2: Try to get enrolled student list from Firebase (one-time query)
         val enrolledResult = firebaseCourseRepo.getEnrolledStudents(courseId)
         val enrolledStudents = enrolledResult.getOrNull() ?: emptyList()
 
         android.util.Log.d(
             "InstattRepository",
-            "📋 Found ${enrolledStudents.size} enrolled students for course $courseId"
+            "Found ${enrolledStudents.size} enrolled students for course $courseId"
         )
 
-        // Step 3: 监听 Firebase 实时签到数据
+        // Step 3: Listen to Firebase real-time attendance data
         firebaseManager.listenToStudentAttendanceList(courseScheduleId, date)
             .collect { firebaseStudents ->
-                // Step 4: 合并数据 - 🔴 使用 Firebase UID 匹配，避免重名问题
+                // Step 4: Merge data - Use Firebase UID matching to avoid duplicate name issues
                 if (enrolledStudents.isNotEmpty()) {
-                    // 有注册学生数据 - 使用合并模式（完整名册 + 实时状态）
+                    // Has enrolled student data - use merge mode (complete roster + real-time status)
                     val mergedList = enrolledStudents.map { (studentUid, studentName) ->
-                        // 🔴 修复：使用 Firebase UID 匹配（唯一标识符）
+                        // FIX: Use Firebase UID matching (unique identifier)
                         val firebaseRecord = firebaseStudents.find {
-                            it.studentId == studentUid  // UID 对 UID 匹配
+                            it.studentId == studentUid  // UID to UID matching
                         }
 
                         if (firebaseRecord != null) {
-                            // Firebase 有该学生的签到记录，使用 Firebase 的实时数据
+                            // Firebase has this student's attendance record, use Firebase's real-time data
                             android.util.Log.d(
                                 "InstattRepository",
-                                "✅ Matched enrolled student $studentName ($studentUid) with Firebase record"
+                                "Matched enrolled student $studentName ($studentUid) with Firebase record"
                             )
                             firebaseRecord
                         } else {
-                            // Firebase 还没有该学生的签到记录，显示为 ABSENT
+                            // Firebase does not yet have this student's attendance record, show as ABSENT
                             android.util.Log.d(
                                 "InstattRepository",
-                                "⚠️ Student $studentName ($studentUid) enrolled but not signed in yet"
+                                "Student $studentName ($studentUid) enrolled but not signed in yet"
                             )
                             StudentAttendance(
-                                studentId = studentUid,  // 使用 Firebase UID
+                                studentId = studentUid,  // Use Firebase UID
                                 studentName = studentName,
                                 matricNumber = null,
                                 email = null,
@@ -202,11 +202,11 @@ class InstattRepository {
                     }
                     emit(mergedList)
                 } else {
-                    // 没有注册学生数据 - 降级为 Firebase-only 模式
-                    // 这种模式下只显示已签到学生，但至少保证实时性
+                    // No enrolled student data - fall back to Firebase-only mode
+                    // In this mode only show signed-in students, but at least guarantee real-time
                     android.util.Log.w(
                         "InstattRepository",
-                        "⚠️ No enrolled students found for $courseId, showing only signed-in students"
+                        "No enrolled students found for $courseId, showing only signed-in students"
                     )
                     emit(firebaseStudents)
                 }
@@ -214,13 +214,13 @@ class InstattRepository {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * ❌ 已废弃：不再使用 MySQL 后端
+     * DEPRECATED: No longer using MySQL backend
      *
-     * 此方法已被 Firebase 完全替代，所有学生名单数据现在从 Firebase 获取：
-     * - enrollments/{courseId}/{studentId} - 学生选课关系
-     * - sessions/{scheduleId}_{date}/students/ - 实时签到记录
+     * This method has been completely replaced by Firebase, all student list data is now obtained from Firebase:
+     * - enrollments/{courseId}/{studentId} - Student enrollment relationships
+     * - sessions/{scheduleId}_{date}/students/ - Real-time attendance records
      *
-     * 如需获取学生名单，请使用：
+     * To get student list, please use:
      * - firebaseCourseRepo.getEnrolledStudents(courseId)
      * - firebaseManager.listenToStudentAttendanceList(scheduleId, date)
      */
@@ -236,15 +236,15 @@ class InstattRepository {
     }
 
     /**
-     * 教师手动标记学生出勤状态 - 使用 Firebase 实现实时更新
-     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符，避免重名问题
-     * ✅ 新增：如果是首次标记，会自动增加 totalClasses
+     * Teacher manually marks student attendance status - uses Firebase for real-time updates
+     * FIX: Use Firebase UID (String) as unique identifier to avoid duplicate name issues
+     * NEW: If this is first marking, will automatically increment totalClasses
      *
-     * @return Result<Boolean> - true 表示首次标记（totalClasses +1），false 表示非首次
+     * @return Result<Boolean> - true indicates first marking (totalClasses +1), false indicates not first
      */
     suspend fun markAttendance(
         teacherId: String,  // Firebase UID (not used in Firebase operations)
-        studentUid: String,  // 🔴 Firebase UID (String)
+        studentUid: String,  // Firebase UID (String)
         courseScheduleId: String,
         date: String,
         status: String,
@@ -259,11 +259,11 @@ class InstattRepository {
                 AttendanceStatus.ABSENT
             }
 
-            // 🔴 直接使用 Firebase UID，不再转换为 Long
+            // Use Firebase UID directly, no longer converting to Long
             firebaseManager.markStudentAttendance(
                 courseScheduleId = courseScheduleId,
                 date = date,
-                studentUid = studentUid,  // 🔴 传递 String UID
+                studentUid = studentUid,  // Pass String UID
                 status = attendanceStatus,
                 studentName = studentName,
                 matricNumber = matricNumber,
@@ -273,9 +273,9 @@ class InstattRepository {
     }
 
     /**
-     * 学生端：监听 session 的锁定状态（实时）
-     * 当教师 unlock session 时，学生端的签到按钮立即变亮
-     * ✅ 修复：courseScheduleId 改为 String 以支持 Firebase ID
+     * Student side: Listen to session lock status (real-time)
+     * When teacher unlocks session, student's sign-in button immediately lights up
+     * FIX: Changed courseScheduleId to String to support Firebase ID
      */
     fun listenToSessionLockStatus(
         courseScheduleId: String,
@@ -285,13 +285,13 @@ class InstattRepository {
     }
 
     /**
-     * 检查学生是否已经签到
-     * 🔴 修复：使用 Firebase UID（String）作为唯一标识符
+     * Check if student has already signed in
+     * FIX: Use Firebase UID (String) as unique identifier
      */
     suspend fun hasStudentSignedIn(
         courseScheduleId: String,
         date: String,
-        studentUid: String  // 🔴 改为 String UID
+        studentUid: String  // Changed to String UID
     ): Result<Boolean> {
         return withContext(Dispatchers.IO) {
             firebaseManager.hasStudentSignedIn(courseScheduleId, date, studentUid)

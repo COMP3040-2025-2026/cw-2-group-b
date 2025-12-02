@@ -31,7 +31,7 @@ class ErrandFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupBottomNavigation()
-        setupBackStackListener() // [新增] 设置回退栈监听
+        setupBackStackListener() // [Added] Set up back stack listener
 
         // Load home fragment by default
         if (savedInstanceState == null) {
@@ -43,11 +43,11 @@ class ErrandFragment : Fragment() {
         childFragmentManager.addOnBackStackChangedListener {
             val shouldHideBottomNav = childFragmentManager.backStackEntryCount > 0
 
-            // 1. 控制导航栏的显示/隐藏
+            // 1. Control navigation bar visibility
             binding.errandBottomNav.visibility = if (shouldHideBottomNav) View.GONE else View.VISIBLE
 
-            // 2. 动态调整容器的底部边距 (Margin)
-            // 如果隐藏导航栏，底部边距设为 0；否则设为 72dp (与 xml 中的高度一致)
+            // 2. Dynamically adjust container bottom margin
+            // If hiding navigation bar, set bottom margin to 0; otherwise set to 72dp (consistent with xml height)
             val params = binding.errandFragmentContainer.layoutParams as androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams
 
             val density = resources.displayMetrics.density
@@ -102,7 +102,7 @@ class ErrandFragment : Fragment() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        // [修复] 切换 Tab 时清空回退栈，防止从详情页直接切 Tab 导致的逻辑混乱
+        // [Fix] Clear back stack when switching tabs to prevent logic issues from switching tabs directly from detail page
         if (childFragmentManager.backStackEntryCount > 0) {
             val firstEntry = childFragmentManager.getBackStackEntryAt(0)
             childFragmentManager.popBackStack(firstEntry.id, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
