@@ -127,7 +127,7 @@ INSTATT Attendance & Comprehensive attendance tracking for teachers and students
 Sports Booking & Reserve sports facilities with real-time availability checking \\
 Campus Errand & Peer-to-peer delivery and errand marketplace \\
 Messaging System & Real-time chat with online status and typing indicators \\
-Campus Forum & Community discussions with posts, comments, likes, and comment moderation \\
+Campus Forum & Community discussions with trending algorithm, comment moderation \\
 AI Assistant (Notti) & Intelligent chatbot powered by Firebase AI (Gemini) \\
 User Profile & Dynamic profile management with avatar customization \\
 \bottomrule
@@ -316,6 +316,16 @@ Push notifications are delivered via Firebase Cloud Messaging (FCM). When a user
 \subsubsection{Firebase AI (Gemini)}
 
 The Notti AI Assistant is powered by Firebase AI using the Gemini model, providing intelligent responses to campus-related queries.
+
+\subsubsection{Forum Trending Algorithm}
+
+The Campus Forum implements a trending algorithm to surface popular and engaging posts. The algorithm uses a weighted engagement score with time decay:
+
+\begin{equation}
+\text{trending\_score} = \frac{\text{likes} \times 5 + \text{comments} \times 3 + \text{views}}{1 + \text{days\_since\_created} \times 0.3}
+\end{equation}
+
+The weight distribution prioritizes active engagement (likes: $\times$5) over discussion participation (comments: $\times$3) and passive interest (views: $\times$1). The time decay factor ensures that newer posts can compete with older viral content, maintaining a fresh feed while still rewarding highly engaging content.
 
 \subsection{Local Data Storage}
 

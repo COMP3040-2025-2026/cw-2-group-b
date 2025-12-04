@@ -238,11 +238,28 @@ Firebase Realtime Database
 - Privacy protection (local data cleared on logout)
 
 ### 5. Campus Forum
-- Create posts with categories
+- Create posts with categories (Academic, Events, Sports, Social, General, Announcements, Questions, Career, Food & Dining)
 - Comments and nested discussions
 - Like system for posts and comments
 - View count tracking (unique per user)
 - Author avatar fetched from user profiles
+- **Comment moderation**: Post authors can pin/delete comments, users can delete own comments
+- **Trending algorithm**: Smart ranking based on engagement and recency
+
+#### Trending Algorithm
+
+The forum uses a weighted engagement score with time decay:
+
+```
+trending_score = (likes × 5 + comments × 3 + views) / (1 + days_old × 0.3)
+```
+
+| Factor | Weight | Reason |
+|--------|--------|--------|
+| Likes | ×5 | Active engagement signal |
+| Comments | ×3 | Discussion depth indicator |
+| Views | ×1 | Passive interest |
+| Time Decay | ÷(1 + days × 0.3) | Newer posts can compete |
 
 ### 6. Sports Facility Booking
 - Browse available facilities
