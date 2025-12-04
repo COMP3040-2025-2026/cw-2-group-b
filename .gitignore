@@ -38,3 +38,5 @@ kk.json
 
 # CLAUDE.md (project documentation)
 CLAUDE.md
+docs/uml/plantuml.jar
+*.jar

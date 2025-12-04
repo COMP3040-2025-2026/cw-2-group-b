@@ -1,0 +1,149 @@
+@startuml Class Diagram
+!theme plain
+skinparam classAttributeIconSize 0
+
+title My Nottingham - Core Class Diagram
+
+package "Models" {
+    class User {
+        +id: String
+        +username: String
+        +fullName: String
+        +email: String
+        +role: String
+        +profileImageUrl: String?
+        +studentId: String?
+        +employeeId: String?
+        +faculty: String?
+        +department: String?
+    }
+
+    class Conversation {
+        +id: String
+        +participantId: String
+        +participantName: String
+        +participantAvatar: String?
+        +lastMessage: String
+        +lastMessageTime: Long
+        +unreadCount: Int
+        +isGroup: Boolean
+        +isPinned: Boolean
+        +isOnline: Boolean
+    }
+
+    class ChatMessage {
+        +id: String
+        +senderId: String
+        +senderName: String
+        +message: String
+        +timestamp: Long
+        +isRead: Boolean
+        +messageType: String
+    }
+
+    class ForumPost {
+        +id: String
+        +authorId: String
+        +authorName: String
+        +title: String
+        +content: String
+        +category: String
+        +likes: Int
+        +views: Int
+        +commentCount: Int
+        +timestamp: Long
+    }
+
+    class Errand {
+        +id: String
+        +posterId: String
+        +title: String
+        +description: String
+        +category: String
+        +reward: Double
+        +status: String
+        +createdAt: Long
+    }
+
+    class ShuttleRoute {
+        +routeId: String
+        +routeName: String
+        +description: String
+        +specialNote: String?
+        +vehicleType: String
+        +schedules: Map<DayType, Schedule>
+    }
+}
+
+package "Repositories" {
+    interface IMessageRepository {
+        +getConversationsFlow(userId: String): Flow<List<Conversation>>
+        +getMessagesFlow(conversationId: String): Flow<List<ChatMessage>>
+        +sendMessage(conversationId: String, message: ChatMessage): Result<Boolean>
+    }
+
+    class FirebaseMessageRepository implements IMessageRepository {
+        -database: FirebaseDatabase
+        -conversationsRef: DatabaseReference
+        -userConversationsRef: DatabaseReference
+    }
+
+    class FirebaseUserRepository {
+        -database: FirebaseDatabase
+        -auth: FirebaseAuth
+        +login(email: String, password: String): Result<User>
+        +register(user: User): Result<Boolean>
+        +getUserProfile(uid: String): Flow<User>
+    }
+
+    class FirebaseForumRepository {
+        -database: FirebaseDatabase
+        +getPosts(): Flow<List<ForumPost>>
+        +createPost(post: ForumPost): Result<String>
+        +likePost(postId: String): Result<Boolean>
+    }
+
+    class InstattRepository {
+        -database: FirebaseDatabase
+        +getSessionStatus(scheduleId: String): Flow<SessionStatus>
+        +markAttendance(sessionId: String, studentId: String): Result<Boolean>
+        +unlockSession(scheduleId: String): Result<Boolean>
+    }
+}
+
+package "ViewModels" {
+    abstract class BaseViewModel {
+        #_loading: MutableLiveData<Boolean>
+        +loading: LiveData<Boolean>
+        #_error: MutableLiveData<String?>
+        +error: LiveData<String?>
+    }
+
+    class ChatDetailViewModel extends BaseViewModel {
+        -repository: FirebaseMessageRepository
+        +messages: LiveData<List<ChatMessage>>
+        +sendMessage(text: String)
+    }
+
+    class ForumViewModel extends BaseViewModel {
+        -repository: FirebaseForumRepository
+        +posts: LiveData<List<ForumPost>>
+        +createPost(title: String, content: String)
+    }
+
+    class ShuttleViewModel {
+        +routes: LiveData<List<ShuttleRoute>>
+        +selectedDayType: LiveData<DayType>
+        +setDayType(dayType: DayType)
+        +getScheduleForRoute(routeId: String): Schedule?
+    }
+}
+
+ChatDetailViewModel --> FirebaseMessageRepository : uses
+ForumViewModel --> FirebaseForumRepository : uses
+FirebaseMessageRepository --> Conversation : manages
+FirebaseMessageRepository --> ChatMessage : manages
+FirebaseUserRepository --> User : manages
+FirebaseForumRepository --> ForumPost : manages
+
+@enduml

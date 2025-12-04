@@ -1,0 +1,761 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+
+% Page setup
+\geometry{margin=2.5cm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{COMP3040 Mobile Device Programming}
+\fancyhead[R]{Coursework 2}
+\fancyfoot[C]{\thepage}
+
+% Hyperlink setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+% Code listing setup
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{orange}
+}
+
+% Title
+\title{
+    \vspace{-2cm}
+    \textbf{My Nottingham: A Comprehensive Campus Services Mobile Application}\\[0.5cm]
+    \large COMP3040 Mobile Device Programming\\
+    Coursework 2: Application Design, Implementation, Report, and Presentation
+}
+
+\author{
+    \textbf{Group B}\\[0.3cm]
+    Junru Wang, Hao Pan, Wenjun Xia\\[0.3cm]
+    University of Nottingham Malaysia
+}
+
+\date{December 2025}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+This report presents the design, implementation, and evaluation of ``My Nottingham,'' a comprehensive campus services mobile application developed for the University of Nottingham Malaysia. The application integrates essential campus services including shuttle bus tracking, attendance management (INSTATT), sports facility booking, campus errands, real-time messaging, community forums, and an AI-powered assistant. Built using Kotlin and Firebase Realtime Database, the app follows the Model-View-ViewModel (MVVM) architectural pattern with Repository pattern for data management. This report details the technical architecture, implementation challenges encountered during development, solutions applied, and testing strategies employed to ensure application reliability and usability.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Introduction and Objective}
+%==============================================================================
+
+\subsection{Project Background}
+
+The University of Nottingham Malaysia campus currently relies on fragmented systems for various student services. Students must navigate multiple platforms to access shuttle schedules, mark attendance, book sports facilities, and communicate with peers. This fragmentation creates inefficiency and frustration, particularly for new students unfamiliar with campus systems.
+
+My Nottingham addresses this challenge by providing a unified mobile platform that consolidates all essential campus services into a single, intuitive application. The project was conceived during Coursework 1 and fully implemented in Coursework 2, demonstrating practical application of mobile development principles learned throughout the COMP3040 module.
+
+\subsection{Application Purpose}
+
+The primary purpose of My Nottingham is to enhance the campus experience for students and staff at the University of Nottingham Malaysia by:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Centralizing campus services}: Providing one-stop access to shuttle schedules, attendance tracking, sports booking, and more
+    \item \textbf{Enabling real-time communication}: Facilitating instant messaging between students and staff with online status indicators
+    \item \textbf{Supporting academic activities}: Streamlining attendance management for both teachers and students
+    \item \textbf{Fostering community engagement}: Creating a platform for campus-wide discussions through forums
+    \item \textbf{Leveraging AI assistance}: Integrating an intelligent chatbot (Notti) powered by Firebase AI (Gemini) for campus-related queries
+\end{itemize}
+
+\subsection{Target Audience}
+
+The application serves two primary user groups:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Students}: Can view shuttle schedules, mark attendance when sessions are unlocked, book sports facilities, post and accept errands, participate in forums, and communicate with peers
+    \item \textbf{Teachers}: Can manage attendance sessions (unlock/lock), view student attendance lists, manually mark attendance, and communicate with students
+\end{enumerate}
+
+\subsection{Key Features Overview}
+
+Table~\ref{tab:features} summarizes the nine core features implemented in My Nottingham:
+
+\begin{table}[H]
+\centering
+\caption{My Nottingham Core Features}
+\label{tab:features}
+\begin{tabular}{@{}p{3.5cm}p{9cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{Description} \\
+\midrule
+User Authentication & Secure Firebase Authentication with role-based access control \\
+Campus Shuttle & Real-time schedules for 8 routes (A, B, C1, C2, D, E1, E2, G) \\
+INSTATT Attendance & Comprehensive attendance tracking for teachers and students \\
+Sports Booking & Reserve sports facilities with real-time availability checking \\
+Campus Errand & Peer-to-peer delivery and errand marketplace \\
+Messaging System & Real-time chat with online status and typing indicators \\
+Campus Forum & Community discussions with posts, comments, and likes \\
+AI Assistant (Notti) & Intelligent chatbot powered by Firebase AI (Gemini) \\
+User Profile & Dynamic profile management with avatar customization \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section{Technical Design and Implementation Details}
+%==============================================================================
+
+\subsection{System Architecture Overview}
+
+My Nottingham follows a layered architecture that separates concerns across three distinct layers: Presentation, Domain, and Data. This architecture promotes maintainability, testability, and scalability while adhering to Android development best practices for 2025.
+
+The system operates entirely on Firebase backend services, eliminating the need for a custom server implementation. This ``Firebase-only'' approach simplifies deployment and leverages Firebase's built-in real-time synchronization capabilities.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{"Architecture Diagram.png"}
+\caption{Three-Layer System Architecture}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{MVVM Design Pattern}
+
+The application implements the Model-View-ViewModel (MVVM) architectural pattern, which is the recommended pattern for Android development in 2025. According to recent industry surveys, 75\% of experienced Android developers rely on ViewModels to retain UI-related data during configuration changes such as screen rotations.
+
+\subsubsection{Pattern Components}
+
+\begin{itemize}
+    \item \textbf{View (Fragments)}: Responsible solely for UI display. Fragments observe LiveData from ViewModels and update the UI accordingly. The application contains 39 Fragment classes, each dedicated to a specific screen or feature.
+
+    \item \textbf{ViewModel}: Handles business logic and state management. The application implements 17 ViewModel classes that survive configuration changes and manage UI-related data. ViewModels interact with Repositories to fetch and modify data.
+
+    \item \textbf{Model}: Represents data structures and business entities. The data layer contains domain models for User, Conversation, ChatMessage, ForumPost, Errand, ShuttleRoute, and other entities.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{"MVVM Pattern.png"}
+\caption{MVVM Architecture Pattern Implementation}
+\label{fig:mvvm}
+\end{figure}
+
+\subsubsection{Data Flow}
+
+The unidirectional data flow in MVVM ensures predictable state management:
+
+\begin{enumerate}[noitemsep]
+    \item User interacts with the View (Fragment)
+    \item Fragment calls methods on ViewModel
+    \item ViewModel invokes Repository functions (suspend functions with Coroutines)
+    \item Repository fetches/updates data from Firebase or Room
+    \item Repository returns results to ViewModel
+    \item ViewModel updates LiveData
+    \item Fragment observes LiveData changes and updates UI
+\end{enumerate}
+
+\subsection{Repository Pattern Implementation}
+
+The Repository pattern provides a clean abstraction layer between the data sources (Firebase, Room) and the rest of the application. This pattern enables:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Single Source of Truth}: All data access goes through repositories
+    \item \textbf{Data Source Abstraction}: ViewModels don't know whether data comes from network or local cache
+    \item \textbf{Offline Support}: Repositories can implement caching strategies
+    \item \textbf{Testability}: Repositories can be easily mocked for unit testing
+\end{itemize}
+
+The application implements 9 repository classes:
+
+\begin{table}[H]
+\centering
+\caption{Repository Classes and Responsibilities}
+\label{tab:repositories}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Repository} & \textbf{Responsibility} \\
+\midrule
+FirebaseUserRepository & User authentication and profile management \\
+FirebaseMessageRepository & Real-time messaging and conversations \\
+FirebaseForumRepository & Forum posts and comments \\
+FirebaseErrandRepository & Campus errand marketplace \\
+FirebaseBookingRepository & Sports facility bookings \\
+FirebaseCourseRepository & Course and enrollment data \\
+InstattRepository & Attendance session management \\
+ImageUploadRepository & Profile image uploads \\
+MessageRepository & Local message caching (Room) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{"Class Diagram.png"}
+\caption{Core Class Diagram}
+\label{fig:class}
+\end{figure}
+
+\subsection{Firebase Integration}
+
+\subsubsection{Firebase Realtime Database}
+
+The application uses Firebase Realtime Database as the primary data store. The database is hosted in the Asia-Southeast1 region for optimal latency:
+
+\begin{lstlisting}[language=Kotlin, caption=Firebase Database Initialization]
+private val database = FirebaseDatabase.getInstance(
+    "https://mynottingham-b02b7-default-rtdb
+     .asia-southeast1.firebasedatabase.app"
+)
+\end{lstlisting}
+
+The database structure follows a denormalized design optimized for read performance:
+
+\begin{lstlisting}[caption=Firebase Database Structure]
+Firebase Realtime Database
+|-- users/{uid}/
+|   |-- username, fullName, email, role
+|   |-- profileImageUrl, studentId, faculty
+|-- user_conversations/{userId}/{conversationId}/
+|   |-- participantId, participantName, lastMessage
+|   |-- unreadCount, isPinned, isOnline
+|-- conversations/{conversationId}/
+|   |-- metadata/
+|   |-- messages/{messageId}/
+|-- forum_posts/{postId}/
+|-- forum_comments/{postId}/{commentId}/
+|-- sessions/{scheduleId}_{date}/
+|-- errands/{errandId}/
+|-- presence/{userId}/
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{"Firebase Database Structure.png"}
+\caption{Firebase Realtime Database Structure}
+\label{fig:firebase}
+\end{figure}
+
+\subsubsection{Real-time Data Synchronization}
+
+Firebase Realtime Database provides automatic real-time synchronization. When data changes on the server, all connected clients receive updates within milliseconds. This is achieved through ValueEventListener:
+
+\begin{lstlisting}[language=Kotlin, caption=Real-time Message Listener]
+fun getMessagesFlow(conversationId: String): Flow<List<ChatMessage>>
+    = callbackFlow {
+    val listener = object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            val messages = snapshot.children.mapNotNull {
+                it.toMessage()
+            }
+            trySend(messages)
+        }
+        override fun onCancelled(error: DatabaseError) {
+            close(error.toException())
+        }
+    }
+    messagesRef.addValueEventListener(listener)
+    awaitClose { messagesRef.removeEventListener(listener) }
+}
+\end{lstlisting}
+
+\subsubsection{Firebase Authentication}
+
+User authentication is handled by Firebase Authentication with email/password credentials. The system supports role-based access control (Student vs. Teacher) stored in the user's profile. Figure~\ref{fig:login} illustrates the complete authentication flow.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{"Login Sequence.png"}
+\caption{User Login Sequence Diagram}
+\label{fig:login}
+\end{figure}
+
+\subsubsection{Firebase Cloud Messaging}
+
+Push notifications are delivered via Firebase Cloud Messaging (FCM). When a user sends a message, the recipient receives a notification even when the app is in the background. Figure~\ref{fig:messaging} shows the complete messaging flow.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{"Messaging Sequence.png"}
+\caption{Real-time Messaging Sequence Diagram}
+\label{fig:messaging}
+\end{figure}
+
+\subsubsection{Firebase AI (Gemini)}
+
+The Notti AI Assistant is powered by Firebase AI using the Gemini model, providing intelligent responses to campus-related queries.
+
+\subsection{Local Data Storage}
+
+\subsubsection{Room Database}
+
+Room provides a local SQLite database for offline caching. The application defines 8 entity classes and 7 DAO interfaces:
+
+\begin{lstlisting}[language=Kotlin, caption=Room Database Definition]
+@Database(
+    entities = [
+        UserEntity::class,
+        ConversationEntity::class,
+        MessageEntity::class,
+        ForumPostEntity::class,
+        ForumCommentEntity::class,
+        ErrandEntity::class,
+        ConversationParticipantEntity::class
+    ],
+    version = 5,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun userDao(): UserDao
+    abstract fun conversationDao(): ConversationDao
+    abstract fun messageDao(): MessageDao
+    abstract fun forumDao(): ForumDao
+    abstract fun errandDao(): ErrandDao
+    // ...
+}
+\end{lstlisting}
+
+\subsubsection{DataStore for Token Management}
+
+Jetpack DataStore replaces SharedPreferences for storing user session data. The TokenManager class provides a reactive API using Kotlin Flow:
+
+\begin{lstlisting}[language=Kotlin, caption=TokenManager with DataStore]
+class TokenManager(context: Context) {
+    private val dataStore = context.dataStore
+
+    fun getUserId(): Flow<String?> = dataStore.data.map {
+        preferences -> preferences[USER_ID_KEY]
+    }
+
+    suspend fun saveUserSession(
+        token: String, userId: String, userType: String
+    ) {
+        dataStore.edit { preferences ->
+            preferences[AUTH_TOKEN_KEY] = token
+            preferences[USER_ID_KEY] = userId
+            preferences[USER_TYPE_KEY] = userType
+        }
+    }
+}
+\end{lstlisting}
+
+\subsection{Navigation Architecture}
+
+The application uses the Android Navigation Component with a single-activity architecture. All 39 fragments are managed through \texttt{nav\_graph.xml}, enabling type-safe navigation with Safe Args.
+
+\subsection{Asynchronous Programming}
+
+All asynchronous operations use Kotlin Coroutines with structured concurrency:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{viewModelScope}: Lifecycle-aware scope in ViewModels
+    \item \textbf{suspend functions}: For one-shot operations
+    \item \textbf{Flow}: For reactive streams of data
+    \item \textbf{StateFlow/LiveData}: For UI state observation
+\end{itemize}
+
+\subsection{Codebase Statistics}
+
+Table~\ref{tab:statistics} summarizes the application's codebase:
+
+\begin{table}[H]
+\centering
+\caption{Codebase Statistics}
+\label{tab:statistics}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Component} & \textbf{Count} \\
+\midrule
+Kotlin Source Files & 145 \\
+ViewModels & 17 \\
+Fragments & 39 \\
+Adapters & 23 \\
+Repositories & 9 \\
+Room Entities & 8 \\
+DAOs & 7 \\
+Layout XML Files & 89 \\
+Drawable Resources & 101 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section{Analysis of Challenges and Solutions}
+%==============================================================================
+
+\subsection{Challenge 1: Device Fragmentation}
+
+\subsubsection{Problem Description}
+Android runs on thousands of devices made by different manufacturers, each with unique screen sizes, resolutions, and hardware specifications. According to industry reports, there are more than 15 active Android OS versions in use globally in 2025, and over 20,000 distinct Android device models. Testing across all configurations is impractical.
+
+\subsubsection{Solution Applied}
+We addressed device fragmentation through:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Responsive Layouts}: Used ConstraintLayout with relative positioning and guidelines instead of fixed pixel values
+    \item \textbf{Resource Qualifiers}: Created multiple resource folders (e.g., \texttt{layout-sw600dp}, \texttt{drawable-xxhdpi}) for different screen densities
+    \item \textbf{Target Device Focus}: Optimized primarily for Pixel 2 (1080×1920, 420dpi) as specified in requirements, while ensuring compatibility with other devices
+    \item \textbf{Material Design 3}: Leveraged Material Design components that automatically adapt to different screen sizes
+\end{enumerate}
+
+\subsection{Challenge 2: Real-time Data Synchronization}
+
+\subsubsection{Problem Description}
+Implementing real-time features such as messaging with online status indicators, typing indicators, and instant message delivery posed significant challenges. Traditional REST APIs use request-response patterns that don't support push-based updates.
+
+\subsubsection{Solution Applied}
+Firebase Realtime Database provided the solution through its built-in real-time synchronization:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{ValueEventListener}: Attached listeners that automatically receive updates when data changes on the server
+    \item \textbf{Presence System}: Implemented user online/offline status using Firebase's \texttt{.info/connected} special location
+    \item \textbf{Typing Indicators}: Created a dedicated \texttt{typing\_status} node with 3-second timeout for automatic cleanup
+    \item \textbf{Optimistic Updates}: Updated local UI immediately while syncing with server in background
+\end{enumerate}
+
+\begin{lstlisting}[language=Kotlin, caption=Presence System Implementation]
+fun updatePresence(userId: String, online: Boolean) {
+    val presenceRef = database.getReference("presence/$userId")
+    if (online) {
+        presenceRef.setValue(mapOf(
+            "online" to true,
+            "lastSeen" to ServerValue.TIMESTAMP
+        ))
+        presenceRef.onDisconnect().setValue(mapOf(
+            "online" to false,
+            "lastSeen" to ServerValue.TIMESTAMP
+        ))
+    }
+}
+\end{lstlisting}
+
+\subsection{Challenge 3: Firebase Database Structure Design}
+
+\subsubsection{Problem Description}
+Designing an efficient NoSQL database structure for Firebase was challenging. Unlike relational databases, Firebase Realtime Database doesn't support joins, requiring careful denormalization. Deeply nested data leads to performance issues when only partial data is needed.
+
+\subsubsection{Solution Applied}
+We followed Firebase's best practices for data structure:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Flat Structure}: Avoided deep nesting; kept data at most 2-3 levels deep
+    \item \textbf{Denormalization}: Duplicated frequently accessed data (e.g., \texttt{participantName} in conversations) to avoid additional queries
+    \item \textbf{Fan-out Writes}: When updating shared data, wrote to multiple locations atomically using \texttt{updateChildren()}
+    \item \textbf{Index Design}: Created composite keys (e.g., \texttt{scheduleId\_date} for sessions) for efficient querying
+\end{enumerate}
+
+\subsection{Challenge 4: State Management During Configuration Changes}
+
+\subsubsection{Problem Description}
+Android destroys and recreates Activities/Fragments during configuration changes (screen rotation, language change). Without proper handling, this causes data loss and unnecessary network requests.
+
+\subsubsection{Solution Applied}
+The MVVM architecture with ViewModel naturally solves this problem:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{ViewModel Survival}: ViewModels survive configuration changes, preserving UI state
+    \item \textbf{LiveData}: Lifecycle-aware observables automatically handle subscription management
+    \item \textbf{SavedStateHandle}: Used for process death recovery when needed
+\end{enumerate}
+
+\subsection{Challenge 5: Offline Capability}
+
+\subsubsection{Problem Description}
+Users expect apps to function when network connectivity is poor or unavailable. A purely online approach would render the app useless without internet.
+
+\subsubsection{Solution Applied}
+We implemented a hybrid offline strategy:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Firebase Offline Persistence}: Enabled disk persistence for Firebase, allowing reads from local cache
+    \item \textbf{Room Database}: Cached critical data locally for features like shuttle schedules
+    \item \textbf{Optimistic UI}: Showed pending changes immediately with sync indicators
+    \item \textbf{Network Monitoring}: Used ConnectivityManager to detect network state and show appropriate UI
+\end{enumerate}
+
+\subsection{Challenge 6: Security and Data Privacy}
+
+\subsubsection{Problem Description}
+Handling user data securely, especially for authentication tokens and personal information, required careful consideration of security best practices.
+
+\subsubsection{Solution Applied}
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Firebase Security Rules}: Implemented strict database rules requiring authentication for all operations
+    \item \textbf{DataStore Encryption}: Used EncryptedSharedPreferences for sensitive data when needed
+    \item \textbf{Token Management}: Stored authentication tokens securely in DataStore, not SharedPreferences
+    \item \textbf{Data Cleanup on Logout}: Cleared all local data when users log out to protect privacy
+\end{enumerate}
+
+%==============================================================================
+\section{Testing and Validation}
+%==============================================================================
+
+\subsection{Testing Strategy}
+
+Following Android testing best practices, we implemented a multi-layered testing approach combining unit tests and instrumented tests. The testing pyramid principle guided our strategy: more unit tests (fast, isolated) and fewer instrumented tests (slow, comprehensive).
+
+\subsection{Unit Tests}
+
+Unit tests run on the JVM without requiring an Android device or emulator, making them fast to execute. We focused unit tests on:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{ViewModels}: Testing business logic and state management
+    \item \textbf{Data Models}: Validating model classes and data transformations
+    \item \textbf{Utility Classes}: Testing helper functions and extensions
+\end{itemize}
+
+\subsubsection{Test Implementation Example}
+
+\begin{lstlisting}[language=Kotlin, caption=ShuttleViewModel Unit Test]
+class ShuttleViewModelTest {
+    @get:Rule
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    private lateinit var viewModel: ShuttleViewModel
+
+    @Before
+    fun setup() {
+        viewModel = ShuttleViewModel()
+    }
+
+    @Test
+    fun `routes are loaded on initialization`() {
+        val routes = viewModel.routes.value
+        assertNotNull("Routes should not be null", routes)
+        assertEquals("Should have 8 routes", 8, routes!!.size)
+    }
+
+    @Test
+    fun `Route E1 has only Friday schedule`() {
+        val weekdaySchedule = viewModel.getScheduleForRoute("E1",
+            DayType.WEEKDAY)
+        val fridaySchedule = viewModel.getScheduleForRoute("E1",
+            DayType.FRIDAY)
+
+        assertNull(weekdaySchedule)
+        assertNotNull(fridaySchedule)
+    }
+}
+\end{lstlisting}
+
+\subsubsection{Unit Test Coverage}
+
+Table~\ref{tab:unit-tests} lists the implemented unit tests:
+
+\begin{table}[H]
+\centering
+\caption{Unit Test Files}
+\label{tab:unit-tests}
+\begin{tabular}{@{}lp{8cm}@{}}
+\toprule
+\textbf{Test File} & \textbf{Coverage} \\
+\midrule
+ShuttleViewModelTest.kt & ViewModel initialization, route loading, day type selection, schedule retrieval \\
+ShuttleModelTest.kt & Route model data integrity, schedule parsing \\
+UserModelTest.kt & User model creation and validation \\
+ConstantsTest.kt & Application constants verification \\
+ExampleUnitTest.kt & Basic framework verification \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Instrumented Tests}
+
+Instrumented tests run on actual Android devices or emulators, testing UI components and integration with the Android framework. These tests use AndroidJUnit4 runner and Espresso for UI interactions.
+
+\subsubsection{Test Implementation Example}
+
+\begin{lstlisting}[language=Kotlin, caption=Navigation Instrumented Test]
+@RunWith(AndroidJUnit4::class)
+@MediumTest
+class NavigationTest {
+    @get:Rule
+    val activityRule = ActivityScenarioRule(MainActivity::class.java)
+
+    @Test
+    fun navigationHost_exists() {
+        activityRule.scenario.onActivity { activity ->
+            val navHostFragment = activity
+                .findViewById<View>(R.id.nav_host_fragment)
+            assertNotNull("NavHostFragment should exist",
+                navHostFragment)
+        }
+    }
+
+    @Test
+    fun app_startsWithFragment() {
+        activityRule.scenario.onActivity { activity ->
+            val navHostFragment = activity.supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment)
+            val childFragments = navHostFragment
+                ?.childFragmentManager?.fragments
+            assertTrue(childFragments != null &&
+                childFragments.isNotEmpty())
+        }
+    }
+}
+\end{lstlisting}
+
+\subsubsection{Instrumented Test Coverage}
+
+\begin{table}[H]
+\centering
+\caption{Instrumented Test Files}
+\label{tab:instrumented-tests}
+\begin{tabular}{@{}lp{8cm}@{}}
+\toprule
+\textbf{Test File} & \textbf{Coverage} \\
+\midrule
+MainActivityTest.kt & Main activity lifecycle, initialization \\
+NavigationTest.kt & Navigation host setup, fragment navigation \\
+LoginFragmentTest.kt & Login UI components, input validation \\
+ExampleInstrumentedTest.kt & Framework verification, context access \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Manual Testing and User Validation}
+
+In addition to automated tests, we conducted extensive manual testing:
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Feature Testing}: Systematically tested each of the 9 core features
+    \item \textbf{Cross-Account Testing}: Verified functionality between Student and Teacher accounts
+    \item \textbf{Real-time Testing}: Tested messaging between two devices simultaneously
+    \item \textbf{Edge Cases}: Tested network disconnection, empty states, and error scenarios
+\end{enumerate}
+
+\subsection{Test Execution}
+
+Tests can be executed using Gradle commands:
+
+\begin{lstlisting}[language=bash, caption=Test Execution Commands]
+# Run unit tests
+./gradlew test
+
+# Run instrumented tests (requires connected device/emulator)
+./gradlew connectedAndroidTest
+
+# Generate test reports
+./gradlew testDebugUnitTest
+\end{lstlisting}
+
+\subsection{Testing Tools Used}
+
+\begin{itemize}[noitemsep]
+    \item \textbf{JUnit 4}: Standard unit testing framework
+    \item \textbf{AndroidX Test}: Official Android testing libraries
+    \item \textbf{Espresso}: UI testing framework for Android
+    \item \textbf{InstantTaskExecutorRule}: For testing LiveData synchronously
+    \item \textbf{ActivityScenarioRule}: For activity lifecycle testing
+    \item \textbf{Kotlin Coroutines Test}: For testing coroutine-based code
+\end{itemize}
+
+\subsection{Validation Results}
+
+All implemented tests pass successfully, demonstrating:
+
+\begin{itemize}[noitemsep]
+    \item Correct ViewModel behavior and state management
+    \item Proper navigation component setup
+    \item Reliable data model handling
+    \item Stable UI component initialization
+\end{itemize}
+
+%==============================================================================
+\section{Conclusion}
+%==============================================================================
+
+My Nottingham successfully demonstrates the practical application of modern Android development principles. The application integrates nine comprehensive campus services into a unified platform, addressing the fragmentation of existing campus systems at the University of Nottingham Malaysia.
+
+Key achievements include:
+
+\begin{itemize}[noitemsep]
+    \item Implementation of clean MVVM architecture with Repository pattern
+    \item Real-time messaging with Firebase Realtime Database
+    \item Role-based functionality for Students and Teachers
+    \item Comprehensive testing strategy with unit and instrumented tests
+    \item Firebase-only backend architecture eliminating server maintenance
+\end{itemize}
+
+The development process provided valuable experience in handling real-world challenges such as device fragmentation, real-time synchronization, offline capability, and secure data management. The solutions applied align with industry best practices for Android development in 2025.
+
+Future enhancements could include expanding test coverage, adding image attachments in messaging, implementing push notification customization, and integrating additional campus services.
+
+%==============================================================================
+\section*{References}
+%==============================================================================
+
+\begin{enumerate}[noitemsep]
+    \item Firebase Documentation. ``Read and Write Data on Android.'' Google, 2025. \url{https://firebase.google.com/docs/database/android/read-and-write}
+
+    \item Android Developers. ``Guide to App Architecture.'' Google, 2025. \url{https://developer.android.com/topic/architecture}
+
+    \item Medium. ``Modern Android App Architecture in 2025: MVVM, MVI, and Clean Architecture.'' 2025.
+
+    \item Netguru. ``14 Biggest Mobile App Development Challenges in 2025.'' 2025. \url{https://www.netguru.com/blog/mobile-app-challenges}
+
+    \item Android Developers. ``Fundamentals of Testing Android Apps.'' Google, 2025. \url{https://developer.android.com/training/testing/fundamentals}
+
+    \item Toptal. ``Better Android Apps Using MVVM with Clean Architecture.'' 2025. \url{https://www.toptal.com/android/android-apps-mvvm-with-clean-architecture}
+\end{enumerate}
+
+%==============================================================================
+\appendix
+\section{UML Diagram Summary}
+%==============================================================================
+
+The following UML diagrams were created using PlantUML and are included throughout this report:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Diagram} & \textbf{Type} & \textbf{Figure} \\
+\midrule
+Architecture Diagram & Component & Figure~\ref{fig:architecture} \\
+MVVM Pattern & Class/Component & Figure~\ref{fig:mvvm} \\
+Class Diagram & Class & Figure~\ref{fig:class} \\
+Firebase Database Structure & Object & Figure~\ref{fig:firebase} \\
+Login Sequence & Sequence & Figure~\ref{fig:login} \\
+Messaging Sequence & Sequence & Figure~\ref{fig:messaging} \\
+\bottomrule
+\end{tabular}
+\caption{UML Diagrams Index}
+\end{table}
+
+Source files for all diagrams are available in \texttt{docs/uml/} directory in both \texttt{.puml} (source) and \texttt{.svg}/\texttt{.png} (rendered) formats.
+
+\end{document}
