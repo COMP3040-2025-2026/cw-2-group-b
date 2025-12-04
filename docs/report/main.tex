@@ -127,7 +127,7 @@ INSTATT Attendance & Comprehensive attendance tracking for teachers and students
 Sports Booking & Reserve sports facilities with real-time availability checking \\
 Campus Errand & Peer-to-peer delivery and errand marketplace \\
 Messaging System & Real-time chat with online status and typing indicators \\
-Campus Forum & Community discussions with posts, comments, and likes \\
+Campus Forum & Community discussions with posts, comments, likes, and comment moderation \\
 AI Assistant (Notti) & Intelligent chatbot powered by Firebase AI (Gemini) \\
 User Profile & Dynamic profile management with avatar customization \\
 \bottomrule
@@ -246,7 +246,7 @@ The database structure follows a denormalized design optimized for read performa
 Firebase Realtime Database
 |-- users/{uid}/
 |   |-- username, fullName, email, role
-|   |-- profileImageUrl, studentId, faculty
+|   |-- profileImageUrl, studentId, faculty, fcmToken
 |-- user_conversations/{userId}/{conversationId}/
 |   |-- participantId, participantName, lastMessage
 |   |-- unreadCount, isPinned, isOnline
@@ -255,6 +255,7 @@ Firebase Realtime Database
 |   |-- messages/{messageId}/
 |-- forum_posts/{postId}/
 |-- forum_comments/{postId}/{commentId}/
+|   |-- authorId, content, likes, isPinned, pinnedAt
 |-- sessions/{scheduleId}_{date}/
 |-- errands/{errandId}/
 |-- presence/{userId}/
@@ -303,7 +304,7 @@ User authentication is handled by Firebase Authentication with email/password cr
 
 \subsubsection{Firebase Cloud Messaging}
 
-Push notifications are delivered via Firebase Cloud Messaging (FCM). When a user sends a message, the recipient receives a notification even when the app is in the background. Figure~\ref{fig:messaging} shows the complete messaging flow.
+Push notifications are delivered via Firebase Cloud Messaging (FCM). When a user sends a message, the recipient receives a notification even when the app is in the background. The notification system includes intelligent filtering to prevent self-notifications (users don't receive notifications for their own messages) and proper FCM token management on logout to prevent cross-account notification issues. Figure~\ref{fig:messaging} shows the complete messaging flow.
 
 \begin{figure}[H]
 \centering

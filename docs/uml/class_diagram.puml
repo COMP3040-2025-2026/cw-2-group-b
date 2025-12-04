@@ -51,7 +51,20 @@ package "Models" {
         +likes: Int
         +views: Int
         +commentCount: Int
+        +isPinned: Boolean
         +timestamp: Long
+    }
+
+    class ForumComment {
+        +id: String
+        +postId: String
+        +authorId: String
+        +authorName: String
+        +content: String
+        +likes: Int
+        +isPinned: Boolean
+        +pinnedAt: Long?
+        +createdAt: Long
     }
 
     class Errand {
@@ -101,6 +114,8 @@ package "Repositories" {
         +getPosts(): Flow<List<ForumPost>>
         +createPost(post: ForumPost): Result<String>
         +likePost(postId: String): Result<Boolean>
+        +deleteComment(postId: String, commentId: String): Result<Unit>
+        +togglePinComment(postId: String, commentId: String): Result<Boolean>
     }
 
     class InstattRepository {
@@ -145,5 +160,7 @@ FirebaseMessageRepository --> Conversation : manages
 FirebaseMessageRepository --> ChatMessage : manages
 FirebaseUserRepository --> User : manages
 FirebaseForumRepository --> ForumPost : manages
+FirebaseForumRepository --> ForumComment : manages
+ForumComment --> ForumPost : belongs to
 
 @enduml

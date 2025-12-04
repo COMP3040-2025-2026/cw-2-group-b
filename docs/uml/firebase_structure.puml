@@ -72,6 +72,8 @@ package "forum_comments/{postId}/{commentId}" {
         authorName: "Jane Smith"
         content: "I'm interested!"
         likes: 1
+        isPinned: false
+        pinnedAt: null
         createdAt: 1701234567890
     }
 }
