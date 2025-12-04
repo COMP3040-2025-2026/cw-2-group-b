@@ -103,8 +103,10 @@ class ChatDetailFragment : Fragment() {
 
             // Initialize chat if conversationId is available
             if (conversationId.isNotEmpty()) {
-                val currentUserName = tokenManager.getUsername().firstOrNull() ?: ""
-                viewModel.initializeChat(conversationId, currentUserId, currentUserName)
+                // Use fullName for display (e.g., "Bob Chen"), not username (e.g., "student2")
+                val currentUserName = tokenManager.getFullName().firstOrNull() ?: ""
+                val currentUserAvatar = tokenManager.getAvatar().firstOrNull()
+                viewModel.initializeChat(conversationId, currentUserId, currentUserName, currentUserAvatar)
                 viewModel.markAsRead()
 
                 // For group chats, observe membership status to detect removal

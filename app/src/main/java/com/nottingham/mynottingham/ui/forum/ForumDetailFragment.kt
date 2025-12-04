@@ -81,10 +81,19 @@ class ForumDetailFragment : Fragment() {
 
         binding.btnMoreOptions.setOnClickListener { showPostOptionsMenu() }
 
-        commentAdapter = ForumCommentAdapter { comment ->
-            // Like comment
-            viewModel.likeComment(comment.id)
-        }
+        commentAdapter = ForumCommentAdapter(
+            onLikeClick = { comment ->
+                // Like comment
+                viewModel.likeComment(comment.id)
+            },
+            onMoreOptionsClick = { comment, view ->
+                showCommentOptionsMenu(comment, view)
+            },
+            shouldShowOptions = { comment ->
+                // Show options if user is comment author or post author
+                viewModel.isCommentAuthor(comment.authorId) || viewModel.isPostAuthor()
+            }
+        )
         binding.recyclerComments.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = commentAdapter
@@ -151,6 +160,20 @@ class ForumDetailFragment : Fragment() {
                 findNavController().navigateUp()
             }
         }
+
+        viewModel.commentDeleteSuccess.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(context, "Comment deleted", Toast.LENGTH_SHORT).show()
+                viewModel.clearCommentDeleteSuccess()
+            }
+        }
+
+        viewModel.commentPinSuccess.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(context, "Comment pin status updated", Toast.LENGTH_SHORT).show()
+                viewModel.clearCommentPinSuccess()
+            }
+        }
     }
 
     private fun showPostOptionsMenu() {
@@ -194,6 +217,53 @@ class ForumDetailFragment : Fragment() {
             .setMessage("Are you sure you want to delete this post?")
             .setPositiveButton("Delete") { dialog, _ ->
                 viewModel.deletePost(postId)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showCommentOptionsMenu(comment: com.nottingham.mynottingham.data.model.ForumComment, anchorView: android.view.View) {
+        val popupMenu = PopupMenu(requireContext(), anchorView)
+        popupMenu.menuInflater.inflate(R.menu.menu_forum_comment_options, popupMenu.menu)
+
+        // Update menu items based on user permissions
+        val isCommentAuthor = viewModel.isCommentAuthor(comment.authorId)
+        val isPostAuthor = viewModel.isPostAuthor()
+
+        // Only post author can pin/unpin comments
+        popupMenu.menu.findItem(R.id.action_pin_comment)?.apply {
+            isVisible = isPostAuthor
+            title = if (comment.isPinned) "Unpin Comment" else "Pin Comment"
+        }
+
+        // Comment author or post author can delete
+        popupMenu.menu.findItem(R.id.action_delete_comment)?.isVisible = isCommentAuthor || isPostAuthor
+
+        popupMenu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_pin_comment -> {
+                    viewModel.pinComment(comment.id)
+                    true
+                }
+                R.id.action_delete_comment -> {
+                    showDeleteCommentConfirmationDialog(comment)
+                    true
+                }
+                else -> false
+            }
+        }
+        popupMenu.show()
+    }
+
+    private fun showDeleteCommentConfirmationDialog(comment: com.nottingham.mynottingham.data.model.ForumComment) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Comment")
+            .setMessage("Are you sure you want to delete this comment?")
+            .setPositiveButton("Delete") { dialog, _ ->
+                viewModel.deleteComment(comment.id)
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel") { dialog, _ ->

@@ -14,10 +14,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.firebase.auth.FirebaseAuth
 import com.nottingham.mynottingham.R
 import com.nottingham.mynottingham.data.local.TokenManager
 import com.nottingham.mynottingham.data.repository.FirebaseUserRepository
 import com.nottingham.mynottingham.databinding.FragmentProfileBinding
+import com.nottingham.mynottingham.service.MyFirebaseMessagingService
 import com.nottingham.mynottingham.util.AvatarUtils // Import the AvatarUtils utility class
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -309,7 +311,24 @@ class ProfileFragment : Fragment() {
 
     private fun performLogout() {
         lifecycleScope.launch {
-            // Clear authentication data
+            val firebaseAuth = FirebaseAuth.getInstance()
+            val firebaseUserRepo = FirebaseUserRepository()
+
+            // Get userId BEFORE signing out
+            val userId = firebaseAuth.currentUser?.uid
+
+            if (!userId.isNullOrEmpty()) {
+                // Set offline status
+                firebaseUserRepo.setOffline(userId)
+
+                // Remove FCM token using explicit userId (before signOut)
+                MyFirebaseMessagingService.removeTokenForUser(userId)
+            }
+
+            // Sign out from Firebase Auth
+            firebaseAuth.signOut()
+
+            // Clear local token storage
             tokenManager.clearToken()
 
             // Clear all local database data to prevent privacy leaks

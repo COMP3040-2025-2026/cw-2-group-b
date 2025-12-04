@@ -3,6 +3,7 @@ package com.nottingham.mynottingham.ui.forum
 import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -12,7 +13,9 @@ import com.nottingham.mynottingham.databinding.ItemForumCommentBinding
 import com.nottingham.mynottingham.util.AvatarUtils
 
 class ForumCommentAdapter(
-    private val onLikeClick: (ForumComment) -> Unit
+    private val onLikeClick: (ForumComment) -> Unit,
+    private val onMoreOptionsClick: (ForumComment, android.view.View) -> Unit,
+    private val shouldShowOptions: (ForumComment) -> Boolean
 ) : ListAdapter<ForumComment, ForumCommentAdapter.CommentViewHolder>(CommentDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
@@ -52,6 +55,18 @@ class ForumCommentAdapter(
                      ivAuthorAvatar.setImageResource(avatarResId)
                 } else {
                     ivAuthorAvatar.setImageResource(R.drawable.ic_profile)
+                }
+
+                // Pin indicator
+                ivPinIndicator.isVisible = comment.isPinned
+
+                // More options button (show for comment author or post author)
+                val showOptions = shouldShowOptions(comment)
+                btnMoreOptions.isVisible = showOptions
+                if (showOptions) {
+                    btnMoreOptions.setOnClickListener { view ->
+                        onMoreOptionsClick(comment, view)
+                    }
                 }
 
                 // Like icon state

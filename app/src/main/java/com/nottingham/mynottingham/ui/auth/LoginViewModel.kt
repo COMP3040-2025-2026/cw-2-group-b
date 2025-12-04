@@ -222,15 +222,23 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun logout() {
         viewModelScope.launch {
-            // Set offline status before signing out
+            // Get userId BEFORE signing out
             val userId = firebaseAuth.currentUser?.uid
+
             if (!userId.isNullOrEmpty()) {
+                // Set offline status
                 firebaseUserRepo.setOffline(userId)
                 Log.d(TAG, "User set to offline: $userId")
+
+                // Remove FCM token using explicit userId (before signOut)
+                MyFirebaseMessagingService.removeTokenForUser(userId)
+                Log.d(TAG, "FCM token removal initiated for user: $userId")
             }
-            // Remove FCM token to stop receiving notifications
-            MyFirebaseMessagingService.removeTokenFromFirebase()
+
+            // Sign out from Firebase Auth
             firebaseAuth.signOut()
+
+            // Clear local token storage
             tokenManager.clearToken()
             Log.d(TAG, "User logged out successfully")
         }
