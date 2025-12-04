@@ -270,6 +270,45 @@ Firebase Realtime Database
 
 ---
 
+## Documentation
+
+### Project Report
+
+The CW2 report is available in LaTeX format:
+
+```
+docs/report/
+├── main.tex                        # LaTeX source file
+├── Architecture Diagram.png
+├── Class Diagram.png
+├── Firebase Database Structure.png
+├── Login Sequence.png
+├── Messaging Sequence.png
+└── MVVM Pattern.png
+```
+
+### UML Diagrams
+
+PlantUML source files and rendered diagrams:
+
+```
+docs/uml/
+├── *.puml                          # PlantUML source files
+├── *.svg                           # Vector graphics (scalable)
+└── *.png                           # Raster graphics
+```
+
+| Diagram | Description |
+|---------|-------------|
+| Architecture Diagram | Three-layer system architecture |
+| MVVM Pattern | MVVM design pattern implementation |
+| Class Diagram | Core class relationships |
+| Firebase Database Structure | Database schema design |
+| Login Sequence | User authentication flow |
+| Messaging Sequence | Real-time messaging flow |
+
+---
+
 ## Testing
 
 ### Run Unit Tests
@@ -282,12 +321,18 @@ Firebase Realtime Database
 ./gradlew connectedAndroidTest
 ```
 
-### Test Coverage
+### Test Files
 
-| Test Type | Location | Description |
-|-----------|----------|-------------|
-| Unit Tests | `app/src/test/` | ShuttleViewModel, data models, utilities |
-| UI Tests | `app/src/androidTest/` | Navigation, main activity, fragments |
+**Unit Tests** (`app/src/test/`):
+- `ShuttleViewModelTest.kt` - ViewModel initialization, route loading, day type selection
+- `ShuttleModelTest.kt` - Route model data integrity
+- `UserModelTest.kt` - User model validation
+- `ConstantsTest.kt` - Application constants verification
+
+**Instrumented Tests** (`app/src/androidTest/`):
+- `NavigationTest.kt` - Navigation host setup, fragment navigation
+- `MainActivityTest.kt` - Main activity lifecycle
+- `LoginFragmentTest.kt` - Login UI components
 
 ---
 
@@ -316,13 +361,15 @@ app/build/outputs/apk/debug/app-debug.apk
 |--------|-------|
 | Kotlin Source Files | 145 |
 | ViewModels | 17 |
-| Fragments | 35+ |
+| Fragments | 39 |
 | Adapters | 23 |
 | Room Entities | 8 |
 | DAOs | 7 |
-| Firebase Repositories | 7 |
-| Layout Files | 57+ |
-| Drawable Resources | 140+ |
+| Firebase Repositories | 9 |
+| Layout Files | 89 |
+| Drawable Resources | 101 |
+| Unit Tests | 5 |
+| Instrumented Tests | 4 |
 
 ---
 
@@ -394,4 +441,4 @@ This project is developed for educational purposes as part of COMP3040 Mobile De
 
 ---
 
-Last Updated: December 2024
+Last Updated: December 2025
