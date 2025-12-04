@@ -170,7 +170,8 @@ class RestaurantMenuViewModel(application: Application) : AndroidViewModel(appli
                 "description" to sb.toString().trim(),
                 "type" to "FOOD_DELIVERY",
                 "location" to address,
-                "reward" to (_totalPrice.value ?: 0.0),
+                "orderAmount" to (_subtotal.value ?: 0.0),  // Food cost for rider to purchase
+                "reward" to (_deliveryFee.value ?: 0.0),    // Delivery fee for rider
                 "timeLimit" to deliveryTime
             )
 

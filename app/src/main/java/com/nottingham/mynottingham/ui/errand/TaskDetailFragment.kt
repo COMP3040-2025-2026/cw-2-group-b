@@ -46,9 +46,11 @@ class TaskDetailFragment : Fragment() {
     // Additional task details for editing
     private var taskTitle: String = ""
     private var taskDescription: String = ""
-    private var taskPrice: String = ""
+    private var taskOrderAmount: String? = null  // Food/item cost (for FOOD_DELIVERY)
+    private var taskReward: String = ""          // Delivery fee / reward
     private var taskLocation: String = ""
     private var taskDeadline: String = ""
+    private var taskType: String = ""
 
     companion object {
         private const val MAX_ACTIVE_ORDERS = 3
@@ -75,7 +77,8 @@ class TaskDetailFragment : Fragment() {
         currentTaskId = arguments?.getString("taskId") ?: ""
         taskTitle = arguments?.getString("title") ?: ""
         taskDescription = arguments?.getString("description") ?: ""
-        taskPrice = arguments?.getString("price") ?: ""
+        taskOrderAmount = arguments?.getString("orderAmount")
+        taskReward = arguments?.getString("reward") ?: ""
         taskLocation = arguments?.getString("location") ?: ""
         val requesterName = arguments?.getString("requesterName")
         requesterId = arguments?.getString("requesterId") ?: ""
@@ -85,12 +88,22 @@ class TaskDetailFragment : Fragment() {
         providerAvatar = arguments?.getString("providerAvatar")
         currentStatus = arguments?.getString("status") ?: "PENDING"
         taskDeadline = arguments?.getString("timeLimit") ?: "No Deadline"
+        taskType = arguments?.getString("taskType") ?: ""
         val timestamp = arguments?.getLong("timestamp") ?: 0
 
         // Bind UI
         binding.tvTaskTitle.text = taskTitle
         binding.tvTaskDescription.text = taskDescription
-        binding.tvTaskPrice.text = "RM $taskPrice"
+
+        // Display price based on task type
+        if (taskType.uppercase() == "FOOD_DELIVERY" && !taskOrderAmount.isNullOrEmpty()) {
+            // Food delivery: show both order amount and delivery fee
+            binding.tvTaskPrice.text = "Order: RM $taskOrderAmount\nFee: RM $taskReward"
+        } else {
+            // Other task types: just show reward
+            binding.tvTaskPrice.text = "RM $taskReward"
+        }
+
         binding.tvTaskLocation.text = taskLocation
         binding.tvRequesterName.text = requesterName
         binding.ivRequesterAvatar.setImageResource(
@@ -572,7 +585,7 @@ class TaskDetailFragment : Fragment() {
                 putString("taskId", currentTaskId)
                 putString("title", taskTitle)
                 putString("description", taskDescription)
-                putString("reward", taskPrice)
+                putString("reward", taskReward)
                 putString("location", taskLocation)
                 putString("deadline", taskDeadline)
                 putString("status", currentStatus)

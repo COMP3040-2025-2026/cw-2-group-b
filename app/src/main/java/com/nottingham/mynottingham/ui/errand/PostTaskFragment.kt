@@ -81,7 +81,7 @@ class PostTaskFragment : Fragment() {
                         taskId = UUID.randomUUID().toString(),
                         title = title,
                         description = description,
-                        price = reward,
+                        reward = reward,
                         location = location,
                         requesterId = userId,
                         requesterName = userName,

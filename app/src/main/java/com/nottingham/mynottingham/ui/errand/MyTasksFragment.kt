@@ -55,7 +55,9 @@ class MyTasksFragment : Fragment() {
                     putString("taskId", task.id)
                     putString("title", task.title)
                     putString("description", task.description)
-                    putString("price", task.reward.toString())
+                    task.orderAmount?.let { putString("orderAmount", String.format("%.2f", it)) }
+                    putString("reward", String.format("%.2f", task.reward))
+                    putString("taskType", task.taskType)
                     putString("location", task.location)
                     putString("requesterId", task.requesterId)
                     putString("requesterName", task.requesterName)
@@ -199,7 +201,9 @@ class MyTasksFragment : Fragment() {
                             title = errand["title"] as? String ?: "",
                             description = errand["description"] as? String ?: "",
                             status = status,
+                            orderAmount = (errand["orderAmount"] as? Number)?.toDouble(),
                             reward = (errand["reward"] as? Number)?.toDouble() ?: 0.0,
+                            taskType = errand["type"] as? String ?: "",
                             location = errand["location"] as? String
                                 ?: errand["deliveryLocation"] as? String
                                 ?: errand["pickupLocation"] as? String
