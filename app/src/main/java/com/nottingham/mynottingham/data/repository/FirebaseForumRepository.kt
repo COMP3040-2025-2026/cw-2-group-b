@@ -115,8 +115,12 @@ class FirebaseForumRepository {
                                 false
                             }
 
-                            // Category filter
-                            if (category == null || postCategory == category) {
+                            // Category filter (TRENDING is special - include all posts)
+                            val matchesCategory = category == null ||
+                                category == "TRENDING" ||
+                                postCategory == category
+
+                            if (matchesCategory) {
                                 posts.add(
                                     ForumPost(
                                         id = postId,
@@ -144,11 +148,23 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // Sort: pinned posts first (by pinned time desc), then normal posts (by created time desc)
-                    val sortedPosts = posts.sortedWith(
-                        compareByDescending<ForumPost> { it.isPinned }
-                            .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
-                    )
+                    // Sort based on category type
+                    val sortedPosts = if (category == "TRENDING") {
+                        // Trending algorithm: score = (likes*5 + comments*3 + views) / (1 + daysSinceCreated * 0.3)
+                        val now = System.currentTimeMillis()
+                        posts.sortedByDescending { post ->
+                            val daysSinceCreated = (now - post.createdAt) / (1000.0 * 60 * 60 * 24)
+                            val engagementScore = post.likes * 5.0 + post.comments * 3.0 + post.views
+                            // Time decay factor: newer posts get higher scores
+                            engagementScore / (1.0 + daysSinceCreated * 0.3)
+                        }
+                    } else {
+                        // Default: pinned posts first (by pinned time desc), then normal posts (by created time desc)
+                        posts.sortedWith(
+                            compareByDescending<ForumPost> { it.isPinned }
+                                .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
+                        )
+                    }
                     trySend(sortedPosts)
                 }
             }
