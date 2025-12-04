@@ -545,8 +545,14 @@ class FirebaseMessageRepository {
                 return Result.success(existingConvId)
             }
 
-            val newConvRef = conversationsRef.push()
-            val conversationId = newConvRef.key ?: throw Exception("Failed to generate conversation ID")
+            // Use deterministic ID for one-on-one chats (prevents duplicates)
+            // Use push() ID for group chats
+            val conversationId = if (!isGroup && participantIds.size == 1) {
+                generateDeterministicConversationId(currentUserId, participantIds.first())
+            } else {
+                conversationsRef.push().key ?: throw Exception("Failed to generate conversation ID")
+            }
+            val newConvRef = conversationsRef.child(conversationId)
             val timestamp = System.currentTimeMillis()
 
             // Create participants map (including current user)
@@ -742,19 +748,37 @@ class FirebaseMessageRepository {
 
     /**
      * Find existing conversation (same participants)
+     * For one-on-one chats: check participantId (singular string)
+     * For group chats: check participantIds array if exists
      */
     private suspend fun findExistingConversation(currentUserId: String, participantIds: List<String>): String? {
         return try {
             val snapshot = userConversationsRef.child(currentUserId).get().await()
-            val allParticipants = (participantIds + currentUserId).sorted()
 
-            snapshot.children.forEach { child ->
-                val convParticipants = child.child("participantIds").children
-                    .mapNotNull { it.getValue(String::class.java) }
-                    .sorted()
+            // For one-on-one chat (single participant)
+            if (participantIds.size == 1) {
+                val targetParticipantId = participantIds.first()
+                snapshot.children.forEach { child ->
+                    val isGroup = child.child("isGroup").getValue(Boolean::class.java) ?: false
+                    if (!isGroup) {
+                        val participantId = child.child("participantId").getValue(String::class.java)
+                        if (participantId == targetParticipantId) {
+                            android.util.Log.d("FirebaseMessageRepo", "Found existing conversation: ${child.key}")
+                            return child.key
+                        }
+                    }
+                }
+            } else {
+                // For group chats - check participantIds array if exists
+                val allParticipants = (participantIds + currentUserId).sorted()
+                snapshot.children.forEach { child ->
+                    val convParticipants = child.child("participantIds").children
+                        .mapNotNull { it.getValue(String::class.java) }
+                        .sorted()
 
-                if (convParticipants == allParticipants) {
-                    return child.key
+                    if (convParticipants == allParticipants) {
+                        return child.key
+                    }
                 }
             }
             null
@@ -762,6 +786,14 @@ class FirebaseMessageRepository {
             android.util.Log.e("FirebaseMessageRepo", "Error finding existing conversation: ${e.message}")
             null
         }
+    }
+
+    /**
+     * Generate deterministic conversation ID for one-on-one chats
+     * This ensures the same two users always get the same conversation ID
+     */
+    private fun generateDeterministicConversationId(userId1: String, userId2: String): String {
+        return if (userId1 < userId2) "${userId1}_${userId2}" else "${userId2}_${userId1}"
     }
 
     /**

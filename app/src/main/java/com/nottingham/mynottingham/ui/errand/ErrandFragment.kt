@@ -14,9 +14,28 @@ class ErrandFragment : Fragment() {
     private var _binding: FragmentErrandBinding? = null
     private val binding get() = _binding!!
     private var currentTab = ErrandTab.HOME
+    private var hasChildFragment = false
 
     enum class ErrandTab {
         HOME, TASKS, MY_TASKS
+    }
+
+    companion object {
+        private const val KEY_HAS_CHILD_FRAGMENT = "has_child_fragment"
+
+        // Static storage for task details when navigating to chat
+        // This survives fragment recreation by Navigation Component
+        private var pendingTaskDetails: Bundle? = null
+
+        fun savePendingTaskDetails(bundle: Bundle) {
+            pendingTaskDetails = bundle
+        }
+
+        fun consumePendingTaskDetails(): Bundle? {
+            val details = pendingTaskDetails
+            pendingTaskDetails = null
+            return details
+        }
     }
 
     override fun onCreateView(
@@ -25,23 +44,71 @@ class ErrandFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentErrandBinding.inflate(inflater, container, false)
+        // Restore state
+        savedInstanceState?.let {
+            hasChildFragment = it.getBoolean(KEY_HAS_CHILD_FRAGMENT, false)
+        }
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupBackStackListener()
         setupBottomNavigation()
-        setupBackStackListener() // [Added] Set up back stack listener
 
-        // Load home fragment by default
-        if (savedInstanceState == null) {
+        // Ensure pending fragment transactions are executed
+        childFragmentManager.executePendingTransactions()
+
+        // Check if we need to restore TaskDetailFragment after coming back from chat
+        val pendingTask = consumePendingTaskDetails()
+        if (pendingTask != null) {
+            android.util.Log.d("ErrandFragment", "Restoring TaskDetailFragment from pending details")
+            // First ensure we have the base fragment
+            if (childFragmentManager.findFragmentById(R.id.errand_fragment_container) == null) {
+                childFragmentManager.beginTransaction()
+                    .replace(R.id.errand_fragment_container, ErrandHomeFragment())
+                    .commitNow()
+            }
+            // Then show TaskDetailFragment
+            val taskDetailFragment = TaskDetailFragment().apply {
+                arguments = pendingTask
+            }
+            childFragmentManager.beginTransaction()
+                .setCustomAnimations(
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left,
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right
+                )
+                .replace(R.id.errand_fragment_container, taskDetailFragment)
+                .addToBackStack(null)
+                .commit()
+            return
+        }
+
+        // Check if there's already a fragment in the container
+        val existingFragment = childFragmentManager.findFragmentById(R.id.errand_fragment_container)
+
+        android.util.Log.d("ErrandFragment", "onViewCreated: existingFragment=${existingFragment?.javaClass?.simpleName}, backStackCount=${childFragmentManager.backStackEntryCount}")
+
+        // Only load home fragment if no existing fragment in container
+        if (existingFragment == null) {
             loadFragment(ErrandHomeFragment())
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save whether we have child fragments in back stack (indicating we're in a detail view)
+        outState.putBoolean(KEY_HAS_CHILD_FRAGMENT, childFragmentManager.backStackEntryCount > 0)
     }
 
     private fun setupBackStackListener() {
         childFragmentManager.addOnBackStackChangedListener {
             val shouldHideBottomNav = childFragmentManager.backStackEntryCount > 0
+
+            // Update hasChildFragment flag
+            hasChildFragment = shouldHideBottomNav
 
             // 1. Control navigation bar visibility
             binding.errandBottomNav.visibility = if (shouldHideBottomNav) View.GONE else View.VISIBLE

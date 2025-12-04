@@ -266,32 +266,51 @@
                 app:cornerRadius="24dp" />
         </LinearLayout>
 
-        <!-- Provider (rider) actions: Drop + Primary Action -->
+        <!-- Provider (rider) actions: Chat + Drop + Primary Action -->
         <LinearLayout
             android:id="@+id/layout_provider_actions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="16dp"
             android:visibility="gone">
 
+            <!-- Chat with Customer button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_drop_task"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="56dp"
-                android:text="Drop Task"
-                android:textColor="@color/error"
-                app:cornerRadius="28dp" />
+                android:id="@+id/btn_chat_customer"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp"
+                android:text="Chat with Customer"
+                app:cornerRadius="24dp"
+                app:icon="@android:drawable/stat_notify_chat"
+                app:iconGravity="textStart" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_provider_action"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="Start Delivering"
-                app:cornerRadius="28dp" />
+            <!-- Action buttons row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_drop_task"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:text="Drop Task"
+                    android:textColor="@color/error"
+                    app:cornerRadius="28dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_provider_action"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="Start Delivering"
+                    app:cornerRadius="28dp" />
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 

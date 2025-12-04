@@ -43,6 +43,8 @@ class TaskDetailFragment : Fragment() {
     private var currentStatus: String = "PENDING"
     private var currentUserId: String = ""
     private var requesterId: String = ""
+    private var requesterName: String = ""
+    private var requesterAvatar: String = "default"
     private var providerId: String? = null
     private var providerName: String? = null
     private var providerAvatar: String? = null
@@ -84,9 +86,9 @@ class TaskDetailFragment : Fragment() {
         taskOrderAmount = arguments?.getString("orderAmount")
         taskReward = arguments?.getString("reward") ?: ""
         taskLocation = arguments?.getString("location") ?: ""
-        val requesterName = arguments?.getString("requesterName")
+        requesterName = arguments?.getString("requesterName") ?: ""
         requesterId = arguments?.getString("requesterId") ?: ""
-        val requesterAvatar = arguments?.getString("requesterAvatar") ?: "default"
+        requesterAvatar = arguments?.getString("requesterAvatar") ?: "default"
         providerId = arguments?.getString("providerId")
         providerName = arguments?.getString("providerName")
         providerAvatar = arguments?.getString("providerAvatar")
@@ -337,8 +339,9 @@ class TaskDetailFragment : Fragment() {
 
         when (currentStatus.uppercase()) {
             "ACCEPTED", "IN_PROGRESS" -> {
-                // Show provider actions: Drop Task + Start Delivering
+                // Show provider actions: Chat + Drop Task + Start Delivering
                 binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnChatCustomer.setOnClickListener { chatWithCustomer() }
                 binding.btnProviderAction.text = "Start Delivering"
                 binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(requireContext(), R.color.errand_delivering)
@@ -347,8 +350,9 @@ class TaskDetailFragment : Fragment() {
                 binding.btnDropTask.setOnClickListener { confirmDrop() }
             }
             "DELIVERING" -> {
-                // Show provider actions: Drop Task + Mark Complete
+                // Show provider actions: Chat + Drop Task + Mark Complete
                 binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnChatCustomer.setOnClickListener { chatWithCustomer() }
                 binding.btnProviderAction.text = "Mark Complete"
                 binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(requireContext(), R.color.errand_completed)
@@ -596,9 +600,9 @@ class TaskDetailFragment : Fragment() {
                 val currentUserName = tokenManager.getFullName().first() ?: "User"
 
                 // Create or get existing conversation
-                val participantIds = listOf(currentUserId, riderId)
+                // Only pass the other participant's ID (not current user)
                 val result = messageRepository.createConversation(
-                    participantIds = participantIds,
+                    participantIds = listOf(riderId),
                     currentUserId = currentUserId,
                     currentUserName = currentUserName,
                     isGroup = false
@@ -639,8 +643,12 @@ class TaskDetailFragment : Fragment() {
 
                     // Navigate to ChatDetailFragment using NavController
                     try {
+                        // Save task details so we can restore when coming back
+                        saveTaskDetailsForRestore()
+
                         val bundle = bundleOf(
                             "conversationId" to conversationId,
+                            "participantId" to riderId,
                             "participantName" to (riderName ?: "Rider"),
                             "participantAvatar" to providerAvatar,
                             "isOnline" to false
@@ -662,6 +670,116 @@ class TaskDetailFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /**
+     * Open chat with the customer (task requester)
+     * Used by riders/providers to contact the customer
+     */
+    private fun chatWithCustomer() {
+        if (requesterId.isEmpty()) {
+            Toast.makeText(requireContext(), "Customer information not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                // Get current user (rider) info
+                val currentUserName = tokenManager.getFullName().first() ?: "Rider"
+
+                // Create or get existing conversation
+                val result = messageRepository.createConversation(
+                    participantIds = listOf(requesterId),
+                    currentUserId = currentUserId,
+                    currentUserName = currentUserName,
+                    isGroup = false
+                )
+
+                if (_binding == null) return@launch
+
+                result.onSuccess { conversationId ->
+                    // Update conversation participant info for current user (rider)
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantName = requesterName.ifEmpty { "Customer" },
+                        participantAvatar = requesterAvatar
+                    )
+
+                    // Update conversation participant info for customer
+                    val myName = tokenManager.getFullName().first() ?: "Rider"
+                    val myAvatar = tokenManager.getAvatar().first()
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = requesterId,
+                        conversationId = conversationId,
+                        participantName = myName,
+                        participantAvatar = myAvatar
+                    )
+
+                    // Also update participantId for both users
+                    messageRepository.updateConversationParticipantId(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantId = requesterId
+                    )
+                    messageRepository.updateConversationParticipantId(
+                        userId = requesterId,
+                        conversationId = conversationId,
+                        participantId = currentUserId
+                    )
+
+                    // Navigate to ChatDetailFragment
+                    try {
+                        // Save task details so we can restore when coming back
+                        saveTaskDetailsForRestore()
+
+                        val bundle = bundleOf(
+                            "conversationId" to conversationId,
+                            "participantId" to requesterId,
+                            "participantName" to requesterName.ifEmpty { "Customer" },
+                            "participantAvatar" to requesterAvatar,
+                            "isOnline" to false
+                        )
+
+                        val navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment)
+                        navController.navigate(R.id.chatDetailFragment, bundle)
+                    } catch (e: Exception) {
+                        Log.e("TaskDetail", "Navigation failed", e)
+                        Toast.makeText(requireContext(), "Failed to open chat", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { e ->
+                    Toast.makeText(requireContext(), "Failed to create conversation: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Save task details so ErrandFragment can restore TaskDetailFragment when coming back from chat
+     */
+    private fun saveTaskDetailsForRestore() {
+        val bundle = Bundle().apply {
+            putString("taskId", currentTaskId)
+            putString("title", taskTitle)
+            putString("description", taskDescription)
+            putString("orderAmount", taskOrderAmount)
+            putString("reward", taskReward)
+            putString("location", taskLocation)
+            putString("requesterName", requesterName)
+            putString("requesterId", requesterId)
+            putString("requesterAvatar", requesterAvatar)
+            putString("providerId", providerId)
+            putString("providerName", providerName)
+            putString("providerAvatar", providerAvatar)
+            putString("status", currentStatus)
+            putString("timeLimit", taskDeadline)
+            putString("taskType", taskType)
+        }
+        ErrandFragment.savePendingTaskDetails(bundle)
     }
 
     /**
