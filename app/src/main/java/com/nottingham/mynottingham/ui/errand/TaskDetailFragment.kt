@@ -1,7 +1,11 @@
 package com.nottingham.mynottingham.ui.errand
 
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -97,8 +101,29 @@ class TaskDetailFragment : Fragment() {
 
         // Display price based on task type
         if (taskType.uppercase() == "FOOD_DELIVERY" && !taskOrderAmount.isNullOrEmpty()) {
-            // Food delivery: show both order amount and delivery fee
-            binding.tvTaskPrice.text = "Order: RM $taskOrderAmount\nFee: RM $taskReward"
+            // Food delivery: show both order amount and delivery fee with different colors
+            val orderLine = "Order: RM $taskOrderAmount"
+            val feeLine = "Fee: RM $taskReward"
+            val fullText = "$orderLine\n$feeLine"
+
+            val spannable = SpannableString(fullText)
+            // Order line in green
+            val greenColor = Color.parseColor("#4CAF50")
+            spannable.setSpan(
+                ForegroundColorSpan(greenColor),
+                0,
+                orderLine.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            // Fee line in red
+            val redColor = ContextCompat.getColor(requireContext(), R.color.error)
+            spannable.setSpan(
+                ForegroundColorSpan(redColor),
+                orderLine.length + 1,  // +1 for newline
+                fullText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            binding.tvTaskPrice.text = spannable
         } else {
             // Other task types: just show reward
             binding.tvTaskPrice.text = "RM $taskReward"
@@ -142,17 +167,40 @@ class TaskDetailFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh data when returning from EditTaskFragment
+        if (currentTaskId.isNotEmpty() && currentUserId.isNotEmpty()) {
+            lifecycleScope.launch {
+                refreshTaskStatus()
+            }
+        }
+    }
+
     private suspend fun refreshTaskStatus() {
         try {
             val result = repository.getErrandById(currentTaskId)
             result.onSuccess { task ->
                 if (task == null || _binding == null) return@onSuccess
 
+                // Refresh all task data from Firebase
+                taskTitle = task["title"] as? String ?: taskTitle
+                taskDescription = task["description"] as? String ?: taskDescription
+                taskOrderAmount = (task["orderAmount"] as? Number)?.let { String.format("%.2f", it.toDouble()) }
+                taskReward = (task["reward"] as? Number)?.let { String.format("%.2f", it.toDouble()) } ?: taskReward
+                taskLocation = task["location"] as? String
+                    ?: task["deliveryLocation"] as? String
+                    ?: taskLocation
+                taskDeadline = task["timeLimit"] as? String ?: taskDeadline
+                taskType = task["type"] as? String ?: taskType
+
                 providerId = task["providerId"] as? String
                 providerName = task["providerName"] as? String
                 providerAvatar = task["providerAvatar"] as? String
                 currentStatus = task["status"] as? String ?: "PENDING"
 
+                // Update UI with refreshed data
+                updateUI()
                 setupUIBasedOnRole()
             }.onFailure {
                 // Use the status from arguments if Firebase fails
@@ -162,6 +210,46 @@ class TaskDetailFragment : Fragment() {
             Log.e("TaskDetail", "Failed to refresh status", e)
             setupUIBasedOnRole()
         }
+    }
+
+    /**
+     * Update UI with current task data
+     */
+    private fun updateUI() {
+        if (_binding == null) return
+
+        binding.tvTaskTitle.text = taskTitle
+        binding.tvTaskDescription.text = taskDescription
+
+        // Display price based on task type
+        if (taskType.uppercase() == "FOOD_DELIVERY" && !taskOrderAmount.isNullOrEmpty()) {
+            val orderLine = "Order: RM $taskOrderAmount"
+            val feeLine = "Fee: RM $taskReward"
+            val fullText = "$orderLine\n$feeLine"
+
+            val spannable = SpannableString(fullText)
+            val greenColor = Color.parseColor("#4CAF50")
+            spannable.setSpan(
+                ForegroundColorSpan(greenColor),
+                0,
+                orderLine.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            val redColor = ContextCompat.getColor(requireContext(), R.color.error)
+            spannable.setSpan(
+                ForegroundColorSpan(redColor),
+                orderLine.length + 1,
+                fullText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            binding.tvTaskPrice.text = spannable
+        } else {
+            binding.tvTaskPrice.text = "RM $taskReward"
+        }
+
+        binding.tvTaskLocation.text = taskLocation
+        binding.tvTaskDeadline.text = "Deadline: $taskDeadline"
+        binding.tvTaskDeadline.visibility = if (taskDeadline == "No Deadline") View.GONE else View.VISIBLE
     }
 
     private fun setupUIBasedOnRole() {

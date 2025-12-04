@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.ui.errand
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -63,6 +64,8 @@ class EditTaskFragment : Fragment() {
         val deadline = arguments?.getString("deadline") ?: DEADLINES[0]
         taskStatus = arguments?.getString("status") ?: "PENDING"
         providerId = arguments?.getString("providerId")
+
+        Log.d("EditTask", "Loaded task - ID: $taskId, Status: $taskStatus, Reward: $reward")
 
         setupToolbar()
         setupDropdowns()
@@ -170,27 +173,50 @@ class EditTaskFragment : Fragment() {
     private fun updateTask() {
         binding.btnUpdateTask.isEnabled = false
 
+        // Verify taskId is valid
+        if (taskId.isEmpty()) {
+            Log.e("EditTask", "Cannot update: taskId is empty!")
+            Toast.makeText(requireContext(), "Error: Task ID not found", Toast.LENGTH_SHORT).show()
+            binding.btnUpdateTask.isEnabled = true
+            return
+        }
+
+        // Clean reward string - remove "RM ", spaces, and any non-numeric characters except decimal point
+        val rewardText = binding.etReward.text.toString()
+            .replace("RM", "", ignoreCase = true)
+            .replace(" ", "")
+            .trim()
+        val rewardValue = rewardText.toDoubleOrNull() ?: 0.0
+
+        val locationValue = binding.etLocation.text.toString().trim()
         val updates = mapOf<String, Any>(
             "title" to binding.etTaskTitle.text.toString().trim(),
             "description" to binding.etDescription.text.toString().trim(),
-            "deliveryLocation" to binding.etLocation.text.toString().trim(),
-            "reward" to (binding.etReward.text.toString().trim().toDoubleOrNull() ?: 0.0),
+            "location" to locationValue,           // Update both for compatibility
+            "deliveryLocation" to locationValue,   // Update both for compatibility
+            "reward" to rewardValue,
             "timeLimit" to binding.dropdownDeadline.text.toString(),
             "updatedAt" to System.currentTimeMillis()
         )
+
+        Log.d("EditTask", "Updating task: $taskId with status: $taskStatus")
+        Log.d("EditTask", "Updates: $updates")
 
         lifecycleScope.launch {
             when (taskStatus.uppercase()) {
                 "PENDING" -> {
                     // Direct update for PENDING tasks
+                    Log.d("EditTask", "Executing Firebase update for PENDING task")
                     val result = repository.updateErrand(taskId, updates)
 
                     if (_binding == null) return@launch
 
                     result.onSuccess {
+                        Log.d("EditTask", "Firebase update successful!")
                         Toast.makeText(requireContext(), "Task updated successfully", Toast.LENGTH_SHORT).show()
                         parentFragmentManager.popBackStack()
                     }.onFailure { e ->
+                        Log.e("EditTask", "Firebase update failed: ${e.message}", e)
                         Toast.makeText(requireContext(), "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
                         binding.btnUpdateTask.isEnabled = true
                     }
