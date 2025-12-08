@@ -38,6 +38,16 @@
     citecolor=blue
 }
 
+% Define Kotlin language for listings (based on Java)
+\lstdefinelanguage{Kotlin}{
+    keywords={abstract, actual, as, break, by, catch, class, companion, const, constructor, continue, data, do, else, enum, expect, false, final, finally, for, fun, if, import, in, interface, internal, is, null, object, open, out, override, package, private, protected, public, return, sealed, super, suspend, this, throw, true, try, val, var, when, while},
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    morestring=[b]",
+    morestring=[s]{"""}{"""},
+    sensitive=true
+}
+
 % Code listing setup
 \lstset{
     basicstyle=\ttfamily\small,
@@ -46,7 +56,8 @@
     backgroundcolor=\color{gray!10},
     keywordstyle=\color{blue},
     commentstyle=\color{green!60!black},
-    stringstyle=\color{orange}
+    stringstyle=\color{orange},
+    showstringspaces=false
 }
 
 % Title

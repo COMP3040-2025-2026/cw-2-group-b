@@ -69,12 +69,13 @@ package "Models" {
 
     class Errand {
         +id: String
-        +posterId: String
+        +requesterId: String
+        +requesterName: String
         +title: String
         +description: String
-        +category: String
+        +type: ErrandType
         +reward: Double
-        +status: String
+        +status: ErrandStatus
         +createdAt: Long
     }
 
@@ -85,6 +86,73 @@ package "Models" {
         +specialNote: String?
         +vehicleType: String
         +schedules: Map<DayType, Schedule>
+    }
+
+    class Booking {
+        +id: String
+        +userId: String
+        +facilityType: String
+        +facilityName: String
+        +bookingDate: String
+        +startTime: String
+        +endTime: String
+        +status: BookingStatus
+        +createdAt: Long
+    }
+
+    class Course {
+        +id: String
+        +courseName: String
+        +courseCode: String
+        +semester: String
+        +attendedClasses: Int
+        +totalClasses: Int
+        +dayOfWeek: DayOfWeek
+        +courseType: CourseType
+        +signInStatus: SignInStatus
+    }
+
+    class AttendanceRecord {
+        +id: String
+        +courseId: String
+        +date: Date
+        +status: AttendanceStatus
+        +markedAt: Date?
+    }
+
+    enum BookingStatus {
+        CONFIRMED
+        CANCELLED
+        COMPLETED
+    }
+
+    enum ErrandType {
+        SHOPPING
+        PICKUP
+        FOOD_DELIVERY
+        OTHER
+    }
+
+    enum ErrandStatus {
+        PENDING
+        ACCEPTED
+        DELIVERING
+        COMPLETED
+        CANCELLED
+    }
+
+    enum AttendanceStatus {
+        PRESENT
+        ABSENT
+        LATE
+        EXCUSED
+    }
+
+    enum SignInStatus {
+        LOCKED
+        UNLOCKED
+        SIGNED
+        CLOSED
     }
 }
 
@@ -162,5 +230,12 @@ FirebaseUserRepository --> User : manages
 FirebaseForumRepository --> ForumPost : manages
 FirebaseForumRepository --> ForumComment : manages
 ForumComment --> ForumPost : belongs to
+
+Booking --> BookingStatus : has
+Errand --> ErrandType : has
+Errand --> ErrandStatus : has
+Course --> SignInStatus : has
+AttendanceRecord --> AttendanceStatus : has
+AttendanceRecord --> Course : belongs to
 
 @enduml
