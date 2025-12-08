@@ -35,6 +35,8 @@ data class ForumComment(
     val content: String,
     val likes: Int = 0,
     val isLiked: Boolean = false,
+    val isPinned: Boolean = false,
+    val pinnedAt: Long? = null,
     val createdAt: Long
 )
 

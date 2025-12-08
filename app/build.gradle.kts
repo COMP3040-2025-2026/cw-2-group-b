@@ -143,10 +143,19 @@ dependencies {
     // TESTING //
     // Standard unit testing framework.
     testImplementation(libs.junit)
+    // AndroidX Architecture Components testing for InstantTaskExecutorRule.
+    testImplementation(libs.androidx.arch.core.testing)
+    // Kotlin Coroutines testing utilities.
+    testImplementation(libs.kotlinx.coroutines.test)
     // AndroidX Test libraries for UI and integration testing.
     androidTestImplementation(libs.androidx.junit)
     // Framework for writing and running UI tests.
     androidTestImplementation(libs.androidx.espresso.core)
     // Provides testing support for the Navigation component.
     androidTestImplementation(libs.androidx.navigation.testing)
+    // AndroidX Test Core and Rules for UI testing.
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.rules)
+    // Fragment testing utilities.
+    debugImplementation(libs.androidx.fragment.testing)
 }

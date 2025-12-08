@@ -45,9 +45,22 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         /**
          * Remove FCM token from Firebase (call on logout)
+         * Uses current Firebase Auth user ID
          */
         fun removeTokenFromFirebase() {
             val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            removeTokenForUser(userId)
+        }
+
+        /**
+         * Remove FCM token from Firebase for specific user ID
+         * Use this when you need to remove token before Firebase signOut
+         */
+        fun removeTokenForUser(userId: String) {
+            if (userId.isEmpty()) {
+                Log.w(TAG, "Cannot remove FCM token: userId is empty")
+                return
+            }
             val database = FirebaseDatabase.getInstance(DATABASE_URL)
             database.getReference("users").child(userId).child("fcmToken").removeValue()
                 .addOnSuccessListener {
@@ -103,6 +116,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun handleDataMessage(data: Map<String, String>) {
         val type = data["type"] ?: "message"
 
+        // Get current logged-in user ID
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+        // If no user is logged in, skip notification
+        if (currentUserId.isNullOrEmpty()) {
+            Log.d(TAG, "No user logged in, skipping notification")
+            return
+        }
+
         when (type) {
             "message" -> {
                 // Extract chat-specific fields
@@ -110,6 +132,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val senderId = data["senderId"] ?: ""
                 val senderName = data["senderName"] ?: data["title"] ?: "New Message"
                 val messageContent = data["body"] ?: "You have a new message"
+
+                // Skip notification if sender is current user (self-notification)
+                if (senderId == currentUserId) {
+                    Log.d(TAG, "Skipping self-notification for message from: $senderId")
+                    return
+                }
 
                 if (!conversationId.isNullOrEmpty()) {
                     showChatNotification(senderName, messageContent, conversationId, senderId)

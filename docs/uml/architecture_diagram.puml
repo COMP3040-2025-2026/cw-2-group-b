@@ -1,0 +1,69 @@
+@startuml Architecture Diagram
+!theme plain
+skinparam componentStyle rectangle
+
+title My Nottingham - System Architecture
+
+package "Presentation Layer" {
+    [Fragments] as fragments
+    [ViewModels] as viewmodels
+    [Adapters] as adapters
+}
+
+package "Domain Layer" {
+    [Use Cases] as usecases
+    [Validators] as validators
+}
+
+package "Data Layer" {
+    [Repositories] as repos
+    [Models] as models
+
+    package "Local" {
+        [Room Database] as room
+        [TokenManager\n(DataStore)] as datastore
+    }
+
+    package "Remote" {
+        [Firebase Auth] as firebaseAuth
+        [Firebase Realtime DB] as firebaseDB
+        [Firebase Messaging] as fcm
+        [Firebase AI (Gemini)] as firebaseAI
+    }
+}
+
+fragments --> viewmodels : observes LiveData
+viewmodels --> usecases : calls
+viewmodels --> repos : calls
+usecases --> repos : uses
+repos --> room : caches
+repos --> datastore : stores tokens
+repos --> firebaseDB : syncs data
+repos --> firebaseAuth : authenticates
+repos --> fcm : notifications
+repos --> firebaseAI : AI queries
+
+note right of fragments
+  - LoginFragment
+  - HomeFragment
+  - ShuttleFragment
+  - InstattFragment
+  - BookingFragment
+  - ErrandHomeFragment
+  - MessageFragment
+  - ForumFragment
+  - NottiFragment
+  - ProfileFragment
+end note
+
+note right of repos
+  - FirebaseUserRepository
+  - FirebaseMessageRepository
+  - FirebaseForumRepository
+  - FirebaseErrandRepository
+  - FirebaseBookingRepository
+  - FirebaseCourseRepository
+  - InstattRepository
+end note
+
+@enduml

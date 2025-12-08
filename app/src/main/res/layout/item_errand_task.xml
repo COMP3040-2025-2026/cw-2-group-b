@@ -27,17 +27,38 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Reward Amount -->
-        <TextView
-            android:id="@+id/tv_reward"
+        <!-- Price Container (vertical layout for order amount + delivery fee) -->
+        <LinearLayout
+            android:id="@+id/price_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FF6B6B"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            tools:text="RM 5.00"
+            android:orientation="vertical"
+            android:gravity="end"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Order Amount (food cost) - only shown for food delivery -->
+            <TextView
+                android:id="@+id/tv_order_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#4CAF50"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:text="Order: RM 38.50" />
+
+            <!-- Delivery Fee / Reward -->
+            <TextView
+                android:id="@+id/tv_reward"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FF6B6B"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Fee: RM 5.00" />
+
+        </LinearLayout>
 
         <!-- Task Title -->
         <TextView

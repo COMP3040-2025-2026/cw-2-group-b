@@ -65,6 +65,9 @@ class ErrandHomeFragment : Fragment() {
             isDeliveryMode = tokenManager.getDeliveryMode().first()
             currentUserId = tokenManager.getUserId().first() ?: ""
 
+            // Check if binding is still valid (view not destroyed)
+            if (_binding == null) return@launch
+
             if (isDeliveryMode) {
                 // Rider mode
                 binding.cardBalance.visibility = View.VISIBLE
@@ -112,7 +115,8 @@ class ErrandHomeFragment : Fragment() {
                 putString("taskId", task.taskId)
                 putString("title", task.title)
                 putString("description", task.description)
-                putString("price", task.price)
+                putString("orderAmount", task.orderAmount)
+                putString("reward", task.reward)
                 putString("location", task.location)
                 putString("requesterId", task.requesterId)
                 putString("requesterName", task.requesterName)

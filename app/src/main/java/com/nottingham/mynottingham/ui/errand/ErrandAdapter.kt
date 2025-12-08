@@ -1,6 +1,7 @@
 package com.nottingham.mynottingham.ui.errand
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.databinding.ItemErrandTaskBinding
@@ -9,7 +10,8 @@ data class ErrandTask(
     val taskId: String,
     val title: String,
     val description: String,
-    val price: String,
+    val orderAmount: String? = null,  // Food/item cost that rider purchases (for FOOD_DELIVERY)
+    val reward: String,               // Delivery fee / reward for rider
     val location: String,
     val requesterId: String,
     val requesterName: String,
@@ -50,10 +52,21 @@ class ErrandAdapter(
             binding.tvTaskType.text = formatTaskType(task.taskType)
             binding.tvTitle.text = task.title
             binding.tvDescription.text = task.description
-            binding.tvReward.text = "RM ${task.price}"
             binding.tvLocation.text = task.location
             binding.tvRequester.text = task.requesterName
             binding.tvDeadline.text = formatDeadline(task.deadline)
+
+            // Display prices based on task type
+            if (task.taskType.uppercase() == "FOOD_DELIVERY" && !task.orderAmount.isNullOrEmpty()) {
+                // Food delivery: show both order amount and delivery fee
+                binding.tvOrderAmount.visibility = View.VISIBLE
+                binding.tvOrderAmount.text = "Order: RM ${task.orderAmount}"
+                binding.tvReward.text = "Fee: RM ${task.reward}"
+            } else {
+                // Other task types: just show reward
+                binding.tvOrderAmount.visibility = View.GONE
+                binding.tvReward.text = "RM ${task.reward}"
+            }
         }
 
         private fun formatTaskType(type: String?): String {

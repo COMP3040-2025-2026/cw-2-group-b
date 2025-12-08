@@ -16,7 +16,9 @@ data class MyTask(
     val title: String,
     val description: String,
     val status: String,
-    val reward: Double,
+    val orderAmount: Double? = null,  // Food/item cost (for FOOD_DELIVERY)
+    val reward: Double,               // Delivery fee / reward
+    val taskType: String = "",
     val location: String,
     val requesterId: String,
     val providerId: String?,
@@ -48,7 +50,16 @@ class MyTasksAdapter(
             val context = binding.root.context
 
             binding.tvTitle.text = task.title
-            binding.tvReward.text = String.format("RM%.2f", task.reward)
+
+            // Display price based on task type
+            if (task.taskType.uppercase() == "FOOD_DELIVERY" && task.orderAmount != null) {
+                // Food delivery: show both order amount and delivery fee
+                binding.tvReward.text = String.format("Order: RM%.2f | Fee: RM%.2f", task.orderAmount, task.reward)
+            } else {
+                // Other task types: just show reward
+                binding.tvReward.text = String.format("RM%.2f", task.reward)
+            }
+
             binding.tvDescription.text = task.description
 
             // Status badge - display formatted status and set colors

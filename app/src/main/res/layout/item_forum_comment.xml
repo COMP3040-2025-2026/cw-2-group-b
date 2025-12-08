@@ -7,12 +7,24 @@
     android:padding="12dp">
 
     <ImageView
+        android:id="@+id/ivPinIndicator"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_push_pin"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/primary"
+        tools:visibility="visible" />
+
+    <ImageView
         android:id="@+id/ivAuthorAvatar"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:src="@drawable/ic_profile"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/ivPinIndicator"
+        android:layout_marginTop="4dp" />
 
     <TextView
         android:id="@+id/tvAuthorName"
@@ -31,12 +43,26 @@
         android:id="@+id/tvTimestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
         android:text="2h ago"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="@+id/tvAuthorName"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/btnMoreOptions"
         app:layout_constraintTop_toTopOf="@+id/tvAuthorName" />
+
+    <ImageButton
+        android:id="@+id/btnMoreOptions"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="More options"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/ivAuthorAvatar"
+        app:tint="?attr/colorOnSurfaceVariant"
+        tools:visibility="visible" />
 
     <TextView
         android:id="@+id/tvContent"

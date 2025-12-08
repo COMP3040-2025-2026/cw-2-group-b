@@ -1,0 +1,98 @@
+@startuml MVVM Pattern
+!theme plain
+skinparam classAttributeIconSize 0
+
+title My Nottingham - MVVM Architecture Pattern
+
+package "View (Fragment)" #LightBlue {
+    class HomeFragment {
+        -binding: FragmentHomeBinding
+        -viewModel: HomeViewModel
+        +onCreateView()
+        +observeViewModel()
+        +setupClickListeners()
+    }
+
+    class MessageFragment {
+        -binding: FragmentMessageBinding
+        -viewModel: MessageViewModel
+        +onCreateView()
+        +setupRecyclerView()
+        +observeConversations()
+    }
+}
+
+package "ViewModel" #LightGreen {
+    class HomeViewModel {
+        -tokenManager: TokenManager
+        +welcomeMessage: LiveData<String>
+        +isTeacher: LiveData<Boolean>
+        -loadWelcomeMessage()
+        -loadUserRoleInfo()
+    }
+
+    class ChatDetailViewModel {
+        -messageRepository: FirebaseMessageRepository
+        +messages: LiveData<List<ChatMessage>>
+        +sendMessage(text: String)
+        +loadMessages(conversationId: String)
+    }
+}
+
+package "Repository" #LightYellow {
+    class FirebaseMessageRepository {
+        -database: FirebaseDatabase
+        +getConversationsFlow(): Flow<List<Conversation>>
+        +getMessagesFlow(): Flow<List<ChatMessage>>
+        +sendMessage(): Result<Boolean>
+        +createConversation(): Result<String>
+    }
+
+    class FirebaseUserRepository {
+        -database: FirebaseDatabase
+        -auth: FirebaseAuth
+        +login(email, password): Result<User>
+        +getUserProfile(uid): Flow<User>
+        +updateProfile(): Result<Boolean>
+    }
+}
+
+package "Data Source" #LightGray {
+    class FirebaseRealtimeDB {
+        +getReference(path): DatabaseReference
+        +addValueEventListener()
+        +setValue()
+        +updateChildren()
+    }
+
+    class RoomDatabase {
+        +userDao(): UserDao
+        +messageDao(): MessageDao
+        +conversationDao(): ConversationDao
+    }
+}
+
+HomeFragment ..> HomeViewModel : observes
+MessageFragment ..> ChatDetailViewModel : observes
+HomeViewModel ..> TokenManager : uses
+ChatDetailViewModel ..> FirebaseMessageRepository : uses
+FirebaseMessageRepository ..> FirebaseRealtimeDB : reads/writes
+FirebaseUserRepository ..> FirebaseRealtimeDB : reads/writes
+FirebaseMessageRepository ..> RoomDatabase : caches
+
+note bottom of HomeFragment
+  View layer handles UI display only
+  Updates UI by observing LiveData
+end note
+
+note bottom of ChatDetailViewModel
+  ViewModel layer handles business logic
+  Exposes state to View via LiveData
+end note
+
+note bottom of FirebaseMessageRepository
+  Repository layer unifies data access
+  Encapsulates Firebase and Room operations
+end note
+
+@enduml

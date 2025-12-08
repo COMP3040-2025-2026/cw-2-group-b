@@ -115,8 +115,12 @@ class FirebaseForumRepository {
                                 false
                             }
 
-                            // Category filter
-                            if (category == null || postCategory == category) {
+                            // Category filter (TRENDING is special - include all posts)
+                            val matchesCategory = category == null ||
+                                category == "TRENDING" ||
+                                postCategory == category
+
+                            if (matchesCategory) {
                                 posts.add(
                                     ForumPost(
                                         id = postId,
@@ -144,11 +148,23 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // Sort: pinned posts first (by pinned time desc), then normal posts (by created time desc)
-                    val sortedPosts = posts.sortedWith(
-                        compareByDescending<ForumPost> { it.isPinned }
-                            .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
-                    )
+                    // Sort based on category type
+                    val sortedPosts = if (category == "TRENDING") {
+                        // Trending algorithm: score = (likes*5 + comments*3 + views) / (1 + daysSinceCreated * 0.3)
+                        val now = System.currentTimeMillis()
+                        posts.sortedByDescending { post ->
+                            val daysSinceCreated = (now - post.createdAt) / (1000.0 * 60 * 60 * 24)
+                            val engagementScore = post.likes * 5.0 + post.comments * 3.0 + post.views
+                            // Time decay factor: newer posts get higher scores
+                            engagementScore / (1.0 + daysSinceCreated * 0.3)
+                        }
+                    } else {
+                        // Default: pinned posts first (by pinned time desc), then normal posts (by created time desc)
+                        posts.sortedWith(
+                            compareByDescending<ForumPost> { it.isPinned }
+                                .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else it.createdAt }
+                        )
+                    }
                     trySend(sortedPosts)
                 }
             }
@@ -296,6 +312,8 @@ class FirebaseForumRepository {
                             var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val content = child.child("content").getValue(String::class.java) ?: ""
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
+                            val isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false
+                            val pinnedAt = child.child("pinnedAt").getValue(Long::class.java)
                             val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
 
                             // If comment has no avatar field, fetch from users table
@@ -325,6 +343,8 @@ class FirebaseForumRepository {
                                     content = content,
                                     likes = likes,
                                     isLiked = isLiked,
+                                    isPinned = isPinned,
+                                    pinnedAt = pinnedAt,
                                     createdAt = createdAt
                                 )
                             )
@@ -333,9 +353,13 @@ class FirebaseForumRepository {
                         }
                     }
 
-                    // Sort by time ascending (oldest first)
-                    comments.sortBy { it.createdAt }
-                    trySend(comments)
+                    // Sort: pinned comments first (by pinned time desc), then by creation time ascending
+                    val sortedComments = comments.sortedWith(
+                        compareByDescending<ForumComment> { it.isPinned }
+                            .thenByDescending { if (it.isPinned) it.pinnedAt ?: 0L else 0L }
+                            .thenBy { it.createdAt }
+                    )
+                    trySend(sortedComments)
                 }
             }
 
@@ -607,6 +631,64 @@ class FirebaseForumRepository {
             }
         } catch (e: Exception) {
             android.util.Log.e("FirebaseForumRepo", "Error toggling comment like: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete comment
+     * @param postId Post ID
+     * @param commentId Comment ID
+     * @return Result<Unit> Success or error
+     */
+    suspend fun deleteComment(postId: String, commentId: String): Result<Unit> {
+        return try {
+            // Delete comment
+            postCommentsRef.child(postId).child(commentId).removeValue().await()
+
+            // Delete comment's like records
+            commentLikesRef.child(commentId).removeValue().await()
+
+            // Decrease post's comment count
+            val postCommentsCountRef = postsRef.child(postId).child("comments")
+            val currentCount = postCommentsCountRef.get().await().getValue(Int::class.java) ?: 0
+            postCommentsCountRef.setValue(maxOf(0, currentCount - 1)).await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseForumRepo", "Error deleting comment: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Pin/unpin comment (only post author can do this)
+     * @param postId Post ID
+     * @param commentId Comment ID
+     * @param isPinned Whether to pin
+     * @return Result<Boolean> New pinned status
+     */
+    suspend fun togglePinComment(postId: String, commentId: String): Result<Boolean> {
+        return try {
+            val commentRef = postCommentsRef.child(postId).child(commentId)
+            val currentPinned = commentRef.child("isPinned").get().await().getValue(Boolean::class.java) ?: false
+
+            val updates = mutableMapOf<String, Any?>(
+                "isPinned" to !currentPinned
+            )
+
+            if (!currentPinned) {
+                // Pinning: set pinnedAt timestamp
+                updates["pinnedAt"] = System.currentTimeMillis()
+            } else {
+                // Unpinning: remove pinnedAt
+                updates["pinnedAt"] = null
+            }
+
+            commentRef.updateChildren(updates).await()
+            Result.success(!currentPinned)
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseForumRepo", "Error toggling pin comment: ${e.message}")
             Result.failure(e)
         }
     }

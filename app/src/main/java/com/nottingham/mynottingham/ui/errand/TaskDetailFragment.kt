@@ -1,7 +1,11 @@
 package com.nottingham.mynottingham.ui.errand
 
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -39,6 +43,8 @@ class TaskDetailFragment : Fragment() {
     private var currentStatus: String = "PENDING"
     private var currentUserId: String = ""
     private var requesterId: String = ""
+    private var requesterName: String = ""
+    private var requesterAvatar: String = "default"
     private var providerId: String? = null
     private var providerName: String? = null
     private var providerAvatar: String? = null
@@ -46,9 +52,11 @@ class TaskDetailFragment : Fragment() {
     // Additional task details for editing
     private var taskTitle: String = ""
     private var taskDescription: String = ""
-    private var taskPrice: String = ""
+    private var taskOrderAmount: String? = null  // Food/item cost (for FOOD_DELIVERY)
+    private var taskReward: String = ""          // Delivery fee / reward
     private var taskLocation: String = ""
     private var taskDeadline: String = ""
+    private var taskType: String = ""
 
     companion object {
         private const val MAX_ACTIVE_ORDERS = 3
@@ -75,22 +83,54 @@ class TaskDetailFragment : Fragment() {
         currentTaskId = arguments?.getString("taskId") ?: ""
         taskTitle = arguments?.getString("title") ?: ""
         taskDescription = arguments?.getString("description") ?: ""
-        taskPrice = arguments?.getString("price") ?: ""
+        taskOrderAmount = arguments?.getString("orderAmount")
+        taskReward = arguments?.getString("reward") ?: ""
         taskLocation = arguments?.getString("location") ?: ""
-        val requesterName = arguments?.getString("requesterName")
+        requesterName = arguments?.getString("requesterName") ?: ""
         requesterId = arguments?.getString("requesterId") ?: ""
-        val requesterAvatar = arguments?.getString("requesterAvatar") ?: "default"
+        requesterAvatar = arguments?.getString("requesterAvatar") ?: "default"
         providerId = arguments?.getString("providerId")
         providerName = arguments?.getString("providerName")
         providerAvatar = arguments?.getString("providerAvatar")
         currentStatus = arguments?.getString("status") ?: "PENDING"
         taskDeadline = arguments?.getString("timeLimit") ?: "No Deadline"
+        taskType = arguments?.getString("taskType") ?: ""
         val timestamp = arguments?.getLong("timestamp") ?: 0
 
         // Bind UI
         binding.tvTaskTitle.text = taskTitle
         binding.tvTaskDescription.text = taskDescription
-        binding.tvTaskPrice.text = "RM $taskPrice"
+
+        // Display price based on task type
+        if (taskType.uppercase() == "FOOD_DELIVERY" && !taskOrderAmount.isNullOrEmpty()) {
+            // Food delivery: show both order amount and delivery fee with different colors
+            val orderLine = "Order: RM $taskOrderAmount"
+            val feeLine = "Fee: RM $taskReward"
+            val fullText = "$orderLine\n$feeLine"
+
+            val spannable = SpannableString(fullText)
+            // Order line in green
+            val greenColor = Color.parseColor("#4CAF50")
+            spannable.setSpan(
+                ForegroundColorSpan(greenColor),
+                0,
+                orderLine.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            // Fee line in red
+            val redColor = ContextCompat.getColor(requireContext(), R.color.error)
+            spannable.setSpan(
+                ForegroundColorSpan(redColor),
+                orderLine.length + 1,  // +1 for newline
+                fullText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            binding.tvTaskPrice.text = spannable
+        } else {
+            // Other task types: just show reward
+            binding.tvTaskPrice.text = "RM $taskReward"
+        }
+
         binding.tvTaskLocation.text = taskLocation
         binding.tvRequesterName.text = requesterName
         binding.ivRequesterAvatar.setImageResource(
@@ -129,17 +169,40 @@ class TaskDetailFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Refresh data when returning from EditTaskFragment
+        if (currentTaskId.isNotEmpty() && currentUserId.isNotEmpty()) {
+            lifecycleScope.launch {
+                refreshTaskStatus()
+            }
+        }
+    }
+
     private suspend fun refreshTaskStatus() {
         try {
             val result = repository.getErrandById(currentTaskId)
             result.onSuccess { task ->
                 if (task == null || _binding == null) return@onSuccess
 
+                // Refresh all task data from Firebase
+                taskTitle = task["title"] as? String ?: taskTitle
+                taskDescription = task["description"] as? String ?: taskDescription
+                taskOrderAmount = (task["orderAmount"] as? Number)?.let { String.format("%.2f", it.toDouble()) }
+                taskReward = (task["reward"] as? Number)?.let { String.format("%.2f", it.toDouble()) } ?: taskReward
+                taskLocation = task["location"] as? String
+                    ?: task["deliveryLocation"] as? String
+                    ?: taskLocation
+                taskDeadline = task["timeLimit"] as? String ?: taskDeadline
+                taskType = task["type"] as? String ?: taskType
+
                 providerId = task["providerId"] as? String
                 providerName = task["providerName"] as? String
                 providerAvatar = task["providerAvatar"] as? String
                 currentStatus = task["status"] as? String ?: "PENDING"
 
+                // Update UI with refreshed data
+                updateUI()
                 setupUIBasedOnRole()
             }.onFailure {
                 // Use the status from arguments if Firebase fails
@@ -149,6 +212,46 @@ class TaskDetailFragment : Fragment() {
             Log.e("TaskDetail", "Failed to refresh status", e)
             setupUIBasedOnRole()
         }
+    }
+
+    /**
+     * Update UI with current task data
+     */
+    private fun updateUI() {
+        if (_binding == null) return
+
+        binding.tvTaskTitle.text = taskTitle
+        binding.tvTaskDescription.text = taskDescription
+
+        // Display price based on task type
+        if (taskType.uppercase() == "FOOD_DELIVERY" && !taskOrderAmount.isNullOrEmpty()) {
+            val orderLine = "Order: RM $taskOrderAmount"
+            val feeLine = "Fee: RM $taskReward"
+            val fullText = "$orderLine\n$feeLine"
+
+            val spannable = SpannableString(fullText)
+            val greenColor = Color.parseColor("#4CAF50")
+            spannable.setSpan(
+                ForegroundColorSpan(greenColor),
+                0,
+                orderLine.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            val redColor = ContextCompat.getColor(requireContext(), R.color.error)
+            spannable.setSpan(
+                ForegroundColorSpan(redColor),
+                orderLine.length + 1,
+                fullText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            binding.tvTaskPrice.text = spannable
+        } else {
+            binding.tvTaskPrice.text = "RM $taskReward"
+        }
+
+        binding.tvTaskLocation.text = taskLocation
+        binding.tvTaskDeadline.text = "Deadline: $taskDeadline"
+        binding.tvTaskDeadline.visibility = if (taskDeadline == "No Deadline") View.GONE else View.VISIBLE
     }
 
     private fun setupUIBasedOnRole() {
@@ -236,8 +339,9 @@ class TaskDetailFragment : Fragment() {
 
         when (currentStatus.uppercase()) {
             "ACCEPTED", "IN_PROGRESS" -> {
-                // Show provider actions: Drop Task + Start Delivering
+                // Show provider actions: Chat + Drop Task + Start Delivering
                 binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnChatCustomer.setOnClickListener { chatWithCustomer() }
                 binding.btnProviderAction.text = "Start Delivering"
                 binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(requireContext(), R.color.errand_delivering)
@@ -246,8 +350,9 @@ class TaskDetailFragment : Fragment() {
                 binding.btnDropTask.setOnClickListener { confirmDrop() }
             }
             "DELIVERING" -> {
-                // Show provider actions: Drop Task + Mark Complete
+                // Show provider actions: Chat + Drop Task + Mark Complete
                 binding.layoutProviderActions.visibility = View.VISIBLE
+                binding.btnChatCustomer.setOnClickListener { chatWithCustomer() }
                 binding.btnProviderAction.text = "Mark Complete"
                 binding.btnProviderAction.backgroundTintList = ColorStateList.valueOf(
                     ContextCompat.getColor(requireContext(), R.color.errand_completed)
@@ -495,9 +600,9 @@ class TaskDetailFragment : Fragment() {
                 val currentUserName = tokenManager.getFullName().first() ?: "User"
 
                 // Create or get existing conversation
-                val participantIds = listOf(currentUserId, riderId)
+                // Only pass the other participant's ID (not current user)
                 val result = messageRepository.createConversation(
-                    participantIds = participantIds,
+                    participantIds = listOf(riderId),
                     currentUserId = currentUserId,
                     currentUserName = currentUserName,
                     isGroup = false
@@ -538,8 +643,12 @@ class TaskDetailFragment : Fragment() {
 
                     // Navigate to ChatDetailFragment using NavController
                     try {
+                        // Save task details so we can restore when coming back
+                        saveTaskDetailsForRestore()
+
                         val bundle = bundleOf(
                             "conversationId" to conversationId,
+                            "participantId" to riderId,
                             "participantName" to (riderName ?: "Rider"),
                             "participantAvatar" to providerAvatar,
                             "isOnline" to false
@@ -564,6 +673,116 @@ class TaskDetailFragment : Fragment() {
     }
 
     /**
+     * Open chat with the customer (task requester)
+     * Used by riders/providers to contact the customer
+     */
+    private fun chatWithCustomer() {
+        if (requesterId.isEmpty()) {
+            Toast.makeText(requireContext(), "Customer information not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                // Get current user (rider) info
+                val currentUserName = tokenManager.getFullName().first() ?: "Rider"
+
+                // Create or get existing conversation
+                val result = messageRepository.createConversation(
+                    participantIds = listOf(requesterId),
+                    currentUserId = currentUserId,
+                    currentUserName = currentUserName,
+                    isGroup = false
+                )
+
+                if (_binding == null) return@launch
+
+                result.onSuccess { conversationId ->
+                    // Update conversation participant info for current user (rider)
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantName = requesterName.ifEmpty { "Customer" },
+                        participantAvatar = requesterAvatar
+                    )
+
+                    // Update conversation participant info for customer
+                    val myName = tokenManager.getFullName().first() ?: "Rider"
+                    val myAvatar = tokenManager.getAvatar().first()
+                    messageRepository.updateConversationParticipantInfo(
+                        userId = requesterId,
+                        conversationId = conversationId,
+                        participantName = myName,
+                        participantAvatar = myAvatar
+                    )
+
+                    // Also update participantId for both users
+                    messageRepository.updateConversationParticipantId(
+                        userId = currentUserId,
+                        conversationId = conversationId,
+                        participantId = requesterId
+                    )
+                    messageRepository.updateConversationParticipantId(
+                        userId = requesterId,
+                        conversationId = conversationId,
+                        participantId = currentUserId
+                    )
+
+                    // Navigate to ChatDetailFragment
+                    try {
+                        // Save task details so we can restore when coming back
+                        saveTaskDetailsForRestore()
+
+                        val bundle = bundleOf(
+                            "conversationId" to conversationId,
+                            "participantId" to requesterId,
+                            "participantName" to requesterName.ifEmpty { "Customer" },
+                            "participantAvatar" to requesterAvatar,
+                            "isOnline" to false
+                        )
+
+                        val navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment)
+                        navController.navigate(R.id.chatDetailFragment, bundle)
+                    } catch (e: Exception) {
+                        Log.e("TaskDetail", "Navigation failed", e)
+                        Toast.makeText(requireContext(), "Failed to open chat", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { e ->
+                    Toast.makeText(requireContext(), "Failed to create conversation: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Save task details so ErrandFragment can restore TaskDetailFragment when coming back from chat
+     */
+    private fun saveTaskDetailsForRestore() {
+        val bundle = Bundle().apply {
+            putString("taskId", currentTaskId)
+            putString("title", taskTitle)
+            putString("description", taskDescription)
+            putString("orderAmount", taskOrderAmount)
+            putString("reward", taskReward)
+            putString("location", taskLocation)
+            putString("requesterName", requesterName)
+            putString("requesterId", requesterId)
+            putString("requesterAvatar", requesterAvatar)
+            putString("providerId", providerId)
+            putString("providerName", providerName)
+            putString("providerAvatar", providerAvatar)
+            putString("status", currentStatus)
+            putString("timeLimit", taskDeadline)
+            putString("taskType", taskType)
+        }
+        ErrandFragment.savePendingTaskDetails(bundle)
+    }
+
+    /**
      * Navigate to EditTaskFragment to edit the task
      */
     private fun navigateToEditTask() {
@@ -572,7 +791,7 @@ class TaskDetailFragment : Fragment() {
                 putString("taskId", currentTaskId)
                 putString("title", taskTitle)
                 putString("description", taskDescription)
-                putString("reward", taskPrice)
+                putString("reward", taskReward)
                 putString("location", taskLocation)
                 putString("deadline", taskDeadline)
                 putString("status", currentStatus)

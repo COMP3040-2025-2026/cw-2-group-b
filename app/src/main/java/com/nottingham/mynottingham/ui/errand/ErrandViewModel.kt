@@ -94,7 +94,7 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                     "requesterName" to userName,
                     "requesterAvatar" to userAvatar,
                     "type" to "SHOPPING",
-                    "reward" to (task.price.toDoubleOrNull() ?: 0.0),
+                    "reward" to (task.reward.toDoubleOrNull() ?: 0.0),
                     "pickupLocation" to task.location,
                     "deliveryLocation" to task.location,
                     "deadline" to (task.deadline ?: "")
@@ -167,6 +167,15 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
             val id = firebaseData["id"] as? String ?: ""
             val title = firebaseData["title"] as? String ?: "Untitled"
             val description = firebaseData["description"] as? String ?: ""
+
+            // Handle orderAmount (food/item cost that rider purchases)
+            val orderAmount = when (val o = firebaseData["orderAmount"]) {
+                is Double -> o
+                is Long -> o.toDouble()
+                is Number -> o.toDouble()
+                else -> null
+            }
+
             // Handle reward as both Double and Long (Firebase may return Long for whole numbers)
             val reward = when (val r = firebaseData["reward"]) {
                 is Double -> r
@@ -174,6 +183,7 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 is Number -> r.toDouble()
                 else -> 0.0
             }
+
             // Support both "location" and legacy "pickupLocation"/"deliveryLocation" keys
             val location = firebaseData["location"] as? String
                 ?: firebaseData["deliveryLocation"] as? String
@@ -194,7 +204,8 @@ class ErrandViewModel(application: Application) : AndroidViewModel(application) 
                 taskId = id,
                 title = title,
                 description = description,
-                price = String.format("%.2f", reward),
+                orderAmount = orderAmount?.let { String.format("%.2f", it) },
+                reward = String.format("%.2f", reward),
                 location = location,
                 requesterId = requesterId,
                 requesterName = requesterName,

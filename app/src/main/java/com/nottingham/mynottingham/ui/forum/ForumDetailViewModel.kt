@@ -45,6 +45,12 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
     private val _deleteSuccess = MutableLiveData<Boolean>()
     val deleteSuccess: LiveData<Boolean> = _deleteSuccess
 
+    private val _commentDeleteSuccess = MutableLiveData<Boolean>()
+    val commentDeleteSuccess: LiveData<Boolean> = _commentDeleteSuccess
+
+    private val _commentPinSuccess = MutableLiveData<Boolean>()
+    val commentPinSuccess: LiveData<Boolean> = _commentPinSuccess
+
     init {
         viewModelScope.launch {
             currentUserId = tokenManager.getUserId().firstOrNull() ?: ""
@@ -177,12 +183,60 @@ class ForumDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun deleteComment(commentId: String) {
+        val postId = _post.value?.id ?: return
+
+        viewModelScope.launch {
+            val result = repository.deleteComment(postId, commentId)
+            result.onSuccess {
+                _commentDeleteSuccess.postValue(true)
+            }.onFailure { exception ->
+                Log.e("ForumDetailViewModel", "Failed to delete comment", exception)
+                _error.postValue(exception.message ?: "Failed to delete comment")
+            }
+        }
+    }
+
+    fun pinComment(commentId: String) {
+        val postId = _post.value?.id ?: return
+
+        viewModelScope.launch {
+            val result = repository.togglePinComment(postId, commentId)
+            result.onSuccess {
+                _commentPinSuccess.postValue(true)
+            }.onFailure { exception ->
+                Log.e("ForumDetailViewModel", "Failed to pin comment", exception)
+                _error.postValue(exception.message ?: "Failed to pin comment")
+            }
+        }
+    }
+
+    fun isPostAuthor(): Boolean {
+        return _post.value?.authorId == currentUserId
+    }
+
+    fun isCommentAuthor(authorId: String): Boolean {
+        return authorId == currentUserId
+    }
+
+    fun getCurrentUserId(): String {
+        return currentUserId
+    }
+
     fun clearCommentSuccess() {
         _commentSuccess.value = false
     }
 
     fun clearDeleteSuccess() {
         _deleteSuccess.value = false
+    }
+
+    fun clearCommentDeleteSuccess() {
+        _commentDeleteSuccess.value = false
+    }
+
+    fun clearCommentPinSuccess() {
+        _commentPinSuccess.value = false
     }
 
     fun clearError() {
