@@ -594,9 +594,14 @@ Table~\ref{tab:unit-tests} lists the implemented unit tests:
 \textbf{Test File} & \textbf{Coverage} \\
 \midrule
 ShuttleViewModelTest.kt & ViewModel initialization, route loading, day type selection, schedule retrieval \\
-ShuttleModelTest.kt & Route model data integrity, schedule parsing \\
-UserModelTest.kt & User model creation and validation \\
-ConstantsTest.kt & Application constants verification \\
+ShuttleModelTest.kt & Route model data integrity, schedule parsing, DayType enum \\
+UserModelTest.kt & User model creation, role validation, default values \\
+ConstantsTest.kt & Application constants, Firebase URL, notification channels \\
+ErrandModelTest.kt & Errand, ErrandType, ErrandStatus, ErrandBalance models \\
+ForumModelTest.kt & ForumPost, ForumComment, ForumCategory models \\
+MessageModelTest.kt & Conversation, ChatMessage models, message types \\
+BookingModelTest.kt & Booking, BookingStatus models, facility types \\
+AttendanceModelTest.kt & Course, DayOfWeek, AttendanceRecord, SignInStatus, CourseType enums \\
 ExampleUnitTest.kt & Basic framework verification \\
 \bottomrule
 \end{tabular}
