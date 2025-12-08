@@ -38,5 +38,10 @@ kk.json
 
 # CLAUDE.md (project documentation)
 CLAUDE.md
-docs/uml/plantuml.jar
+
+# Documentation (LaTeX report and UML diagrams - not needed on GitHub)
+docs/report/
+docs/uml/
+
+# JAR files
 *.jar
