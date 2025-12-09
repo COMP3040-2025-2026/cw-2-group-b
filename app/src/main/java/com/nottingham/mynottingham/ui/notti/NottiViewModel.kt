@@ -6,15 +6,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Firebase
-import com.google.firebase.ai.ai
-import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.gson.Gson
+import com.nottingham.mynottingham.BuildConfig
+import com.google.gson.annotations.SerializedName
 import com.nottingham.mynottingham.data.local.NottiChatStorage
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.nottingham.mynottingham.data.model.DayType
 import com.nottingham.mynottingham.data.model.NottiCardData
 import com.nottingham.mynottingham.data.model.NottiCardItem
@@ -22,8 +26,10 @@ import com.nottingham.mynottingham.data.model.NottiMessage
 import com.nottingham.mynottingham.data.model.NottiMessageType
 import com.nottingham.mynottingham.data.model.RouteSchedule
 import com.nottingham.mynottingham.data.model.ShuttleRoute
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -33,8 +39,8 @@ import kotlin.coroutines.resume
 /**
  * NottiViewModel - ViewModel for Notti AI Assistant
  *
- * Uses Firebase AI Logic (Gemini) to implement AI conversation functionality
- * Free version uses Gemini Developer API
+ * Uses Google AI Studio (Gemini) to implement AI conversation functionality
+ * Uses standard Google Generative AI SDK with API key
  * Chat history is cached locally per user account
  */
 class NottiViewModel(application: Application) : AndroidViewModel(application) {
@@ -42,90 +48,26 @@ class NottiViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "NottiViewModel"
 
-        // Base system prompt - AI generates card data
-        private const val BASE_SYSTEM_PROMPT = """
-You are Notti, a friendly AI assistant for University of Nottingham Malaysia (UNM) students.
+        // Claude API - Key should be set in local.properties or BuildConfig
+        private const val CLAUDE_API_KEY = BuildConfig.CLAUDE_API_KEY
+        private const val CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 
-## OUTPUT FORMAT
-Respond with ONLY a valid JSON object:
+        // System prompt - friendly assistant that can chat
+        private const val BASE_SYSTEM_PROMPT = """You are Notti, a friendly AI assistant for University of Nottingham Malaysia (UNM) students.
 
-{
-  "intent": "shuttle" | "booking" | "general",
-  "message": "Your helpful response",
-  "cardData": null | { card object }
-}
+OUTPUT JSON only:
+{"intent":"shuttle|booking|general","message":"your response","cardData":null|{card}}
 
-## INTENT CLASSIFICATION
-**shuttle**: shuttle bus, bus, shuttle, TBS, Kajang, KTM, MRT, TTS, IOI, LOTUS, where to go, schedule, what time
-**booking**: booking, book, sports, basketball, badminton, tennis, court, facility
-**general**: everything else
+RULES:
+- shuttle: bus/TBS/Kajang/TTS/IOI/LOTUS queries. ALL buses via UNM campus only!
+- booking: sports/court/facility queries
+- general: daily chat, weather, campus life, study tips, ANY other questions
 
-## SHUTTLE CARD GENERATION RULES
+For shuttle cardData: icon must be route ID (A/B/C1/C2/D/E1/E2/G), NOT emoji!
+Example: {"icon":"C1","label":"UNM→TTS","value":"9:30am"}
 
-When intent is "shuttle", use the [SHUTTLE DATA] section to generate accurate cardData:
-
-1. **Determine TARGET DATE**:
-   - "today" → use TODAY from [DATE CONTEXT]
-   - "tomorrow" → use TOMORROW from [DATE CONTEXT]
-   - Default to TODAY if not specified
-
-2. **Filter by DAY TYPE**:
-   - Check the target date's day type (Weekday/Friday/Weekend)
-   - ONLY include routes that have service on that day type!
-   - If route shows "No service" for that day type, DO NOT include it!
-
-3. **Generate cardData**:
-{
-  "title": "Shuttle Schedule",
-  "subtitle": "Nov 28 · Friday (Tomorrow)",
-  "items": [
-    {"icon": "C1", "label": "UNM ↔ The Square (TTS)", "value": "→ 9:30am, 10:30am, 11:30am"}
-  ]
-}
-
-4. **Subtitle format**:
-   - For today: "Nov 27 · Thursday"
-   - For tomorrow: "Nov 28 · Friday (Tomorrow)"
-
-5. **Filter times by user request**:
-   - "morning" → show times before 12:00pm
-   - "afternoon" → show times 12:00pm-6:00pm
-   - "evening" → show times after 6:00pm
-   - If user asks about specific destination, show that route
-
-## ROUTE REFERENCE (verify against [SHUTTLE DATA]):
-- Route A: UNM ↔ TBS (Terminal Bersepadu Selatan)
-- Route B: UNM ↔ Kajang KTM/MRT
-- Route C1: UNM ↔ The Square (TTS) - roundtrip
-- Route C2: TTS → UNM morning only (weekday), TTS/IOI (weekend)
-- Route D: UNM ↔ LOTUS Semenyih
-- Route E1/E2: Friday prayer routes (FRIDAY ONLY)
-- Route G: UNM ↔ IOI City Mall (WEEKEND ONLY)
-
-## BOOKING CARD
-For "booking" intent:
-{
-  "title": "Sports Facility",
-  "subtitle": "Booking Information",
-  "items": [{"label": "How to book", "value": "Go to Booking section"}]
-}
-
-## GENERAL
-For "general" intent: set cardData to null
-
-## LANGUAGE RULE (IMPORTANT!)
-**ALWAYS respond in the SAME language as the user's message:**
-- If user writes in Chinese → Reply in Chinese
-- If user writes in English → Reply in English
-- If user mixes languages → Match the primary language used
-
-## RESPONSE GUIDELINES
-- Keep message concise (2-3 sentences)
-- Use emoji sparingly 🚌 🏀
-- Be friendly and helpful
-
-Output ONLY valid JSON!
-"""
+You CAN answer general questions like weather, jokes, advice, campus life, etc.
+Be friendly, helpful and conversational. Match user's language. Keep responses concise."""
     }
 
     // Chat message list
@@ -144,19 +86,44 @@ Output ONLY valid JSON!
     private val database = FirebaseDatabase.getInstance("https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app")
     private val bookingsRef = database.getReference("bookings")
 
-    // Initialize Gemini model - using free Gemini Developer API
-    private val generativeModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI())
-            .generativeModel(
-                modelName = "gemini-2.0-flash",
-                systemInstruction = com.google.firebase.ai.type.content { text(BASE_SYSTEM_PROMPT) }
-            )
+    // OkHttp client for Claude API
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
     }
 
-    // Conversation history (for maintaining context)
-    private val chat by lazy {
-        generativeModel.startChat()
-    }
+    private val gson = Gson()
+
+    // Data classes for Claude API
+    private data class ClaudeMessage(
+        val role: String,  // "user" or "assistant"
+        val content: String
+    )
+
+    private data class ClaudeRequest(
+        val model: String,
+        val max_tokens: Int,
+        val system: String,
+        val messages: List<ClaudeMessage>
+    )
+
+    private data class ClaudeResponse(
+        val content: List<ClaudeContentBlock>?,
+        val error: ClaudeError?
+    )
+
+    private data class ClaudeContentBlock(
+        val type: String,
+        val text: String?
+    )
+
+    private data class ClaudeError(
+        val type: String?,
+        val message: String?
+    )
 
     // Shuttle bus schedule data
     private val shuttleRoutes: List<ShuttleRoute> by lazy { loadShuttleRoutes() }
@@ -246,9 +213,8 @@ Output ONLY valid JSON!
 
                 Log.d(TAG, "Enriched prompt: $enrichedMessage")
 
-                // Call Gemini API
-                val response = chat.sendMessage(enrichedMessage)
-                val aiResponse = response.text ?: """{"type":"text","message":"Sorry, I couldn't generate a response.","cardData":null}"""
+                // Call Claude API
+                val aiResponse = callClaudeApi(enrichedMessage)
 
                 Log.d(TAG, "AI Response: $aiResponse")
 
@@ -360,6 +326,63 @@ Output ONLY valid JSON!
                 )
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Call Claude API
+     */
+    private suspend fun callClaudeApi(userMessage: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Stateless mode - no conversation history to save tokens
+                // Each request is independent, context is provided in the enriched prompt
+                val messages = listOf(ClaudeMessage("user", userMessage))
+
+                // Build request
+                val request = ClaudeRequest(
+                    model = "claude-sonnet-4-20250514",  // Sonnet 4.0
+                    max_tokens = 800,  // Increased to avoid truncation
+                    system = BASE_SYSTEM_PROMPT,
+                    messages = messages
+                )
+
+                val jsonBody = gson.toJson(request)
+                Log.d(TAG, "Claude request: $jsonBody")
+
+                val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
+
+                val httpRequest = Request.Builder()
+                    .url(CLAUDE_API_URL)
+                    .addHeader("x-api-key", CLAUDE_API_KEY)
+                    .addHeader("anthropic-version", "2023-06-01")
+                    .addHeader("anthropic-beta", "token-efficient-tools-2025-02-19")  // Token saving beta
+                    .addHeader("content-type", "application/json")
+                    .post(requestBody)
+                    .build()
+
+                val response = httpClient.newCall(httpRequest).execute()
+                val responseBody = response.body?.string() ?: ""
+
+                Log.d(TAG, "Claude response code: ${response.code}")
+                Log.d(TAG, "Claude response body: $responseBody")
+
+                if (!response.isSuccessful) {
+                    throw Exception("API error: ${response.code} - $responseBody")
+                }
+
+                val claudeResponse = gson.fromJson(responseBody, ClaudeResponse::class.java)
+
+                if (claudeResponse.error != null) {
+                    throw Exception("Claude error: ${claudeResponse.error.message}")
+                }
+
+                claudeResponse.content?.firstOrNull { it.type == "text" }?.text
+                    ?: """{"intent":"general","message":"Sorry, I couldn't generate a response.","cardData":null}"""
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calling Claude API", e)
+                throw e
             }
         }
     }
@@ -503,16 +526,48 @@ Output ONLY valid JSON!
     }
 
     /**
-     * Handle quick actions
+     * Handle quick actions - use local data directly without AI call
      */
     fun handleQuickAction(action: QuickAction) {
-        val message = when (action) {
-            QuickAction.SHUTTLE -> "What are the shuttle bus schedules today?"
-            QuickAction.BOOKING -> "How can I book a sports facility?"
-            QuickAction.EVENTS -> "Are there any campus events happening soon?"
-            QuickAction.HELP -> "What can you help me with?"
+        viewModelScope.launch {
+            when (action) {
+                QuickAction.SHUTTLE -> {
+                    // Direct local response - no AI needed
+                    val cardData = createShuttleCardData()
+                    addMessage(NottiMessage(
+                        id = generateMessageId(),
+                        content = "",
+                        isFromUser = false,
+                        messageType = NottiMessageType.SHUTTLE_CARD,
+                        cardData = cardData
+                    ))
+                }
+                QuickAction.BOOKING -> {
+                    val cardData = createBookingCardData()
+                    addMessage(NottiMessage(
+                        id = generateMessageId(),
+                        content = "",
+                        isFromUser = false,
+                        messageType = NottiMessageType.BOOKING_CARD,
+                        cardData = cardData
+                    ))
+                }
+                QuickAction.EVENTS -> {
+                    addMessage(NottiMessage(
+                        id = generateMessageId(),
+                        content = "Campus events information coming soon! Check the university website for the latest updates.",
+                        isFromUser = false
+                    ))
+                }
+                QuickAction.HELP -> {
+                    addMessage(NottiMessage(
+                        id = generateMessageId(),
+                        content = "I can help you with:\n• Shuttle bus schedules\n• Sports facility booking\n• Campus information\n\nJust ask me anything!",
+                        isFromUser = false
+                    ))
+                }
+            }
         }
-        sendMessage(message)
     }
 
     private fun addMessage(message: NottiMessage, shouldSave: Boolean = true) {
