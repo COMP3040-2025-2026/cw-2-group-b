@@ -22,6 +22,7 @@ datastore = "1.1.1"
 circleimageview = "3.1.0"
 firebaseBom = "34.6.0"
 googleServices = "4.4.2"
+generativeai = "0.9.0"
 
 [libraries]
 # AndroidX Core
@@ -75,8 +76,10 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
-firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
+
+# Google AI (Gemini API)
+google-generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

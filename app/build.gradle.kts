@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     // The Android Application plugin, required for building an Android app.
     alias(libs.plugins.android.application)
@@ -10,6 +12,14 @@ plugins {
     alias(libs.plugins.navigation.safeargs)
     // Google Services plugin for Firebase
     alias(libs.plugins.google.services)
+}
+
+// Load API keys from local.properties
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(localPropertiesFile.inputStream())
+    }
 }
 
 android {
@@ -32,6 +42,9 @@ android {
 
         // The test runner for Android instrumented tests.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Claude API Key from local.properties
+        buildConfigField("String", "CLAUDE_API_KEY", "\"${localProperties.getProperty("CLAUDE_API_KEY", "")}\"")
     }
 
     buildTypes {
@@ -59,6 +72,8 @@ android {
     buildFeatures {
         // Enables View Binding for safer and more concise view access.
         viewBinding = true
+        // Enable BuildConfig generation
+        buildConfig = true
     }
 }
 
@@ -137,8 +152,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     // Firebase Cloud Messaging for push notifications
     implementation(libs.firebase.messaging)
-    // Firebase AI Logic (Gemini) for Notti AI Assistant
-    implementation(libs.firebase.ai)
+    // Note: Notti AI uses Claude API via OkHttp (already included)
 
     // TESTING //
     // Standard unit testing framework.
