@@ -343,7 +343,7 @@ Be friendly, helpful and conversational. Match user's language. Keep responses c
                 // Build request
                 val request = ClaudeRequest(
                     model = "claude-sonnet-4-20250514",  // Sonnet 4.0
-                    max_tokens = 800,  // Increased to avoid truncation
+                    max_tokens = 8192,  // Maximum allowed for Sonnet
                     system = BASE_SYSTEM_PROMPT,
                     messages = messages
                 )

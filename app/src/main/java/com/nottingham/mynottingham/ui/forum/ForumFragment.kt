@@ -45,7 +45,7 @@ class ForumFragment : Fragment() {
 
         setupRecyclerView()
         setupHeader()
-        setupFab()
+        setupFab() 
         observeViewModel()
         loadPosts()
     }

@@ -57,7 +57,7 @@ class FirebaseForumRepository {
      * @param category Category filter (optional)
      * @return Flow<List<ForumPost>> Post list flow
      *
-     * Fix: Dynamically fetch author avatar from users table
+     * Note: Always fetches author avatar from users table for real-time sync
      */
     fun getPostsFlow(category: String? = null, currentUserId: String): Flow<List<ForumPost>> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -78,8 +78,6 @@ class FirebaseForumRepository {
                             val postId = child.key ?: return@forEach
                             val authorId = child.child("authorId").getValue(String::class.java) ?: ""
                             val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                            // Prefer reading avatar from post, fallback to users table
-                            var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val postCategory = child.child("category").getValue(String::class.java) ?: "GENERAL"
                             val title = child.child("title").getValue(String::class.java) ?: ""
                             val content = child.child("content").getValue(String::class.java) ?: ""
@@ -98,8 +96,9 @@ class FirebaseForumRepository {
                                 ?: child.child("timestamp").getValue(Long::class.java) ?: 0L
                             val updatedAt = child.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                            // If post has no avatar field, fetch from users table
-                            if (authorAvatar == null && authorId.isNotEmpty()) {
+                            // Always fetch avatar from users table for real-time sync
+                            var authorAvatar: String? = null
+                            if (authorId.isNotEmpty()) {
                                 try {
                                     val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
                                     authorAvatar = userSnapshot.getValue(String::class.java)
@@ -188,7 +187,7 @@ class FirebaseForumRepository {
      * @param currentUserId Current user ID
      * @return Flow<ForumPost?> Post details flow
      *
-     * Fix: Dynamically fetch author avatar from users table
+     * Note: Always fetches author avatar from users table for real-time sync
      */
     fun getPostDetailFlow(postId: String, currentUserId: String): Flow<ForumPost?> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -205,7 +204,6 @@ class FirebaseForumRepository {
                     try {
                         val authorId = snapshot.child("authorId").getValue(String::class.java) ?: ""
                         val authorName = snapshot.child("authorName").getValue(String::class.java) ?: "Unknown"
-                        var authorAvatar = snapshot.child("authorAvatar").getValue(String::class.java)
                         val category = snapshot.child("category").getValue(String::class.java) ?: "GENERAL"
                         val title = snapshot.child("title").getValue(String::class.java) ?: ""
                         val content = snapshot.child("content").getValue(String::class.java) ?: ""
@@ -224,8 +222,9 @@ class FirebaseForumRepository {
                             ?: snapshot.child("timestamp").getValue(Long::class.java) ?: 0L
                         val updatedAt = snapshot.child("updatedAt").getValue(Long::class.java) ?: 0L
 
-                        // If post has no avatar field, fetch from users table
-                        if (authorAvatar == null && authorId.isNotEmpty()) {
+                        // Always fetch avatar from users table for real-time sync
+                        var authorAvatar: String? = null
+                        if (authorId.isNotEmpty()) {
                             try {
                                 val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
                                 authorAvatar = userSnapshot.getValue(String::class.java)
@@ -288,7 +287,7 @@ class FirebaseForumRepository {
      * @param currentUserId Current user ID
      * @return Flow<List<ForumComment>> Comment list flow
      *
-     * Fix: Dynamically fetch author avatar from users table
+     * Note: Always fetches author avatar from users table for real-time sync
      */
     fun getCommentsFlow(postId: String, currentUserId: String): Flow<List<ForumComment>> = callbackFlow {
         val usersRef = database.getReference("users")
@@ -309,15 +308,15 @@ class FirebaseForumRepository {
                             val commentId = child.key ?: return@forEach
                             val authorId = child.child("authorId").getValue(String::class.java) ?: ""
                             val authorName = child.child("authorName").getValue(String::class.java) ?: "Unknown"
-                            var authorAvatar = child.child("authorAvatar").getValue(String::class.java)
                             val content = child.child("content").getValue(String::class.java) ?: ""
                             val likes = child.child("likes").getValue(Int::class.java) ?: 0
                             val isPinned = child.child("isPinned").getValue(Boolean::class.java) ?: false
                             val pinnedAt = child.child("pinnedAt").getValue(Long::class.java)
                             val createdAt = child.child("createdAt").getValue(Long::class.java) ?: 0L
 
-                            // If comment has no avatar field, fetch from users table
-                            if (authorAvatar == null && authorId.isNotEmpty()) {
+                            // Always fetch avatar from users table for real-time sync
+                            var authorAvatar: String? = null
+                            if (authorId.isNotEmpty()) {
                                 try {
                                     val userSnapshot = usersRef.child(authorId).child("profileImageUrl").get().await()
                                     authorAvatar = userSnapshot.getValue(String::class.java)

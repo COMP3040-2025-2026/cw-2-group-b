@@ -9,7 +9,6 @@ import org.junit.Test
  *
  * Tests the application constants:
  * - Firebase configuration
- * - Database configuration
  * - Message configuration
  * - Delivery fees
  * - Time formats
@@ -26,28 +25,6 @@ class ConstantsTest {
         assertTrue("URL should start with https", url.startsWith("https://"))
         assertTrue("URL should contain firebase", url.contains("firebase"))
         assertTrue("URL should contain asia-southeast1", url.contains("asia-southeast1"))
-    }
-
-    /**
-     * Test database name is not empty
-     */
-    @Test
-    fun `Database name is valid`() {
-        val dbName = Constants.DATABASE_NAME
-
-        assertNotNull("Database name should not be null", dbName)
-        assertTrue("Database name should not be empty", dbName.isNotEmpty())
-        assertEquals("my_nottingham_db", dbName)
-    }
-
-    /**
-     * Test database version is positive
-     */
-    @Test
-    fun `Database version is positive`() {
-        val version = Constants.DATABASE_VERSION
-
-        assertTrue("Database version should be positive", version > 0)
     }
 
     /**

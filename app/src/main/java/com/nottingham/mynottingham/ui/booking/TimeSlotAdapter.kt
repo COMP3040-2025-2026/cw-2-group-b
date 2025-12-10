@@ -8,7 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.R
-import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
+import com.nottingham.mynottingham.data.model.Booking
 
 class TimeSlotAdapter(
     private val onSlotSelected: (Int?) -> Unit
@@ -16,10 +16,10 @@ class TimeSlotAdapter(
 
     // Define time slots from 9:00 to 21:00 (integer representation)
     private val allSlots = (9..21).toList()
-    private var bookedSlots: List<BookingEntity> = emptyList()
+    private var bookedSlots: List<Booking> = emptyList()
     private var selectedSlot: Int? = null
 
-    fun updateBookings(bookings: List<BookingEntity>) {
+    fun updateBookings(bookings: List<Booking>) {
         this.bookedSlots = bookings
         this.selectedSlot = null // Reset selection when date changes
         onSlotSelected(null)
