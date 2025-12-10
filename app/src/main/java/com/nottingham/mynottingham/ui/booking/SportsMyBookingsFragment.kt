@@ -86,7 +86,7 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
         }
     }
 
-    private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+    private fun showCancelConfirmationDialog(booking: com.nottingham.mynottingham.data.model.Booking) {
         // Check if already cancelled
         val isCancelled = booking.status.uppercase() == "CANCELLED"
 
@@ -132,7 +132,7 @@ class SportsMyBookingsFragment : Fragment(R.layout.fragment_sports_my_bookings) 
         _binding = null
     }
 
-    private fun checkAndCancelBooking(booking: com.nottingham.mynottingham.data.local.database.entities.BookingEntity) {
+    private fun checkAndCancelBooking(booking: com.nottingham.mynottingham.data.model.Booking) {
         try {
             val bookingDate = LocalDate.parse(booking.bookingDate)
             val bookingDateTime = bookingDate.atTime(booking.timeSlot, 0)

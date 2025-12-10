@@ -188,17 +188,22 @@ class MessageFragment : Fragment() {
             bottomSheet.dismiss()
         }
 
-        // Delete action
-        binding.layoutDelete.setOnClickListener {
-            lifecycleScope.launch {
-                val result = viewModel.deleteConversation(conversation.id)
-                result.onSuccess {
-                    Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
-                }.onFailure { error ->
-                    Toast.makeText(context, "Failed to delete: ${error.message}", Toast.LENGTH_SHORT).show()
+        // Delete action - hide for group chats
+        if (conversation.isGroup) {
+            binding.layoutDelete.visibility = View.GONE
+        } else {
+            binding.layoutDelete.visibility = View.VISIBLE
+            binding.layoutDelete.setOnClickListener {
+                lifecycleScope.launch {
+                    val result = viewModel.deleteConversation(conversation.id)
+                    result.onSuccess {
+                        Toast.makeText(context, "Conversation deleted", Toast.LENGTH_SHORT).show()
+                    }.onFailure { error ->
+                        Toast.makeText(context, "Failed to delete: ${error.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
+                bottomSheet.dismiss()
             }
-            bottomSheet.dismiss()
         }
 
         bottomSheet.show()

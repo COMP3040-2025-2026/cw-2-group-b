@@ -7,10 +7,6 @@ object Constants {
     // Firebase Configuration (backend API removed - using Firebase only)
     const val FIREBASE_DATABASE_URL = "https://mynottingham-b02b7-default-rtdb.asia-southeast1.firebasedatabase.app"
 
-    // Database Configuration
-    const val DATABASE_NAME = "my_nottingham_db"
-    const val DATABASE_VERSION = 5  // v5: Updated BookingEntity and BookingDao for new booking features
-
     // SharedPreferences / DataStore
     const val PREFS_NAME = "my_nottingham_prefs"
     const val KEY_USER_TOKEN = "user_token"

@@ -1,23 +1,15 @@
 package com.nottingham.mynottingham.data.model
 
 /**
- * Booking data model
+ * Booking data model for sports facility bookings
+ * Used by UI components to display and manage bookings
  */
 data class Booking(
     val id: String,
     val userId: String,
-    val facilityType: String,
+    val userName: String,
     val facilityName: String,
     val bookingDate: String,
-    val startTime: String,
-    val endTime: String,
-    val status: BookingStatus,
-    val notes: String? = null,
-    val createdAt: Long
+    val timeSlot: Int,
+    val status: String
 )
-
-enum class BookingStatus {
-    CONFIRMED,
-    CANCELLED,
-    COMPLETED
-}

@@ -8,18 +8,18 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.nottingham.mynottingham.R
-import com.nottingham.mynottingham.data.local.database.entities.BookingEntity
+import com.nottingham.mynottingham.data.model.Booking
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId // Import ZoneId
 
 class SportsBookingAdapter(
-    private var bookings: List<BookingEntity>,
-    private val onCancelClick: (BookingEntity) -> Unit
+    private var bookings: List<Booking>,
+    private val onCancelClick: (Booking) -> Unit
 ) : RecyclerView.Adapter<SportsBookingAdapter.BookingViewHolder>() {
 
-    fun updateData(newBookings: List<BookingEntity>) {
+    fun updateData(newBookings: List<Booking>) {
         bookings = newBookings
         notifyDataSetChanged()
     }
@@ -42,7 +42,7 @@ class SportsBookingAdapter(
         private val tvStatus: TextView = itemView.findViewById(R.id.tv_status)
         private val btnCancel: Button = itemView.findViewById(R.id.btn_cancel)
 
-        fun bind(booking: BookingEntity) {
+        fun bind(booking: Booking) {
             tvFacilityName.text = booking.facilityName
 
             val timeString = String.format("%02d:00", booking.timeSlot)

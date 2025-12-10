@@ -7,8 +7,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     // Enables the Kotlin automatic Parcelable implementation generator.
     id("kotlin-parcelize")
-    // Kotlin Symbol Processing API, used for code generation in libraries like Room and Glide.
-    alias(libs.plugins.ksp)
     alias(libs.plugins.navigation.safeargs)
     // Google Services plugin for Firebase
     alias(libs.plugins.google.services)
@@ -102,14 +100,6 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
-    // DATABASE (ROOM) //
-    // Room is a persistence library providing an abstraction layer over SQLite.
-    implementation(libs.androidx.room.runtime)
-    // Kotlin extensions and coroutine support for Room.
-    implementation(libs.androidx.room.ktx)
-    // Room's annotation processor (code generator).
-    ksp(libs.androidx.room.compiler)
-
     // NETWORKING (RETROFIT & OKHTTP) //
     // A type-safe HTTP client for Android and Java.
     implementation(libs.retrofit)
@@ -133,7 +123,7 @@ dependencies {
     // A fast and efficient image loading library for Android.
     implementation(libs.glide)
     // Glide's annotation processor for performance optimization.
-    ksp(libs.glide.compiler)
+    annotationProcessor(libs.glide.compiler)
     // CircleImageView for circular image views.
     implementation(libs.circleimageview)
 
